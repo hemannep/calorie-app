@@ -162,7 +162,7 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                           ),
                         );
                         if (context.mounted && logged == true) {
-                          Navigator.pop(context);
+                          Navigator.pop(context, true);
                         }
                       },
                     ),

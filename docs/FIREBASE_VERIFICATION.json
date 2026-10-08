@@ -1,0 +1,29 @@
+{
+  "verifiedAt": "2026-10-08T06:11:41.419236+00:00",
+  "projectId": "kayleo-c9cca",
+  "flutterTestsPassed": 127,
+  "firebaseEmulatorTestsPassed": 3,
+  "analyzer": "No issues found",
+  "androidReleaseBuild": "passed",
+  "webReleaseBuild": "passed",
+  "productionFirestoreRules": "deployed",
+  "webRuntime": "Signed-in Firebase account and cloud backup up to date observed in browser",
+  "nativeGoogleDeviceCheck": "not performed; no phone connected",
+  "apk": "output/apk/kayleo-release.apk",
+  "apkSha256": "75c46c275bca8c3dc8c5c111501f304c38a8b78345d6097b4a8b2f673b1db210",
+  "apkBytes": 266846997,
+  "sourceSha256": {
+    "lib/main.dart": "8ed3c9c92b96f74b3cc54d9e769b6e892d9f1c586f6239ceb8704b84e733d4c6",
+    "lib/core/app_state.dart": "26f0d8e1b2a21b7b48472e2bfe71793190520d29ff62016a303973e238cb9a34",
+    "lib/core/auth_repository.dart": "6c756e376a75be5239a82569e9e3ee7026657b038d438edc76e885e055af5a0a",
+    "lib/core/firebase_auth_repository.dart": "4cf914cd9a61da338025446875dac14e42598d4c439dc0582d754eaab5892f92",
+    "lib/features/auth.dart": "2512fcad5b142c01e2c346a96fcf44a60be6dbeb0efc9e7e47a3b9b050f17010",
+    "lib/features/settings.dart": "dd59e0546e4e3bb09ee955a1923a783b1a191ffe34652c526cb23a5a859854d1",
+    "lib/services/cloud_sync_service.dart": "e1c23570d5247bfddf5f7cd8f673f3e213bfa573d70866011088474f43cf80a3",
+    "firestore.rules": "0ecffa9c0a249a66a86503b236f1b72bc8c6d77ad85dd497315535ac9046de51",
+    "pubspec.yaml": "cd7a133da9d6c6f3372b277aba1e3417d29bd438c17e782fd28182fedcab8a20",
+    "pubspec.lock": "50f8135af7aaf0f315dd8a959729973601b2455735cdd6476c85414c92998ba2",
+    "lib/firebase_options.dart": "2cee1913ebaa7cbe78cfacfd1f0e83894961a9db3db6206cbd3f54de07ea4977",
+    "android/app/google-services.json": "60d6343641406d3a1e63303adc55a808c94961da5db9b98e1207625782c9938c"
+  }
+}

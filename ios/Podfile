@@ -1,13 +1,21 @@
 # Uncomment this line to define a global platform for your project
-# platform :ios, '15.0'
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+# Flutter invokes CocoaPods after clean and before building/signing frameworks.
+# Restore the external build directory for plain `flutter run` as well as F5.
+prepare_script = File.expand_path('../tools/prepare_ios_build.sh', __dir__)
+raise 'Could not prepare the iOS build directory' unless system('/bin/bash', prepare_script)
 
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
   'Release' => :release,
+  'Debug-personal' => :debug,
+  'Profile-personal' => :release,
+  'Release-personal' => :release,
 }
 
 def flutter_root
@@ -39,5 +47,22 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+  end
+
+end
+
+post_integrate do |installer|
+  # xcodeproj's xcconfig serializer strips quotes around force_load arguments.
+  # Repair the written files so a project path containing spaces still links.
+  installer.aggregate_targets.each do |target|
+    target.xcconfigs.each_key do |configuration|
+      path = target.xcconfig_path(configuration)
+      contents = File.read(path)
+      fixed = contents.gsub(
+        /-force_load (\$\(PODS_ROOT\)\/LibTorch\/install\/lib\/[^\s"]+\.a)/,
+        '-force_load "\1"'
+      )
+      File.write(path, fixed) if fixed != contents
+    end
   end
 end

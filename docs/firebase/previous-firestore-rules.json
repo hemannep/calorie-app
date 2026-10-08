@@ -1,0 +1,17 @@
+{
+  "name": "projects/kayleo-c9cca/rulesets/3289da32-1bf6-4a19-9c7e-4f59acaa6fe0",
+  "source": {
+    "files": [
+      {
+        "content": "rules_version = '2';\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if false;\n    }\n  }\n}",
+        "name": "firestore.rules"
+      }
+    ]
+  },
+  "createTime": "2026-10-08T03:49:24.931341Z",
+  "metadata": {
+    "services": [
+      "cloud.firestore"
+    ]
+  }
+}

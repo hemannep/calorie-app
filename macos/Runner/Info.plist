@@ -38,5 +38,18 @@
 	<string>NSApplication</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Turn your spoken meal description into editable text.</string>
+	<key>GIDClientID</key>
+	<string>143444936182-opeo6c3lookhfmbh5r6gh53gvmml4kd0.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.143444936182-opeo6c3lookhfmbh5r6gh53gvmml4kd0</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

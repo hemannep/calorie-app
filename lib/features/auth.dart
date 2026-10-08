@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/app_state.dart';
 import '../core/auth_repository.dart';
+import '../core/firebase_auth_repository.dart';
 import '../core/ui.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -20,6 +22,12 @@ class _AuthScreenState extends State<AuthScreen> {
       confirm = TextEditingController();
   bool registering = false, busy = false, obscure = true;
   String? error;
+  AuthRepository get repository =>
+      widget.repository ?? FirebaseAuthRepository.instance;
+  AccountAuthRepository? get accountRepository =>
+      repository is AccountAuthRepository
+      ? repository as AccountAuthRepository
+      : null;
   @override
   void dispose() {
     name.dispose();
@@ -36,7 +44,7 @@ class _AuthScreenState extends State<AuthScreen> {
       error = null;
     });
     try {
-      final repo = widget.repository ?? DemoAuthRepository();
+      final repo = repository;
       final state = registering
           ? await repo.register(name.text, email.text, password.text)
           : await repo.signIn(email.text, password.text);
@@ -47,13 +55,53 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() => error = authErrorMessage(e));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> social(Future<AppState?> Function() signIn) async {
+    if (busy) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final next = await signIn();
+      if (next != null) {
+        if (mounted) {
+          widget.onAuthenticated(next);
+        } else {
+          next.dispose();
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = authErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> resetPassword() async {
+    if (!DemoAuthRepository.validEmail(email.text.trim())) {
+      setState(() => error = 'Enter your email address first.');
+      return;
+    }
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      await accountRepository!.resetPassword(email.text);
+      if (mounted) {
         setState(
-          () => error = e.toString().replaceFirst(
-            RegExp(r'^(Bad state|FormatException):\s*'),
-            '',
-          ),
+          () => error = 'If an account exists, a password reset email will arrive shortly. Check your spam folder too.',
         );
       }
+    } catch (e) {
+      if (mounted) setState(() => error = authErrorMessage(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -118,6 +166,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   if (registering) ...[
                     TextFormField(
                       controller: name,
+                      enabled: !busy,
                       maxLength: 60,
                       decoration: const InputDecoration(labelText: 'Your name'),
                       validator: (v) =>
@@ -127,6 +176,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ],
                   TextFormField(
                     controller: email,
+                    enabled: !busy,
                     maxLength: 254,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
@@ -141,6 +191,12 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: password,
+                    enabled: !busy,
+                    autofillHints: [
+                      registering
+                          ? AutofillHints.newPassword
+                          : AutofillHints.password,
+                    ],
                     maxLength: 128,
                     obscureText: obscure,
                     decoration: InputDecoration(
@@ -163,6 +219,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: confirm,
+                      enabled: !busy,
                       maxLength: 128,
                       obscureText: true,
                       decoration: const InputDecoration(
@@ -197,10 +254,51 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  if (accountRepository != null) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: busy
+                            ? null
+                            : () => social(accountRepository!.signInWithGoogle),
+                        icon: const Icon(Icons.account_circle_outlined),
+                        label: const Text('Continue with Google'),
+                      ),
+                    ),
+                    if (!registering)
+                      TextButton(
+                        onPressed: busy ? null : resetPassword,
+                        child: const Text('Forgot password?'),
+                      ),
+                  ],
+                  if (!kIsWeb &&
+                      const bool.fromEnvironment(
+                        'KAYLEO_APPLE_SIGN_IN_ENABLED',
+                        defaultValue: false,
+                      ) &&
+                      (defaultTargetPlatform == TargetPlatform.iOS ||
+                          defaultTargetPlatform == TargetPlatform.macOS) &&
+                      repository is AppleAuthRepository) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: busy
+                            ? null
+                            : () => social(
+                                (repository as AppleAuthRepository)
+                                    .signInWithApple,
+                              ),
+                        icon: const Icon(Icons.apple),
+                        label: const Text('Sign in with Apple'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   Panel(
                     child: Text(
-                      'Demo access: any valid email and a dummy password of 6–128 characters. Passwords are never stored or verified. Firebase will replace this demo provider.',
+                      'Your account is secured by Firebase. Your diary stays available offline, with account data backed up to Firestore. Meal photos stay on this device.',
                       style: TextStyle(
                         fontSize: 12,
                         color: context.kayleoMuted,

@@ -1,0 +1,55 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "kayleo-c9cca",
+          "appId": "1:143444936182:android:8f5b3307b1d8b08d0373d7",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "kayleo-c9cca",
+          "appId": "1:143444936182:ios:1b6fd785687e8d0f0373d7",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "kayleo-c9cca",
+          "appId": "1:143444936182:ios:74664f5190c177200373d7",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "kayleo-c9cca",
+          "configurations": {
+            "android": "1:143444936182:android:8f5b3307b1d8b08d0373d7",
+            "ios": "1:143444936182:ios:1b6fd785687e8d0f0373d7",
+            "macos": "1:143444936182:ios:74664f5190c177200373d7",
+            "web": "1:143444936182:web:ca7c253ff129bd400373d7"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  }
+}

@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/kayleoRecords/{recordId} {
+      function owner() { return request.auth != null && request.auth.uid == uid; }
+      allow read: if owner();
+      allow create, update: if owner()
+        && recordId.size() <= 512
+        && recordId.matches('^(profile|(meals|templates|drinks|weights|activityMinutes|milestoneUnlocks):.*)$')
+        && request.resource.data.keys().hasOnly(['payload', 'deleted', 'updatedAt', 'schemaVersion'])
+        && request.resource.data.keys().hasAll(['payload', 'deleted', 'updatedAt', 'schemaVersion'])
+        && request.resource.data.payload is string
+        && request.resource.data.payload.size() <= 450000
+        && request.resource.data.deleted is bool
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.updatedAt == request.time;
+      // Deletions use tombstones so other devices can remove their cached copies.
+      allow delete: if false;
+    }
+  }
+}

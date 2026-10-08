@@ -5,14 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
+import '../services/notification_service.dart';
 import '../core/auth_repository.dart';
+import '../core/firebase_auth_repository.dart';
+import '../services/cloud_sync_service.dart';
 import '../core/ui.dart';
 import '../data/models.dart';
 
 Color _settingsMuted(BuildContext context) =>
     Theme.of(context).colorScheme.onSurfaceVariant;
-Color _settingsSoft(BuildContext context) =>
-    Theme.of(context).extension<KayleoSurfaces>()!.soft;
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({
@@ -38,19 +39,17 @@ class SettingsScreen extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              const Tag('DEMO ACCOUNT'),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 20,
-                runSpacing: 12,
-                children: [
-                  Text(
-                    '${state.meals.map((m) => dateKey(m.time)).toSet().length} logged days',
-                  ),
-                  Text('${state.streak} day streak'),
-                  Text('${state.templates.length} saved meals'),
-                ],
+              Tag(
+                state.accountUid != null ? 'FIREBASE ACCOUNT' : 'DEMO ACCOUNT',
               ),
+              if (state.accountUid != null) ...[
+                const SizedBox(height: 8),
+                Text(state.cloudStatus),
+                TextButton(
+                  onPressed: CloudSyncService.instance.refresh,
+                  child: const Text('Retry cloud backup'),
+                ),
+              ],
               const SizedBox(height: 12),
               TextButton.icon(
                 onPressed: () async {
@@ -60,7 +59,12 @@ class SettingsScreen extends StatelessWidget {
                     return;
                   }
                   try {
-                    await DemoAuthRepository().signOut();
+                    if (state.accountUid != null) {
+                      await CloudSyncService.instance.prepareSignOut();
+                      await FirebaseAuthRepository.instance.signOut();
+                    } else {
+                      await DemoAuthRepository().signOut();
+                    }
                     state.markSignedOut();
                   } catch (_) {
                     if (context.mounted) {
@@ -170,47 +174,114 @@ class SettingsScreen extends StatelessWidget {
       children: [
         Text('You', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: KayleoSpacing.xl),
-        Row(
-          children: [
-            ExcludeSemantics(
-              child: CircleAvatar(
-                radius: 30,
-                backgroundColor: _settingsSoft(context),
-                child: Text(
-                  p.name.isEmpty ? 'K' : p.name.characters.first.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w800,
-                    color: scheme.primary,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: KayleoSpacing.lg),
-            Expanded(
-              child: Column(
+        Panel(
+          color: context.kayleoSurfaces.soft,
+          border: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    p.name.isEmpty ? 'Your profile' : p.name,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
+                  ExcludeSemantics(
+                    child: CircleAvatar(
+                      radius: 28,
+                      backgroundColor: scheme.surface,
+                      child: Text(
+                        p.name.isEmpty
+                            ? 'K'
+                            : p.name.characters.first.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.w800,
+                          color: scheme.primary,
+                        ),
+                      ),
                     ),
-                    onPressed: () =>
-                        openSheet(context, EditProfileSheet(state: state)),
-                    child: Text('Edit profile'),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.name.isEmpty ? 'Your profile' : p.name,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          p.goal,
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    openSheet(context, EditProfileSheet(state: state)),
+                icon: const Icon(Icons.edit_outlined, size: 17),
+                label: const Text('Edit profile'),
+              ),
+              const SizedBox(height: 14),
+              Divider(color: scheme.outlineVariant, height: 1),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 20,
+                runSpacing: 16,
+                children: [
+                  _profileStat(
+                    context,
+                    '${state.meals.map((m) => dateKey(m.time)).toSet().length}',
+                    'Logged days',
+                  ),
+                  _profileStat(context, '${state.streak}', 'Day streak'),
+                  _profileStat(
+                    context,
+                    '${state.templates.length}',
+                    'Meal shortcuts',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionTitle('Your daily goals'),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  Tag('${p.calorieTarget} kcal'),
+                  Tag('${p.proteinTarget} g protein'),
+                  Tag('${number(p.waterTarget / 1000)} L water'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => openSheet(context, TargetsSheet(state: state)),
+                child: const Text('Adjust goals'),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: KayleoSpacing.xl),
         for (var i = 0; i < sections.length; i++) ...[
+          if (i == (state.accountEmail != null ? 1 : 0))
+            const SectionTitle('Your preferences'),
+          if (i == (state.accountEmail != null ? 2 : 1))
+            const SectionTitle('About & membership'),
+          if (i == (state.accountEmail != null ? 3 : 2))
+            const SectionTitle('Your tools & data'),
           sections[i],
           if (i != sections.length - 1)
             const SizedBox(height: KayleoSpacing.lg),
@@ -218,7 +289,7 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: KayleoSpacing.xl),
         Center(
           child: Text(
-            'kayleo.  ·  Local prototype',
+            'kayleo.  ·  Your day, in balance.',
             style: TextStyle(fontSize: 12, color: _settingsMuted(context)),
           ),
         ),
@@ -226,6 +297,29 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Widget _profileStat(BuildContext context, String value, String label) =>
+      ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 75),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+            ),
+          ],
+        ),
+      );
   Widget _group(BuildContext context, List<Widget> rows) => Panel(
     padding: 0,
     border: false,
@@ -432,8 +526,12 @@ class DataToolsSheet extends StatelessWidget {
           onPressed: () async {
             if (await confirm(
               context,
-              'Delete all local data?',
-              'Your profile, meals, photos, hydration, weight, and preferences will be deleted. Export a backup first if you want to keep them.',
+              state.accountUid != null
+                  ? 'Delete account tracking data?'
+                  : 'Delete all local data?',
+              state.accountUid != null
+                  ? 'Your tracking data will be deleted from this device and your cloud diary. Your Firebase account stays active. Export a backup first.'
+                  : 'Your profile, meals, photos, hydration, weight, and preferences will be deleted. Export a backup first if you want to keep them.',
             )) {
               if (context.mounted) Navigator.pop(context);
               await state.reset();
@@ -841,50 +939,175 @@ class _TargetsSheetState extends State<TargetsSheet> {
   );
 }
 
-class ReminderSheet extends StatelessWidget {
-  const ReminderSheet({super.key, required this.state});
+class ReminderSheet extends StatefulWidget {
+  const ReminderSheet({super.key, required this.state, this.notifications});
   final AppState state;
+  final NotificationService? notifications;
+  @override
+  State<ReminderSheet> createState() => _ReminderSheetState();
+}
+
+class _ReminderSheetState extends State<ReminderSheet> {
+  bool busy = false;
+  NotificationService get service =>
+      widget.notifications ?? NotificationService.instance;
+  @override
+  void initState() {
+    super.initState();
+    service.refresh();
+  }
+
+  Future<void> enable({bool test = false}) async {
+    setState(() => busy = true);
+    final ok = test
+        ? await service.sendTest(widget.state)
+        : await service.enable(widget.state);
+    if (!mounted) return;
+    setState(() => busy = false);
+    toast(
+      context,
+      ok
+          ? (test
+                ? 'Test notification sent. Check your device notifications.'
+                : 'Device notifications enabled.')
+          : service.error ?? 'Device notifications are unavailable here.',
+    );
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: state,
+    listenable: Listenable.merge([widget.state, service]),
     builder: (context, _) => SheetFrame(
       title: 'Reminders',
-      subtitle: 'You decide what’s useful.',
+      subtitle: 'A little encouragement, on your terms.',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Panel(
+            color: context.kayleoSurfaces.soft,
+            border: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.notifications_active_outlined,
+                      color: context.kayleoPrimary,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'On your device',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  !service.supported
+                      ? 'Device reminders are available in the Android and iPhone app. Your inbox stays available here.'
+                      : widget.state.preferences['Device notifications'] ==
+                                true &&
+                            service.allowed
+                      ? 'Enabled — reminders can arrive while Kayleo is closed.'
+                      : 'Enable notifications to receive reminders and celebrations outside Kayleo.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.6,
+                    color: context.kayleoMuted,
+                  ),
+                ),
+                if (service.error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    service.error!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+                if (service.supported) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: busy ? null : () => enable(),
+                        icon: const Icon(
+                          Icons.notifications_outlined,
+                          size: 18,
+                        ),
+                        label: Text(
+                          busy ? 'Please wait…' : 'Enable device notifications',
+                        ),
+                      ),
+                      OutlinedButton(
+                        onPressed: busy ? null : () => enable(test: true),
+                        child: const Text('Send test notification'),
+                      ),
+                    ],
+                  ),
+                  if (widget.state.preferences['Device notifications'] == true)
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Device notifications',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      value: true,
+                      onChanged: busy
+                          ? null
+                          : (v) {
+                              widget.state.preferences['Device notifications'] =
+                                  v;
+                              widget.state.persist();
+                            },
+                    ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           for (final (key, sub) in [
-            ('Meal reminders', 'Gentle prompts to check in with your diary'),
-            ('Hydration reminders', 'Prompts to reach for your water'),
-            ('Weekly review', 'Make time to reflect on your week'),
-            ('Quiet hours', 'Keep things quiet from 9 PM to 8 AM'),
+            ('Meal reminders', 'Around 12:30 PM and 7:30 PM daily'),
+            ('Hydration reminders', 'Around 10 AM, 2 PM and 6 PM daily'),
+            ('Weekly review', 'Sundays around 6 PM'),
+            (
+              'Milestone celebrations',
+              'A compliment when you earn a new milestone',
+            ),
+            ('Quiet hours', '9 PM–8 AM; celebrations wait until morning'),
           ])
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
-              value: state.preferences[key]!,
+              value: widget.state.preferences[key] ?? false,
               onChanged: (v) {
-                state.preferences[key] = v;
-                state.persist();
+                widget.state.preferences[key] = v;
+                widget.state.persist();
               },
               title: Text(
                 key,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               subtitle: Text(
                 sub,
                 style: TextStyle(fontSize: 12, color: context.kayleoMuted),
               ),
             ),
-          const SizedBox(height: KayleoSpacing.page),
-          Panel(
-            color: context.kayleoSurfaces.soft,
-            border: false,
-            child: Text(
-              'Your preferences are saved here, and reminders appear in the in-app inbox. Background push and scheduled notifications are planned integrations.',
-              style: TextStyle(
-                fontSize: 12,
-                color: context.kayleoText,
-                height: 1.7,
-              ),
+          const SizedBox(height: 16),
+          Text(
+            'Times follow your device’s timezone. Reminders work offline after scheduling. Your phone’s notification permission and battery settings can affect delivery. Milestone compliments also stay in your inbox.',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.7,
+              color: context.kayleoMuted,
             ),
           ),
         ],
@@ -901,7 +1124,7 @@ class PrivacySheet extends StatelessWidget {
     listenable: state,
     builder: (context, _) => SheetFrame(
       title: 'Your data belongs to you',
-      subtitle: 'Saved locally. Shared only by your choice.',
+      subtitle: 'Available offline. Backed up to your account.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -914,7 +1137,7 @@ class PrivacySheet extends StatelessWidget {
                 SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    'There is no account or cloud sync in this prototype. Your profile, photos, and diary are stored on this device. Browser storage can be cleared by your browser.',
+                    'Firebase secures your account. Your profile, meals, hydration, weight, activity, saved meals, and milestones are backed up to your own Firestore diary. Meal photos and device notification settings stay on this device. Sample diaries stay local. Browser storage can be cleared by your browser.',
                     style: TextStyle(
                       fontSize: 12,
                       color: context.kayleoText,
@@ -994,8 +1217,12 @@ class PrivacySheet extends StatelessWidget {
             onPressed: () async {
               if (await confirm(
                 context,
-                'Delete all local data?',
-                'Your profile, meals, photos, hydration, weight, and preferences will be deleted. Export a backup first if you want to keep them.',
+                state.accountUid != null
+                    ? 'Delete account tracking data?'
+                    : 'Delete all local data?',
+                state.accountUid != null
+                    ? 'Your tracking data will be deleted from this device and your cloud diary. Your Firebase account stays active. Export a backup first.'
+                    : 'Your profile, meals, photos, hydration, weight, and preferences will be deleted. Export a backup first if you want to keep them.',
               )) {
                 if (context.mounted) {
                   Navigator.pop(context);
@@ -1221,12 +1448,12 @@ class AboutSheet extends StatelessWidget {
         ),
         SizedBox(height: 18),
         Text(
-          'Kayleo is a local nutrition prototype. Set up your profile, review meal estimates, keep a diary, and track water, weight, and movement. Your records and preferences stay on this device; you can export a backup.',
+          'Kayleo is a local nutrition prototype. Set up your profile, review meal estimates, keep a diary, and track water, weight, and movement. Your diary stays available on this device and is backed up to your Firebase account; you can also export a backup.',
           style: TextStyle(fontSize: 12, height: 1.9),
         ),
         SizedBox(height: 18),
         Text(
-          'Estimates use a local food catalog and prototype parsing. Photo recognition, live barcode lookup, cloud AI, push notifications, subscriptions, sync, wearables, and live community are previews. Sample records are clearly labeled.',
+          'Meal descriptions use the local catalog and searches of Open Food Facts and USDA FoodData Central. Barcode lookup and device reminders are available on supported phones. Review estimates before saving. Subscriptions, wearables and live community remain previews. Sample records are clearly labeled.',
           style: TextStyle(
             fontSize: 12,
             color: context.kayleoMuted,

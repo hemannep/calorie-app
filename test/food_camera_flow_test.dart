@@ -1,3 +1,5 @@
+import 'package:calorie_app/core/auth_repository.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -188,7 +190,7 @@ void main() {
   testWidgets('Splash remains visible for the default 1.5 seconds', (
     tester,
   ) async {
-    await tester.pumpWidget(const KayleoApp());
+    await tester.pumpWidget(KayleoApp(repository: DemoAuthRepository()));
     expect(find.byType(SplashScreen), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1499));
     expect(find.byType(SplashScreen), findsOneWidget);

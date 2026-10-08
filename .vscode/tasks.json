@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Prepare iPhone build",
+      "type": "process",
+      "command": "/bin/bash",
+      "args": ["${workspaceFolder}/tools/prepare_ios_build.sh"],
+      "options": {"cwd": "${workspaceFolder}"},
+      "problemMatcher": [],
+      "presentation": {"reveal": "silent", "panel": "dedicated"}
+    }
+  ]
+}

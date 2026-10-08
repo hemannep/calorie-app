@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>143444936182-opeo6c3lookhfmbh5r6gh53gvmml4kd0.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.143444936182-opeo6c3lookhfmbh5r6gh53gvmml4kd0</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>143444936182-sifljgk4g1l3j56opjgm34btcqqbk5g3.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyD7hDAxRb5Sqol5PoDzTsAgrS6oFjokeKI</string>
+	<key>GCM_SENDER_ID</key>
+	<string>143444936182</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.calorieApp</string>
+	<key>PROJECT_ID</key>
+	<string>kayleo-c9cca</string>
+	<key>STORAGE_BUCKET</key>
+	<string>kayleo-c9cca.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:143444936182:ios:74664f5190c177200373d7</string>
+</dict>
+</plist>

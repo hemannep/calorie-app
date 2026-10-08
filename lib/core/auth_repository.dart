@@ -16,6 +16,15 @@ abstract interface class AuthRepository {
   Future<void> signOut();
 }
 
+abstract interface class AccountAuthRepository implements AuthRepository {
+  Future<AppState?> signInWithGoogle();
+  Future<void> resetPassword(String email);
+}
+
+abstract interface class AppleAuthRepository {
+  Future<AppState?> signInWithApple();
+}
+
 /// Intentionally permissive demo auth. Passwords are never stored or compared.
 class DemoAuthRepository implements AuthRepository {
   static const sessionKey = 'kayleo_demo_session_v1';

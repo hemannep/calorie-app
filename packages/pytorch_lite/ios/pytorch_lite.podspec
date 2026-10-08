@@ -32,6 +32,10 @@ A new Flutter plugin project.
 
   }
   s.static_framework = true
+  # LibTorch 1.13's strong_type header specializes std::is_arithmetic. New
+  # Apple Clang diagnoses that legacy header as an error; scope compatibility
+  # to this plugin rather than weakening diagnostics for the entire app.
+  s.compiler_flags = '-Wno-invalid-specialization'
   s.dependency 'LibTorch', '~> 1.13.0.1'
   # s.dependency 'LibTorch-Lite', '~> 1.13.0.1'
   # s.dependency 'LibTorchvision', '~> 0.14.0'

@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-08",
+  "tests": {
+    "passed": 119,
+    "failed": 0,
+    "additional_font_loaded_preview_tests_passed": 7
+  },
+  "analyzer": "No issues found",
+  "web_build": "passed: final source",
+  "android_release_apk": {
+    "status": "passed",
+    "path": "output/apk/kayleo-release.apk",
+    "bytes": 265255393,
+    "sha256": "c19558efef934349b358fe0893bd6df5f551a589ca7bfe2b47ebe92264318ef7",
+    "flutter_abis": [
+      "arm64-v8a"
+    ],
+    "integration_test_plugin_in_release": false,
+    "note": "Some third-party AAR libraries also package extra native ABIs; Flutter runtime targets arm64."
+  },
+  "native_notifications_earlier_session": {
+    "device": "SM S948B",
+    "android": "16",
+    "timezone": "Asia/Kathmandu",
+    "app_lifecycle": "paused",
+    "active_notification_ids": [
+      9001,
+      9002
+    ],
+    "passed": true
+  },
+  "final_device_install": "not performed: Samsung disconnected in final session",
+  "ios_device_test": "not performed",
+  "source_sha256": {
+    "pubspec.yaml": "efd0a505e840bf60e6999807ddd37ba13be8d2bb580e92b54746a1d60c445f16",
+    "pubspec.lock": "77d9da54cdc8c37361296d9b31f44357cb154686567f2ce97086a4f0074e4180",
+    "android/app/build.gradle.kts": "f9b946a52d0a99b3358604a4d9c49e1ca8abeb135a040e915ebf8912e9c687a9",
+    "android/app/src/main/AndroidManifest.xml": "fb5593c4c8c5ae9246b5f576c1e3b375b52b97fe58b9887994b012191da23c2f",
+    "android/app/src/main/res/drawable/ic_notification.xml": "0f0813b47f23c830043017612045cd651b21f99620d7c15f43ae83d79a27854a",
+    "ios/Runner/AppDelegate.swift": "2c7e270b0108521f16e9adae8f641429d66391f0a714b3f40bd32ee00975f7b6",
+    "lib/core/app_state.dart": "edcb6cb13a3e943fdd99dcb10d191f21d29bbaaed26511b1476c728186356ef2",
+    "lib/core/milestones.dart": "64719996e34cb59f4d27d23ffd5aae8e7583a4700b2ddfdf7bcdada2b8a0e69c",
+    "lib/services/notification_service.dart": "8498e27a299c7bbe3a41e53dadf06925119ee47cbacea079bbc1b2904a0a61c4",
+    "lib/main.dart": "d61a4f5393e2f8d327f2cf45f52e82932d316a4ad8061222f72c7ec3bb7064bc",
+    "lib/features/dashboard.dart": "8561b051bfffe5a2f42b38e349f9bab34dae74eb44e89eb85ac6fb851eba5a6e",
+    "lib/features/logging.dart": "0ceaa7c0c2e61b0bcc5d86dccced338b694bc0fd1dce3e31bd891a024acbcfa7",
+    "lib/features/progress.dart": "7f2c20704dbee990a03a3056c840eb0a77b685c8e673cff3e1c8fa167f3d021c",
+    "lib/features/settings.dart": "3a1100ae5b699f5bb3bef8c0707f0a64738e8b1b8ee309ccd63f7968c0516fcf",
+    "lib/features/shell.dart": "291f5a0fa5c9f189064523f62de18bd5666900ed1f1fd3243b6f7ce0a0f21ac3",
+    "lib/screens/food_lookup_screen.dart": "f3af9fc38f082eb42e61e640fb974260d9768c31b793c0afbf9583d385badc90",
+    "test/notifications_milestones_test.dart": "a01a0422996ef76ca12bb21301434d800dd6c5edabc248d5216bb316f09481d3",
+    "test/logging_ui_polish_test.dart": "85d6062c3c4f96402f8d1bb557ef41e3624ea33795659d585ff0ce397eba5175",
+    "integration_test/device_notifications_test.dart": "90e67b66c9cdfc69584cc1be0cf7888db4bf79246e4ad2f8bbac85dbfd5e9914"
+  },
+  "release_build_fix": "Remove generated integration_test registration immediately before release Java compile; retain debug registration"
+}

@@ -43,7 +43,7 @@ Future<void> showLogger(
     return;
   }
   if (meal == null && (mode == 'Barcode' || mode == 'Search')) {
-    await Navigator.of(context).push<void>(
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) =>
             FoodLookupScreen(state: state, barcode: mode == 'Barcode'),
@@ -166,7 +166,7 @@ class CaptureScreen extends StatelessWidget {
               _CaptureAction(
                 icon: Icons.qr_code_scanner_rounded,
                 title: 'Scan a label',
-                subtitle: 'Try the packaged-food barcode workflow.',
+                subtitle: 'Scan a product or enter its barcode.',
                 onTap: () => showLogger(context, state, mode: 'Barcode'),
               ),
               const SizedBox(height: KayleoSpacing.lg),
@@ -304,7 +304,6 @@ class _LoggingFlowState extends State<LoggingFlow> {
   String sample = 'Chicken bowl';
   String? error;
   final description = TextEditingController();
-  final barcode = TextEditingController();
   final title = TextEditingController();
   final notes = TextEditingController();
   final speech = SpeechToText();
@@ -348,7 +347,6 @@ class _LoggingFlowState extends State<LoggingFlow> {
       foodService.dispose();
     }
     description.dispose();
-    barcode.dispose();
     title.dispose();
     notes.dispose();
     super.dispose();
@@ -1067,7 +1065,10 @@ class _LoggingFlowState extends State<LoggingFlow> {
                     color: mode == m ? forest : _scheme.onSurface,
                   ),
                   side: BorderSide(color: _surfaces.border),
-                  onSelected: (_) => changeMode(m),
+                  onSelected: (_) {
+                    changeMode(m);
+                    if (m == 'Barcode') analyze();
+                  },
                 ),
               ),
           ],
@@ -1253,33 +1254,11 @@ class _LoggingFlowState extends State<LoggingFlow> {
         ),
       ],
       if (mode == 'Barcode') ...[
-        Panel(
-          color: forest,
-          border: false,
-          child: SizedBox(
-            height: 130,
-            width: double.infinity,
-            child: Icon(Icons.qr_code_scanner_rounded, size: 74, color: lime),
-          ),
-        ),
-        const SizedBox(height: KayleoSpacing.page),
-        const Tag('BARCODE WORKFLOW DEMO'),
-        const SizedBox(height: KayleoSpacing.lg),
-        TextField(
-          controller: barcode,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Enter a barcode',
-            hintText: '3017620422003',
-          ),
-        ),
-        TextButton(
-          onPressed: () => setState(() => barcode.text = '3017620422003'),
-          child: Text('Use sample Greek yogurt barcode'),
-        ),
-        Text(
-          'A sample lookup shows the workflow. Live barcode scanning and product lookup require an integration.',
-          style: TextStyle(fontSize: 11, color: _secondary),
+        _CaptureAction(
+          icon: Icons.qr_code_scanner_rounded,
+          title: 'Scan a packaged food',
+          subtitle: 'Use the camera or enter a barcode to review real product nutrition.',
+          onTap: analyze,
         ),
       ],
       if (mode == 'Manual') ...[

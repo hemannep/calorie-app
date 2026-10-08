@@ -16,6 +16,58 @@ flutter run -d macos
 flutter run                     # select an attached Android/iOS device
 ```
 
+For this connected iPhone, the normal commands now work with your free Apple
+Personal Team, including after cleaning:
+
+```sh
+flutter clean
+flutter pub get
+flutter run
+```
+
+With a free Apple Personal Team, install a standalone local build using:
+
+```sh
+./tools/run_ios.sh --personal-team -d 00008150-001C79D026D8C01C --release
+```
+
+In VS Code, press **F5 / Run → Start Debugging** using
+**Kayleo — iPhone (opens from Home Screen)**.
+The workspace launch configuration selects this iPhone, uses the default Runner
+scheme without the unsupported Apple sign-in entitlement, and installs a release
+build. That build can be reopened from the iPhone Home Screen without Flutter or
+VS Code attached. Release mode does not provide breakpoints or hot reload. Its
+preparation task restores the local build
+symlink automatically, including after `flutter clean`. Keep the phone connected
+and unlocked. For a different phone, update `deviceId` in `.vscode/launch.json`.
+On Apple Silicon, Flutter's bundled x86_64 `iproxy` requires Rosetta for the
+physical-device debugger connection. Rosetta is installed on this Mac. On a
+new Mac, install it using `softwareupdate --install-rosetta --agree-to-license`
+if Flutter reports an incorrect architecture for `iproxy`.
+
+Launch options follow the [Dart Code launch configuration](https://dartcode.org/docs/launch-configuration/).
+
+All iOS build configurations now omit the Sign in with Apple entitlement and
+hide its button by default, while keeping Google/email authentication available.
+Apple sign-in requires a paid team: restore `Runner/Runner.entitlements` in the
+desired Xcode configuration and explicitly pass
+`--dart-define=KAYLEO_APPLE_SIGN_IN_ENABLED=true`. Sign in to Xcode's Apple Accounts
+settings and select your team in Runner → Signing & Capabilities first.
+
+This keeps generated `build` output in a local temporary `Kayleo` directory through a
+project-local symlink. It prevents Finder metadata from breaking framework code
+signing. Existing output is copied intact into the local temporary directory,
+including packages Flutter has already resolved, and the original is preserved
+under `.codex-backups`. CocoaPods and the
+Xcode schemes restore the symlink during normal builds after `flutter clean`.
+The helper is optional. Replace the device ID
+with one from `flutter devices` for another iPhone. Add `--release` to install a
+build that can launch without a Flutter debugger attached.
+
+Running plain `flutter run` installs a debug build over the release build. iOS
+cannot reopen that debug build from the Home Screen, so use `flutter run --release`
+for a standalone installation or press F5 with the workspace profile above.
+
 To serve the release web build:
 
 ```sh

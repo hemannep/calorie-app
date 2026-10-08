@@ -1,5 +1,8 @@
 plugins {
     id("com.android.application")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -10,6 +13,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -46,4 +50,28 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+
+// Flutter 3.47 can regenerate the main registrant with dev plugins during the
+// Gradle build, while its release classpath correctly excludes those plugins.
+// Filter the generated integration-test block immediately before release Java
+// compilation. Debug/integration builds keep their normal test registration.
+tasks.withType<JavaCompile>().configureEach {
+    if (name.contains("Release")) {
+        doFirst {
+            val registrant = file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
+            if (registrant.exists()) {
+                val testBlock = Regex(
+                    """(?s)    try \{\s*flutterEngine\.getPlugins\(\)\.add\(new dev\.flutter\.plugins\.integration_test\.IntegrationTestPlugin\(\)\);\s*\} catch \(Exception e\) \{\s*Log\.e\(TAG, "Error registering plugin integration_test,[^"\n]*", e\);\s*\}\n"""
+                )
+                val original = registrant.readText()
+                val filtered = original.replace(testBlock, "")
+                if (filtered != original) registrant.writeText(filtered)
+            }
+        }
+    }
 }

@@ -2,7 +2,7 @@
 #import "pigeon.h"
 #import "PrePostProcessor.h"
 //#import "TorchModule.h"
-#import "helpers/UIImageExtension.h"
+#import "Helpers/UIImageExtension.h"
 #import <LibTorch/LibTorch.h>
 // #import <Libtorch-Lite/Libtorch-Lite.h>
 
@@ -213,14 +213,6 @@ if (numberOfClasses != nil && imageWidth != nil && imageHeight != nil) {
 
 
 
-
-
-- (void)dealloc {
-    for (torch::jit::Module* module : _modulesVector) {
-        delete module;
-    }
-    _modulesVector.clear();
-}
 
 
 @end

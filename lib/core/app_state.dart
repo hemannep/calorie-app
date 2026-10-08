@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/models.dart';
+import 'milestones.dart';
 import '../data/food_database.dart';
 
 class AppState extends ChangeNotifier {
@@ -13,6 +14,14 @@ class AppState extends ChangeNotifier {
   AppState(this.storage, {this.recordKey = storageKey});
   final String recordKey;
   String? accountEmail;
+  String? accountUid;
+  String cloudStatus = 'Saved on this device';
+  void setCloudStatus(String value) {
+    if (cloudStatus == value) return;
+    cloudStatus = value;
+    notifyListeners();
+  }
+
   bool signedOut = false;
   bool _disposed = false;
   String get backupKey =>
@@ -47,9 +56,86 @@ class AppState extends ChangeNotifier {
     'Hydration reminders': false,
     'Weekly review': true,
     'Quiet hours': true,
+    'Milestone celebrations': true,
+    'Device notifications': false,
     'Keep meal photos': true,
     'Improve recognition': false,
   };
+  Map<String, String> milestoneUnlocks = {};
+  List<String> milestoneNotices = [];
+  Set<String> notifiedMilestones = {};
+  Future<void> get writesComplete => _pendingWrite;
+  Map<String, int> get milestoneCounts {
+    final personal = meals
+        .where((m) => !m.id.startsWith('demo-') && m.input != 'Sample data')
+        .toList();
+    final days = personal.map((m) => dateKey(m.time)).toSet().toList()..sort();
+    var longest = 0, current = 0;
+    DateTime? previous;
+    for (final day in days) {
+      final d = DateTime.parse(day);
+      current =
+          previous != null &&
+              DateTime.utc(d.year, d.month, d.day)
+                      .difference(
+                        DateTime.utc(
+                          previous.year,
+                          previous.month,
+                          previous.day,
+                        ),
+                      )
+                      .inDays ==
+                  1
+          ? current + 1
+          : 1;
+      if (current > longest) longest = current;
+      previous = d;
+    }
+    final hydration = <String, int>{};
+    for (final drink in drinks.where((d) => !d.id.startsWith('demo-water-'))) {
+      final key = dateKey(drink.time);
+      hydration[key] = (hydration[key] ?? 0) + drink.ml;
+    }
+    if (drinks.isEmpty && !demo) hydration.addAll(water);
+    return {
+      'meals': personal.length,
+      'days': days.length,
+      'streak': longest,
+      'water': hydration.values.where((v) => v >= profile.waterTarget).length,
+      'protein': days
+          .where(
+            (d) =>
+                personal
+                    .where((m) => dateKey(m.time) == d)
+                    .fold<double>(
+                      0,
+                      (sum, m) => sum + mealNutrition(m).protein,
+                    ) >=
+                profile.proteinTarget,
+          )
+          .length,
+      'saved': templates
+          .where(
+            (m) =>
+                m.input != 'Sample data' &&
+                m.id != 'template-breakfast' &&
+                m.id != 'template-curry',
+          )
+          .length,
+    };
+  }
+
+  void _checkMilestones({bool announce = true}) {
+    final counts = milestoneCounts;
+    for (final m in milestones) {
+      if (!milestoneUnlocks.containsKey(m.id) &&
+          (counts[m.metric] ?? 0) >= m.target) {
+        milestoneUnlocks[m.id] = DateTime.now().toIso8601String();
+        if (announce) milestoneNotices.add(m.id);
+      }
+    }
+  }
+
   Future<void> _pendingWrite = Future.value();
 
   static Future<AppState> load({String recordKey = storageKey}) async {
@@ -59,86 +145,7 @@ class AppState extends ChangeNotifier {
     if (raw != null) {
       try {
         final j = jsonDecode(raw) as Map<String, dynamic>;
-        state.profile = BodyProfile.fromJson(j['profile']);
-        state.accountEmail = j['accountEmail'];
-        state.onboarded = j['onboarded'] ?? false;
-        state.demo = j['demo'] ?? false;
-        state.premium = j['premium'] ?? false;
-        state.community = j['community'] ?? false;
-        final savedAppearance = j['appearance'];
-        if (['light', 'dark', 'system'].contains(savedAppearance)) {
-          state.appearance = savedAppearance as String;
-        }
-        state.meals = (j['meals'] as List)
-            .map((m) => Meal.fromJson(Map<String, dynamic>.from(m)))
-            .toList();
-        state.templates = (j['templates'] as List)
-            .map((m) => Meal.fromJson(Map<String, dynamic>.from(m)))
-            .toList();
-        state.weights = (j['weights'] as List)
-            .map((w) => WeightEntry.fromJson(Map<String, dynamic>.from(w)))
-            .toList();
-        state.water = Map<String, int>.from(j['water'] ?? {});
-        if (j['drinks'] is List) {
-          state.drinks = (j['drinks'] as List)
-              .map((e) => DrinkEntry.fromJson(Map<String, dynamic>.from(e)))
-              .toList();
-          if (state.drinks.map((e) => e.id).toSet().length !=
-              state.drinks.length) {
-            throw const FormatException('Duplicate hydration IDs');
-          }
-          state._syncWater();
-        } else {
-          for (final e in state.water.entries) {
-            if (e.value < 0 || e.value > 10000) {
-              throw const FormatException('Invalid hydration total');
-            }
-            if (e.value > 0) {
-              state.drinks.add(
-                DrinkEntry(
-                  id: 'legacy-${e.key}',
-                  time: DateTime.parse('${e.key}T12:00:00'),
-                  ml: e.value,
-                ),
-              );
-            }
-          }
-        }
-        final p = state.profile;
-        if (!p.height.isFinite ||
-            p.height < 80 ||
-            p.height > 250 ||
-            !p.weight.isFinite ||
-            p.weight < 20 ||
-            p.weight > 400 ||
-            p.age < 13 ||
-            p.age > 120 ||
-            p.calorieTarget < 1 ||
-            p.waterTarget < 1 ||
-            p.proteinTarget < 1 ||
-            p.carbTarget < 1 ||
-            p.fatTarget < 1) {
-          throw const FormatException('Invalid profile');
-        }
-        for (final meal in [...state.meals, ...state.templates]) {
-          state._validateMeal(meal);
-        }
-
-        state.activityMinutes = Map<String, int>.from(
-          j['activityMinutes'] ?? {},
-        );
-        state.joined = Set<String>.from(j['joined'] ?? []);
-        state.liked = Set<String>.from(j['liked'] ?? []);
-        state.hiddenPosts = Set<String>.from(j['hiddenPosts'] ?? []);
-        state.communityPosts = (j['communityPosts'] as List? ?? [])
-            .map((p) => Map<String, dynamic>.from(p))
-            .toList();
-        state.comments = (j['comments'] as Map? ?? {}).map(
-          (k, v) => MapEntry(k.toString(), List<String>.from(v)),
-        );
-        state.preferences.addAll(
-          Map<String, bool>.from(j['preferences'] ?? {}),
-        );
+        state._readJson(j);
       } catch (_) {
         await storage.setString(state.backupKey, raw);
         state.dispose();
@@ -147,7 +154,103 @@ class AppState extends ChangeNotifier {
         return clean;
       }
     }
+    state._checkMilestones(announce: false);
     return state;
+  }
+
+  void _readJson(Map<String, dynamic> j) {
+    profile = BodyProfile.fromJson(j['profile']);
+    accountEmail = j['accountEmail'];
+    onboarded = j['onboarded'] ?? false;
+    demo = j['demo'] ?? false;
+    premium = j['premium'] ?? false;
+    community = j['community'] ?? false;
+    final savedAppearance = j['appearance'];
+    if (['light', 'dark', 'system'].contains(savedAppearance)) {
+      appearance = savedAppearance as String;
+    }
+    meals = (j['meals'] as List)
+        .map((m) => Meal.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+    templates = (j['templates'] as List)
+        .map((m) => Meal.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+    weights = (j['weights'] as List)
+        .map((w) => WeightEntry.fromJson(Map<String, dynamic>.from(w)))
+        .toList();
+    water = Map<String, int>.from(j['water'] ?? {});
+    if (j['drinks'] is List) {
+      drinks = (j['drinks'] as List)
+          .map((e) => DrinkEntry.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      if (drinks.map((e) => e.id).toSet().length != drinks.length) {
+        throw const FormatException('Duplicate hydration IDs');
+      }
+      _syncWater();
+    } else {
+      for (final e in water.entries) {
+        if (e.value < 0 || e.value > 10000) {
+          throw const FormatException('Invalid hydration total');
+        }
+        if (e.value > 0) {
+          drinks.add(
+            DrinkEntry(
+              id: 'legacy-${e.key}',
+              time: DateTime.parse('${e.key}T12:00:00'),
+              ml: e.value,
+            ),
+          );
+        }
+      }
+    }
+    final p = profile;
+    if (!p.height.isFinite ||
+        p.height < 80 ||
+        p.height > 250 ||
+        !p.weight.isFinite ||
+        p.weight < 20 ||
+        p.weight > 400 ||
+        p.age < 13 ||
+        p.age > 120 ||
+        p.calorieTarget < 1 ||
+        p.waterTarget < 1 ||
+        p.proteinTarget < 1 ||
+        p.carbTarget < 1 ||
+        p.fatTarget < 1) {
+      throw const FormatException('Invalid profile');
+    }
+    for (final meal in [...meals, ...templates]) {
+      _validateMeal(meal);
+    }
+
+    activityMinutes = Map<String, int>.from(j['activityMinutes'] ?? {});
+    joined = Set<String>.from(j['joined'] ?? []);
+    liked = Set<String>.from(j['liked'] ?? []);
+    hiddenPosts = Set<String>.from(j['hiddenPosts'] ?? []);
+    communityPosts = (j['communityPosts'] as List? ?? [])
+        .map((p) => Map<String, dynamic>.from(p))
+        .toList();
+    comments = (j['comments'] as Map? ?? {}).map(
+      (k, v) => MapEntry(k.toString(), List<String>.from(v)),
+    );
+    milestoneUnlocks = Map<String, String>.from(j['milestoneUnlocks'] ?? {});
+    milestoneNotices = List<String>.from(j['milestoneNotices'] ?? [])
+        .where((id) => milestones.any((m) => m.id == id))
+        .toList();
+    notifiedMilestones = Set<String>.from(j['notifiedMilestones'] ?? []);
+    preferences.addAll(Map<String, bool>.from(j['preferences'] ?? {}));
+  }
+
+  /// Validate the entire candidate before replacing the live diary.
+  Future<void> applyCloudSnapshot(Map<String, dynamic> j) async {
+    final candidate = AppState(storage, recordKey: recordKey);
+    try {
+      candidate._readJson(j);
+      _readJson(j);
+      await persist();
+    } finally {
+      candidate.dispose();
+    }
   }
 
   List<Meal> mealsFor(DateTime date) =>
@@ -170,6 +273,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> persist() {
+    _checkMilestones();
     if (!_disposed) notifyListeners();
     final snapshot = jsonEncode(toJson());
     _pendingWrite = _pendingWrite
@@ -193,7 +297,10 @@ class AppState extends ChangeNotifier {
   }
 
   Map<String, dynamic> toJson() => {
-    'schemaVersion': 2,
+    'schemaVersion': 3,
+    'milestoneUnlocks': milestoneUnlocks,
+    'milestoneNotices': milestoneNotices,
+    'notifiedMilestones': notifiedMilestones.toList(),
     'accountEmail': accountEmail,
     'appearance': appearance,
     'profile': profile.toJson(),
@@ -506,11 +613,16 @@ class AppState extends ChangeNotifier {
     hiddenPosts.clear();
     communityPosts.clear();
     comments.clear();
+    milestoneUnlocks.clear();
+    milestoneNotices.clear();
+    notifiedMilestones.clear();
     preferences = {
       'Meal reminders': true,
       'Hydration reminders': false,
       'Weekly review': true,
       'Quiet hours': true,
+      'Milestone celebrations': true,
+      'Device notifications': false,
       'Keep meal photos': true,
       'Improve recognition': false,
     };

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
+import '../core/milestones.dart';
 import '../core/ui.dart';
 import 'dashboard.dart';
 import 'diary.dart';
@@ -117,7 +118,9 @@ class _AppShellState extends State<AppShell> {
               backgroundColor: lime,
               foregroundColor: forest,
               elevation: 0,
-              shape: CircleBorder(side: BorderSide(color:context.kayleoBackground,width:4)),
+              shape: CircleBorder(
+                side: BorderSide(color: context.kayleoBackground, width: 4),
+              ),
               onPressed: () =>
                   showLogger(context, widget.state, openCamera: true),
               child: const Icon(Icons.camera_alt_rounded, size: 28),
@@ -491,9 +494,16 @@ class InboxSheet extends StatelessWidget {
   const InboxSheet({super.key, required this.state});
   final AppState state;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: state,
+    builder: (context, _) => _content(context),
+  );
+  Widget _content(BuildContext context) {
     final now = DateTime.now();
     final messages = <(IconData, String, String)>[
+      for (final id in state.milestoneNotices.reversed)
+        for (final m in milestones.where((m) => m.id == id))
+          (Icons.emoji_events_outlined, 'Well done! ${m.title}', m.compliment),
       if (state.preferences['Meal reminders']! && state.mealsFor(now).isEmpty)
         (
           Icons.restaurant_outlined,

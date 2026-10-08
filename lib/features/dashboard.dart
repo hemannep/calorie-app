@@ -93,23 +93,6 @@ class DashboardScreen extends StatelessWidget {
         _CalorieSummary(state: state, date: now),
         const SizedBox(height: 18),
         _LoggingHero(state: state),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          children: [
-            TextButton.icon(
-              onPressed: () => showLogger(context, state, mode: 'Barcode'),
-              icon: const Icon(Icons.qr_code_scanner, size: 18),
-              label: const Text('Barcode'),
-            ),
-            TextButton.icon(
-              onPressed: () => showLogger(context, state, mode: 'Search'),
-              icon: const Icon(Icons.search, size: 18),
-              label: const Text('Food search'),
-            ),
-          ],
-        ),
         const SizedBox(height: 14),
         Panel(
           padding: 14,
@@ -242,6 +225,27 @@ class _LoggingHero extends StatelessWidget {
                 label: 'Tell Kayleo',
                 onTap: () => showLogger(context, state, mode: 'Voice'),
               ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              key: const Key('home-barcode'),
+              onPressed: () => showLogger(context, state, mode: 'Barcode'),
+              icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+              label: const Text('Barcode'),
+            ),
+            OutlinedButton.icon(
+              key: const Key('home-food-search'),
+              onPressed: () => showLogger(context, state, mode: 'Search'),
+              icon: const Icon(Icons.search_rounded, size: 18),
+              label: const Text('Food search'),
             ),
           ],
         ),

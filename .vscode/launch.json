@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Kayleo — iPhone (opens from Home Screen)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}",
+      "deviceId": "00008150-001C79D026D8C01C",
+      "flutterMode": "release",
+      "preLaunchTask": "Prepare iPhone build"
+    }
+  ]
+}
