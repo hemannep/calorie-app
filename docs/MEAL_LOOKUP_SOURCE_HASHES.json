@@ -1,0 +1,16 @@
+{
+  "lib/core/meal_lookup.dart": "f63ff8c9f8164d556cb5ab2325d19f5071e050775539e829c81042a0d6dd5017",
+  "lib/core/meal_engine.dart": "8fca79abce31005d548e73247518d71a9fb2065bd6a42d6e0e577674c1c5d795",
+  "lib/features/logging.dart": "8647cf692bab979e63da18c8d57358de55fb67a68b7da5d2f507d37c9be400ac",
+  "lib/features/meal_food_match.dart": "9b93eec1d8cc34b037b1744512586503ec8ce202654b45f624455ab0c529b0cc",
+  "lib/services/food_ai_service.dart": "44f0e880ac9732a90e63c0d3d47624985f9c3bee26358f18e448901eafa39b98",
+  "test/meal_lookup_test.dart": "e42116b9c6c1608e52ac747f4f4a6350c2e875fc920039f5db0c156706316f47",
+  "test/food_ai_service_test.dart": "f55ad57eec7cf425b0f303cf99c0e865c9ac3342be49a5b2a81f27899cc7fadf",
+  "test/food_camera_flow_test.dart": "dc6df69634815e27c23c1e4aac47bd7501365fb93bbaac9deca40e9bba8a963b",
+  "integration_test/meal_database_test.dart": "11251c1649b2223cc361ada86c5864820459726638eccc0b34bf9fd3c7be893e",
+  "pubspec.yaml": "250a7f9c1e1101dfb8fca9e4a55384510b15fa5d53a92daec5e5e9c1c1032686",
+  "pubspec.lock": "21fe106f2e4d58e833d74334c3d99102e5cc3a70943ab1adf1ddad47ce8c1dd5",
+  "android/gradle.properties": "d4b381a945a7ffe1d2900f1b626cddc226026cd8df93126e9f79fc0a2252d3a1",
+  "packages/pytorch_lite/android/build.gradle": "3c7adff01b3006487b384dd77a67e79bf7ef1fda0138d9e39658c789fb439a58",
+  "packages/pytorch_lite/android/src/main/java/com/abdelaziz_mahdy/pytorch_lite/PytorchLitePlugin.java": "67c1ab5a0de7743138f7dca0e285db05ac1a83ff8d0beed30ec0dc3a9bc0878b"
+}

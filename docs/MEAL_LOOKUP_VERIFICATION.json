@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-08",
+  "flutter_tests": {
+    "passed": 97,
+    "failed": 0
+  },
+  "analyzer": "No issues found",
+  "android_debug_build": "passed",
+  "web_release_build": "passed",
+  "samsung_live_samosa_lookup": "passed: both providers returned records",
+  "samsung_final_app_launch": "passed",
+  "apk_sha256": "630f3d331d72a29d3c82729263e31bcceb0a0f8ae06838264ba127c91eee8138",
+  "verification_source": "/private/tmp/kayleo-meal-fix",
+  "workspace_files": "docs/MEAL_LOOKUP_SOURCE_HASHES.json"
+}

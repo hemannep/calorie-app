@@ -1,0 +1,18 @@
+{
+  "brand": "Kayleo",
+  "store_title": "Kayleo: AI Calorie Tracker",
+  "subtitle": "AI Food Scanner & Macro Tracker",
+  "short_description": "Snap, speak or type your meal. Track calories and macros with Kayleo.",
+  "prototype_description": "Kayleo helps you keep a food diary, review estimated calories and macros, and understand your nutrition over time. Use your camera to capture a meal, then describe it; type a natural meal description or use device speech input. Review ingredients and portions before saving. Track protein, carbohydrates, fat, water, weight and movement. Your records stay on this device and can be exported. Photo recognition, live barcode lookup, cloud sync and subscriptions are not connected in this prototype.",
+  "keywords": [
+    "AI Calorie Tracker",
+    "Calorie Counter",
+    "Food Tracker",
+    "AI Food Scanner",
+    "Macro Tracker",
+    "Nutrition Tracker",
+    "Meal Tracker",
+    "Protein Tracker"
+  ],
+  "status": "Draft metadata only. Before store submission, connect and validate vision analysis, replace sample-only experiences, validate privacy declarations and revise claims to match shipped functionality."
+}

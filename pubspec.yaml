@@ -1,0 +1,44 @@
+name: calorie_app
+description: "Kayleo — a local-first calorie and macro tracking companion."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.3
+  image_picker: ^1.2.0
+  speech_to_text: ^7.3.0
+  share_plus: ^13.3.1
+  intl: ^0.20.2
+  camera: ^0.12.1
+  http: ^1.2.0
+  pytorch_lite: ^4.2.0
+  mobile_scanner: ^7.4.2
+
+dev_dependencies:
+  integration_test:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  camera_platform_interface: ^2.12.0
+
+dependency_overrides:
+  pytorch_lite:
+    path: packages/pytorch_lite
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/models/food_edge_detector_500.pt
+    - assets/metadata/labels.json
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope.ttf

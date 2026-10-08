@@ -1,0 +1,12 @@
+{
+  "original_sha256": "9dbd08201eb92c8168cdb5a9a9d3041955dab614862fc61acb6c4d4c8511bce9",
+  "cpu_sha256": "535eaf2a0ccb05a462fe26662d6172771f75183060dfff16e98e4665da4b8e31",
+  "torch_export_version": "2.1.2",
+  "conversion": "torch.jit.load(map_location=cpu), eval(), torch.jit.save()",
+  "shape": [
+    1,
+    530
+  ],
+  "labels": 530,
+  "calibration": "not certified"
+}

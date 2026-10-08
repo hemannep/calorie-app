@@ -1,0 +1,612 @@
+{
+  "brand": "Kayleo",
+  "date": "2026-10-07",
+  "saved_files": [
+    {
+      "path": "README.md",
+      "status": "modified",
+      "before_sha256": "fea6690db08dc79213d8995010c4f2daf76d774fa1922d6c08a8c2ac117e1c65",
+      "sha256": "9120472daca06413c4d97c7fbbdb6348c15a6af5fff7f825427907dedd351ab2",
+      "bytes": 7461
+    },
+    {
+      "path": "android/app/src/main/AndroidManifest.xml",
+      "status": "modified",
+      "before_sha256": "555180c3edaff487f09b4fb188e70b43490b53d03403ae50614b85afe2e5fb0a",
+      "sha256": "fea23cc8590ff7c89f550dc7067f9c7571fd8e453d3c02c46084561b1186b44d",
+      "bytes": 2865
+    },
+    {
+      "path": "android/app/src/main/res/drawable-v21/launch_background.xml",
+      "status": "modified",
+      "before_sha256": "e07f9090f83670616a14af4d5094b72b5b9c6ffd971cd96791face266ea238e5",
+      "sha256": "e4d1eb04c84c5bd075d731a012dfd0536c49dbd9d2951387245ff0e6337a4818",
+      "bytes": 217
+    },
+    {
+      "path": "android/app/src/main/res/drawable/launch_background.xml",
+      "status": "modified",
+      "before_sha256": "e07f9090f83670616a14af4d5094b72b5b9c6ffd971cd96791face266ea238e5",
+      "sha256": "e4d1eb04c84c5bd075d731a012dfd0536c49dbd9d2951387245ff0e6337a4818",
+      "bytes": 217
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "status": "modified",
+      "before_sha256": "e39df19911ee9dd158bde3d45b964b516a972939abb049cd9006cdc198926811",
+      "sha256": "3772e02f977840739692797a5f53991d473b8dfafc6fad202caa722bd89296c7",
+      "bytes": 2864
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "status": "modified",
+      "before_sha256": "2d7995ee6ac3327abe0416b26fdf413441d14a3d0d2ce28178928ed67912fe99",
+      "sha256": "15a7c3649c290ffcbbae2d056f1b3aefd001e73d53be702cad41f5a2604a2baf",
+      "bytes": 1899
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "status": "modified",
+      "before_sha256": "f87d423e0b69986dde509cd85601e85434db4d5eb0d1e289e72f4c453cf1292b",
+      "sha256": "710398c9b8f39dce317590de5b56c44b00a1df3abd1c74c04a240b54f23de2f3",
+      "bytes": 3981
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "status": "modified",
+      "before_sha256": "04f67fbf957c328a5bacffd0092e7f432ba3b9d62d5017d2741ba13a165154a8",
+      "sha256": "467d909edd4726491dcaeae618d1968d606aa3ece815d9c6f6504f8c7ffdf3ca",
+      "bytes": 6132
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "status": "modified",
+      "before_sha256": "333eeaa5ca3f3492290456c5835f06c6e529189accc2267493dc3eb6d97e009a",
+      "sha256": "de2b2da9b4d41002522df81a98a445babc7f0493a8c15bbc8bd6f5c470fcdb7c",
+      "bytes": 8349
+    },
+    {
+      "path": "android/app/src/main/res/values-night-v31/styles.xml",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "f1a6dbe350e1382e5eb035301e1dbc46aada763b3f1822668bca2399c71dbfb7",
+      "bytes": 458
+    },
+    {
+      "path": "android/app/src/main/res/values-v31/styles.xml",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "f1a6dbe350e1382e5eb035301e1dbc46aada763b3f1822668bca2399c71dbfb7",
+      "bytes": 458
+    },
+    {
+      "path": "assets/images/kayleo-icon.png",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "82fabad5c5f67458e46ecc966b830385dbb2066afd652187fa809734cf88c2d9",
+      "bytes": 22573
+    },
+    {
+      "path": "assets/images/kayleo-mark.svg",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "6ea5fd9d435b71faabc244ed743390dcd33016b07070ff5ea881f635ac184fa3",
+      "bytes": 749
+    },
+    {
+      "path": "docs/ASSETS.md",
+      "status": "modified",
+      "before_sha256": "0c929af9264c5890638c5e2e137dffa903b4e6bb611f3c07d69188e2571b9968",
+      "sha256": "fb8f8570c1eb4cb3f1e13107fd7e6431852ad22f6f4c698052cddbe8d3dbb81d",
+      "bytes": 1725
+    },
+    {
+      "path": "docs/KAYLEO_REFACTOR.md",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "8fb819db4269a3955ee4d5f98fd1400977ce5a6125a52034802217eaa83d7f9c",
+      "bytes": 12054
+    },
+    {
+      "path": "docs/RESEARCH.md",
+      "status": "modified",
+      "before_sha256": "629a8ca5f4c89bbd3a08d5b7f8b298238aa29cd9d8d858031ba66d2d8788ec08",
+      "sha256": "e6bf5108813304258847fc2fa57c01664e87666c3d19782e1e5b1a6930af5efd",
+      "bytes": 10768
+    },
+    {
+      "path": "docs/VERIFICATION.md",
+      "status": "modified",
+      "before_sha256": "dff7286d7a8e3602e95cc97649111091ec71686458854634f8087d531b17289f",
+      "sha256": "07e0d5437889507a1d2725f61a928a4cedad4f34565e2dfbb98fa91ecd61bfc5",
+      "bytes": 4209
+    },
+    {
+      "path": "docs/WORKFLOWS.md",
+      "status": "modified",
+      "before_sha256": "7f80c5c4b3fd2c46decd57d34cb862d4d662a98c468d68b90f50866e29f6bcfc",
+      "sha256": "58546f606ceed2a2e270266633d06b7038ef455cb6103d28d2ae9d34dfad3f30",
+      "bytes": 4753
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png",
+      "status": "modified",
+      "before_sha256": "790b126ad52c6490fe0555f20efeeb487e113686d62fcc0799d74d2d2cea6bd1",
+      "sha256": "fda474278a1ab1be8dbcdd6a737da09395f3023e2599159336b3c311b2b63446",
+      "bytes": 41417
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png",
+      "status": "modified",
+      "before_sha256": "cc9114f6168065036795c60f98b0f6aef8878bca18d11b783eccaef0a7413094",
+      "sha256": "75e55418aa105d35b653b805e744ce5a8c6272da592df73c0a1a254d3af2d537",
+      "bytes": 730
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png",
+      "status": "modified",
+      "before_sha256": "a9eb5a614612c9dd210aa8728739b81ad072437ed475017a9b787a7f2d8b2d7d",
+      "sha256": "c52ff217983bb0e97027f8092981863f437e6a533c1a818220f8bf342a07d927",
+      "bytes": 1553
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png",
+      "status": "modified",
+      "before_sha256": "4882ab651460a2dc6e5bb06076bf63e9521efecd24e7c592ceddf9c0feeae013",
+      "sha256": "1f864bcec25548b4ad4012c8ea63c142fb48b22cee3794abe23d1f9a42da44cc",
+      "bytes": 2409
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png",
+      "status": "modified",
+      "before_sha256": "9df208f0dbcec989f8775f930e432256cd2704a33766c1c2683730c33b651f54",
+      "sha256": "63b48aa20571a81577a016cfec00b1b09e30ba5eae6f0de377ba28a53d6249dc",
+      "bytes": 1082
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png",
+      "status": "modified",
+      "before_sha256": "bc79a1a583f07acc516cf2a69b5d0e3bf4460143fdfe584d502da1f008a81d4b",
+      "sha256": "adaedb6e9d83f6f2ce61c3034b5ee4323f2f21ba244612d12e0c4b6b259ac25b",
+      "bytes": 2315
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png",
+      "status": "modified",
+      "before_sha256": "6a5d7b72c85ab5ef176bb64688ed9c1b4fb03eaa421e4afc6dd021536aa566af",
+      "sha256": "06be8bdbef7b5c9ab0cb2c28ad7378c195d197d3519487c5ca173ae3c0ce716c",
+      "bytes": 3576
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png",
+      "status": "modified",
+      "before_sha256": "a9eb5a614612c9dd210aa8728739b81ad072437ed475017a9b787a7f2d8b2d7d",
+      "sha256": "c52ff217983bb0e97027f8092981863f437e6a533c1a818220f8bf342a07d927",
+      "bytes": 1553
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png",
+      "status": "modified",
+      "before_sha256": "b6d9be544dd975b57b48bd7503324a83787d5e42a5bae9a020ae8c4970a22d58",
+      "sha256": "56026a0108e31c8b41150e8dcc6c7502da7981e1217cfa28f41f5bfb8d1a0e13",
+      "bytes": 3265
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png",
+      "status": "modified",
+      "before_sha256": "ce158e7d51018fc13480744333dab380e3e31e34faf263918713fdcf97f37798",
+      "sha256": "d56e9c0df317a7c1bd51b5643d146037e735ae35904f344b8eddde39bc93e874",
+      "bytes": 5041
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png",
+      "status": "modified",
+      "before_sha256": "ce158e7d51018fc13480744333dab380e3e31e34faf263918713fdcf97f37798",
+      "sha256": "d56e9c0df317a7c1bd51b5643d146037e735ae35904f344b8eddde39bc93e874",
+      "bytes": 5041
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png",
+      "status": "modified",
+      "before_sha256": "a443fa4cceac01c28ab0452d559e46c313d1f8edd7d65eaab36faa29a2333231",
+      "sha256": "7bcd8e87fdbbe788c850926d57e455e8e2968dfa90d53755c7ceb1a576fc6921",
+      "bytes": 7771
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png",
+      "status": "modified",
+      "before_sha256": "489817cf5efdbc7663bb00905ecfbb55e412f65d5242968c85b4533b9f5ec3a6",
+      "sha256": "3ca4e2d977c1b69d2f98a95984bac8f7e58b63226a1f7258000daf28d7e657f8",
+      "bytes": 3100
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png",
+      "status": "modified",
+      "before_sha256": "eccea2eb663c1d66ea3396addf8c3a6206b12c18f437669bb2c1338dd30c9d6b",
+      "sha256": "fbb36f1670b9b1e8f0a472c883efdf0b5ee8c89794e948ffcbd454c3008ea5e1",
+      "bytes": 6472
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png",
+      "status": "modified",
+      "before_sha256": "0d5dafe7a8f62a6c96a5bd0ae44b3123283686e13c0a76f6b9d06796b7e8d612",
+      "sha256": "48085c944ba08b5283cceff5a16777341d30f91d568955b725a205bec8eb149f",
+      "bytes": 7234
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png",
+      "status": "modified",
+      "before_sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20",
+      "sha256": "abacea873778732901451e0f380d3190ba9dc97ee6e78a743ec33d7f101e96ed",
+      "bytes": 3132
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png",
+      "status": "modified",
+      "before_sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20",
+      "sha256": "db97eae5184df1cf22cc42680196eab34f0058be45657256835fffe641d52133",
+      "bytes": 6445
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png",
+      "status": "modified",
+      "before_sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20",
+      "sha256": "872360a7c2e9a72af3a6df73e599c8b87248d88f35cfc9b674d90fa4fd1c4264",
+      "bytes": 10098
+    },
+    {
+      "path": "ios/Runner/Base.lproj/LaunchScreen.storyboard",
+      "status": "modified",
+      "before_sha256": "d994c53f43ac79718bb4240b48dcc8f838afbe11355106bf78fee94b48654d2a",
+      "sha256": "0d58a91dad0462d32571a2575ebcc4c141031ee67277a4bb9ca07cb7d077fac7",
+      "bytes": 2392
+    },
+    {
+      "path": "ios/Runner/Info.plist",
+      "status": "modified",
+      "before_sha256": "58b8d2ba2f88c44ad3e7e5ba9e03807d3647b5eeaede11ddb62ce891272a4f08",
+      "sha256": "dd28480f3d6e708264be3596b5b93435c898f10fbe2c47ea15237d1c1ac62546",
+      "bytes": 2697
+    },
+    {
+      "path": "lib/core/app_state.dart",
+      "status": "modified",
+      "before_sha256": "d86a3ab5ace0f8e8f83b6fd276432d022ab46d633e19368fb70b4c831e7f5707",
+      "sha256": "201ea75a127da7c99d8c04a9381d25692cde890338aa7af3a9f91c6b5948c333",
+      "bytes": 9952
+    },
+    {
+      "path": "lib/core/nutrition_view.dart",
+      "status": "modified",
+      "before_sha256": "ff80f95dcd242d55dccf8c8c00fe713f21f6bf09ae9bb3941b2321c5f74751aa",
+      "sha256": "df11c49ec385ba2c2e05bdae93c6526ed3e9f1856fc85581b8f733ff7dbb8ba8",
+      "bytes": 2983
+    },
+    {
+      "path": "lib/core/ui.dart",
+      "status": "modified",
+      "before_sha256": "ad5bff01f08c113a211b4b9c87602b316376459858e176b4e0e3325070b42cc3",
+      "sha256": "4cbe954a52f93e1321975858c50f33bda44eb870d78bd7f7460ec15e91fb0c92",
+      "bytes": 18633
+    },
+    {
+      "path": "lib/features/community.dart",
+      "status": "modified",
+      "before_sha256": "86a72579cb1bd79f4b2b972e935855141477ec1b3f65009c0e2cdb60f1045f98",
+      "sha256": "556f2df9db36f28b4d58365fcf52a5eda93f57c49b197605563e874d6debc404",
+      "bytes": 25395
+    },
+    {
+      "path": "lib/features/dashboard.dart",
+      "status": "modified",
+      "before_sha256": "6d8a80d076fa8692a78903dd3a1f5d6879ee68cdd582bb46b721ba58f5c02a66",
+      "sha256": "d5e7b4a6a49efa662bdec5937a9e76d57e95e2090c2d3caf42aeacbebcfec90e",
+      "bytes": 26104
+    },
+    {
+      "path": "lib/features/diary.dart",
+      "status": "modified",
+      "before_sha256": "5758fa6658404ef3a049a83a2f1aa14a393815b14d8d3f4c8029068e957234b5",
+      "sha256": "88601effddcaf4cc18dbe871acaeddec6b8e3912e89ccfa82e80111ef27e5fb3",
+      "bytes": 23466
+    },
+    {
+      "path": "lib/features/logging.dart",
+      "status": "modified",
+      "before_sha256": "f90cd2368528df924123e9d1f2428210e49e34aacfc6289e688ddd433c9c2fdf",
+      "sha256": "00788fdfd04658f582ef97c87a14dd30b6ca9eede1083bf857d0f27676680fc9",
+      "bytes": 71609
+    },
+    {
+      "path": "lib/features/meal_camera.dart",
+      "status": "modified",
+      "before_sha256": "cf9ccbbdbac0e87bae8dc64d5454b5f58d24c337ae077325466d5762a5860736",
+      "sha256": "9724d8a702ca225a32a9480bff204b2167b76d2bdf34243155ed9357a3056fa0",
+      "bytes": 32156
+    },
+    {
+      "path": "lib/features/onboarding.dart",
+      "status": "modified",
+      "before_sha256": "a138c15cf513eff2c3c634139b63235b7481811159a5bd53b6216a0f829dbae6",
+      "sha256": "581a237d7c6089afd80b7276cd59cb7f56d4769f4798d2015e8683c4261207f1",
+      "bytes": 32406
+    },
+    {
+      "path": "lib/features/progress.dart",
+      "status": "modified",
+      "before_sha256": "c276540cfcc1caf420a8f898dbe106331a425b2c2e4754e137f37bdfaf008742",
+      "sha256": "e30a30a366ce4fa38e9794c7568083a3f5c136b35daee2d6eb153fefd0a5e167",
+      "bytes": 40318
+    },
+    {
+      "path": "lib/features/settings.dart",
+      "status": "modified",
+      "before_sha256": "5401a247c70dbdcec1f91509a7eaeb5883212d249c46d62ea732f06eb25cddb5",
+      "sha256": "5fc2b87e83096b5855372062249dcb8f922ec7f16844b7c7c4d02d715593aedd",
+      "bytes": 41844
+    },
+    {
+      "path": "lib/features/shell.dart",
+      "status": "modified",
+      "before_sha256": "a138178875bc09b0faf4c755dc7854748b31154d7651c821a3015d6a0902ab4d",
+      "sha256": "ea5ffdc9b6e382041bbaf71b33f36cf1422ece992fada3df764f175b614e24e4",
+      "bytes": 21307
+    },
+    {
+      "path": "lib/main.dart",
+      "status": "modified",
+      "before_sha256": "c15d3726c0b27dc314478a688e822c7e590d15178a2ebb39da266db48de8e517",
+      "sha256": "2333838e72112acf34f29b4b36c1dbc29047a6cfe219a73424f5696adf9079be",
+      "bytes": 3931
+    },
+    {
+      "path": "lib/theme/kayleo_colors.dart",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "ca95c052bb37b0c5380c3056d404837aa3edcedf8406b7ce9dda1d533b84d723",
+      "bytes": 2813
+    },
+    {
+      "path": "lib/theme/kayleo_radius.dart",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "a4c5e31c4fd3b50e7ad2377a6ccb3acb89b2baafe820122d971c0b7f4bd375b0",
+      "bytes": 154
+    },
+    {
+      "path": "lib/theme/kayleo_spacing.dart",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "1d5b38e0baba67750a3f835aaea404a9662818aba3fef0cf6e96d1fa160535ae",
+      "bytes": 321
+    },
+    {
+      "path": "lib/theme/kayleo_theme.dart",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "c795897e2edcd518375efed0d15869d2be7760365a717151302cce93894d34c3",
+      "bytes": 4346
+    },
+    {
+      "path": "lib/theme/kayleo_typography.dart",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "bb6c82b08e425f11b7ab4b79f0f6d6ec0f629acb90852660908bef393c5097dd",
+      "bytes": 1129
+    },
+    {
+      "path": "linux/runner/my_application.cc",
+      "status": "modified",
+      "before_sha256": "16c545dac96c1800ce2d811720e2311490c18ae9d210a0a810393a37373c1992",
+      "sha256": "0d01ac507eaa179f103d69c7869c23da53544432800bf8e9557e899f9dcbb1e2",
+      "bytes": 5451
+    },
+    {
+      "path": "macos/Runner.xcodeproj/project.pbxproj",
+      "status": "modified",
+      "before_sha256": "919032b1756f30fd59a13085b467b8e3cafee0004b42fb5d60863a89c18721e4",
+      "sha256": "78e032a9856e9d576f76618ecf99956a557208334e5be7e80332101cc3a167f1",
+      "bytes": 27840
+    },
+    {
+      "path": "macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme",
+      "status": "modified",
+      "before_sha256": "36bfb568abd29fff832a1f117821a800c986de9d0f9f92a01f52af4cd993a771",
+      "sha256": "c3d076647a5a67897339f24c94e63696b2eccbb6b55671ef0342450f62566f72",
+      "bytes": 4560
+    },
+    {
+      "path": "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png",
+      "status": "modified",
+      "before_sha256": "790b126ad52c6490fe0555f20efeeb487e113686d62fcc0799d74d2d2cea6bd1",
+      "sha256": "fda474278a1ab1be8dbcdd6a737da09395f3023e2599159336b3c311b2b63446",
+      "bytes": 41417
+    },
+    {
+      "path": "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png",
+      "status": "modified",
+      "before_sha256": "7a0fa2399fd3e025c4b1f3cd549c3f35c4bc35f12c8271b73fc4985b5bc484f6",
+      "sha256": "5e74ce9cdcca0a2f6acf1a857ad6f4ecb7fa1ca5435a7af6836f1dc10fd5f41f",
+      "bytes": 5396
+    },
+    {
+      "path": "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png",
+      "status": "modified",
+      "before_sha256": "4a318802200f364f85395d232269d5fa74009599b0a7808a8a41f6f13f8d94c1",
+      "sha256": "1b6a61102924de552e2b20d40c9a02bccc58626c98b85b391b3952f0232687f9",
+      "bytes": 592
+    },
+    {
+      "path": "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png",
+      "status": "modified",
+      "before_sha256": "b632ee33dd91f7fa1091cffe16f1195f96f413fcb8898faba55790e9a70aba45",
+      "sha256": "301e47de6307b2f169088e52eb67a1cca2e0386d24c4d1bb1490c00b41e901bf",
+      "bytes": 11202
+    },
+    {
+      "path": "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png",
+      "status": "modified",
+      "before_sha256": "ba6983df915f25125adfb2363f1ad3c6558eb745bb2d26689c5bd28c8484618c",
+      "sha256": "6b39602d78138b2e8b13fbc482f9480f52ea30a0ac3ae8d59dcc51315cfac57d",
+      "bytes": 1240
+    },
+    {
+      "path": "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png",
+      "status": "modified",
+      "before_sha256": "fbcb109c75ef2e757f8556e86326d7ad61d87a1335442d1e49c5186395f051be",
+      "sha256": "82fabad5c5f67458e46ecc966b830385dbb2066afd652187fa809734cf88c2d9",
+      "bytes": 22573
+    },
+    {
+      "path": "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png",
+      "status": "modified",
+      "before_sha256": "d0bcd697e77061c3c90d527de4786ba9b5c6dc1f9e0946c9b5db3a31c17d322a",
+      "sha256": "d62f4fde76c065248c714f81e5acc6882fc309645e3b31e5e07706b6f0648ec7",
+      "bytes": 2570
+    },
+    {
+      "path": "macos/Runner/Configs/AppInfo.xcconfig",
+      "status": "modified",
+      "before_sha256": "927288c2615351207986d25a5ac6d0243737ad755a6e3da434a41d1381aabad9",
+      "sha256": "44b5b08ad864bb8fb32aa7a0e124c91541c5cb525a054f85417cf89acc3119be",
+      "bytes": 598
+    },
+    {
+      "path": "macos/Runner/Info.plist",
+      "status": "modified",
+      "before_sha256": "bbfcd9d2b336e676c67956ab385a81732c5f66963a957f50ff8d5e20d4efbc4f",
+      "sha256": "46926f702ca2edfe4fa83258f1d96916b7ad9fa60f26befbdcebe1cb5f224313",
+      "bytes": 1599
+    },
+    {
+      "path": "metadata/store_listing.en.json",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "c479bc5398c104eac5f046de7a2df2018b3ee655f256e2402db6afcfe6f4ee76",
+      "bytes": 1157
+    },
+    {
+      "path": "pubspec.yaml",
+      "status": "modified",
+      "before_sha256": "02741d2f7fcf7df1fec30b909a3908cb968ae3ffefed2b2494c5911f1ea71db7",
+      "sha256": "d76974d1aba22afb65d9f3c1359c34df8ac81a5df0130099f353bd36e45c9330",
+      "bytes": 632
+    },
+    {
+      "path": "test/accessibility_test.dart",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "850119e1b8b72076f3f49e3c96ec1350a66deb15279c42f258926a544ee51559",
+      "bytes": 11405
+    },
+    {
+      "path": "test/meal_camera_test.dart",
+      "status": "modified",
+      "before_sha256": "e4463bb6dfc2416d45f701fa7d5dce24780a46ec0fd4554372a36247876fb4ab",
+      "sha256": "7601048958f6b181e7b7bfc83d5f3f693e367bb5d19b50f27466cd3df58a8bfd",
+      "bytes": 14925
+    },
+    {
+      "path": "test/theme_test.dart",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "b7202f6f18b0961577ec0f057e5b3136295d60bbe0f438ed56e96d7ed3c05fd1",
+      "bytes": 6294
+    },
+    {
+      "path": "test/widget_test.dart",
+      "status": "modified",
+      "before_sha256": "9d73d07a608dfff816a7cfa53e5167e998c6e4170a80341249d3350ccfb3809d",
+      "sha256": "4db143f9ce17e0d209ebebf8483a2f367dc18a8487ed5c70089fce2d863a5630",
+      "bytes": 27901
+    },
+    {
+      "path": "tools/generate_brand_assets.py",
+      "status": "created",
+      "before_sha256": null,
+      "sha256": "f84c767ed3e91883dec3630a7ae3a7103869b6e12ec88c626d8aca028d80dd0c",
+      "bytes": 4270
+    },
+    {
+      "path": "web/favicon.png",
+      "status": "modified",
+      "before_sha256": "ba6983df915f25125adfb2363f1ad3c6558eb745bb2d26689c5bd28c8484618c",
+      "sha256": "6b39602d78138b2e8b13fbc482f9480f52ea30a0ac3ae8d59dcc51315cfac57d",
+      "bytes": 1240
+    },
+    {
+      "path": "web/icons/Icon-192.png",
+      "status": "modified",
+      "before_sha256": "333eeaa5ca3f3492290456c5835f06c6e529189accc2267493dc3eb6d97e009a",
+      "sha256": "de2b2da9b4d41002522df81a98a445babc7f0493a8c15bbc8bd6f5c470fcdb7c",
+      "bytes": 8349
+    },
+    {
+      "path": "web/icons/Icon-512.png",
+      "status": "modified",
+      "before_sha256": "fbcb109c75ef2e757f8556e86326d7ad61d87a1335442d1e49c5186395f051be",
+      "sha256": "82fabad5c5f67458e46ecc966b830385dbb2066afd652187fa809734cf88c2d9",
+      "bytes": 22573
+    },
+    {
+      "path": "web/icons/Icon-maskable-192.png",
+      "status": "modified",
+      "before_sha256": "333eeaa5ca3f3492290456c5835f06c6e529189accc2267493dc3eb6d97e009a",
+      "sha256": "de2b2da9b4d41002522df81a98a445babc7f0493a8c15bbc8bd6f5c470fcdb7c",
+      "bytes": 8349
+    },
+    {
+      "path": "web/icons/Icon-maskable-512.png",
+      "status": "modified",
+      "before_sha256": "fbcb109c75ef2e757f8556e86326d7ad61d87a1335442d1e49c5186395f051be",
+      "sha256": "82fabad5c5f67458e46ecc966b830385dbb2066afd652187fa809734cf88c2d9",
+      "bytes": 22573
+    },
+    {
+      "path": "web/index.html",
+      "status": "modified",
+      "before_sha256": "b141b2a333ad78ac2653a169c4edd61ff157f40927df2ccbc0c9fbbb664a6cea",
+      "sha256": "c0433e355ae5ef023f88854c68647594a30ceaca208541759571e1c904bc5887",
+      "bytes": 1993
+    },
+    {
+      "path": "web/manifest.json",
+      "status": "modified",
+      "before_sha256": "0d251599e69e15e3797f6abaf4c25b5a0704c1d1fd01a643fe435ad53d9b3ae6",
+      "sha256": "d6a77d9f78ba228d2444cdb7148794bf478b36539cc16115485059bd9d996194",
+      "bytes": 847
+    },
+    {
+      "path": "windows/runner/Runner.rc",
+      "status": "modified",
+      "before_sha256": "856358bbefbe7a850e0927ebb982fb7f1cd80e23a49f56765bab8ca4fd621e8c",
+      "sha256": "f4ef89779e03f6927f64711a4b52f565a14fa708500d28da042a0022e0496ac8",
+      "bytes": 3031
+    },
+    {
+      "path": "windows/runner/main.cpp",
+      "status": "modified",
+      "before_sha256": "519c07fb40b22eca31eb5b9087cb918783fe5486767253addc4168c4ccaedd1c",
+      "sha256": "3345beedf0b8d86585a66584b9c502b0a226eb5f8f912c5afc7d921d438523d8",
+      "bytes": 1259
+    },
+    {
+      "path": "windows/runner/resources/app_icon.ico",
+      "status": "modified",
+      "before_sha256": "c098d3fc85cacff98b8e69811b48e9f0d852fcee278132d794411d978869cbf8",
+      "sha256": "e45da6637fa135a076aab867148ad954795a0310377b2a571571574ccac03730",
+      "bytes": 23096
+    }
+  ],
+  "removed_files": [
+    "assets/images/nouri-mark.svg"
+  ],
+  "checks": {
+    "analyze": "passed; no issues",
+    "flutter_tests": "42 passed",
+    "release_web": "passed, bundled renderer resources",
+    "android_debug_apk": "passed",
+    "light_and_dark": "routes, sheets, 2x text, persistence and live draft verified",
+    "browser_workflow": "passed: camera lifecycle, confirmation, legacy-key reload, all nutrients, 30-day range, export; no page errors"
+  }
+}
