@@ -135,7 +135,7 @@ void main() {
   }
   test('Shared portions scale independent rice and chicken foods', () async {
     final result = MealEngine.parse('rice and chicken curry');
-    expect(result.questions.where((q) => q.portion), hasLength(2));
+    expect(result.questions, isEmpty);
     final rice = result.meal.items.first;
     rice.grams = consumedPortion(foodById('rice'), {
       'quantity': 2.0,
@@ -156,10 +156,10 @@ void main() {
       closeTo(102.7 + 232.5, .1),
     );
   });
-  test('Explicit quantity of one occurrence does not suppress another', () {
+  test('Explicit quantity of one occurrence leaves another at its standard serving', () {
     final result = MealEngine.parse('100 g rice and rice');
-    expect(result.questions.where((q) => q.portion), hasLength(1));
-    expect(result.questions.single.itemIndex, 1);
+    expect(result.questions, isEmpty);
+    expect(result.meal.items.map((item) => item.grams), [100, 158]);
   });
   test('Direct edits clear stale shared portion metadata', () {
     final item = MealItem(

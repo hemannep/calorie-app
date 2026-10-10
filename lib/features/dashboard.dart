@@ -6,11 +6,19 @@ import '../core/nutrition_view.dart';
 import '../core/ui.dart';
 import '../data/models.dart';
 import '../data/food_database.dart';
+import '../services/health_service.dart';
 import 'logging.dart';
 import 'hydration.dart';
+import 'milestones.dart';
 export 'hydration.dart' show WaterPanel;
 
-class DashboardScreen extends StatelessWidget {
+String kayleoGreeting(DateTime time) => time.hour < 12
+    ? 'Good morning'
+    : time.hour < 17
+    ? 'Good afternoon'
+    : 'Good evening';
+
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     super.key,
     required this.state,
@@ -20,20 +28,171 @@ class DashboardScreen extends StatelessWidget {
   final AppState state;
   final ValueChanged<int> navigate;
   final VoidCallback? onReminders;
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
+  HealthActivityData _activityData = const HealthActivityData();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    widget.state.addListener(_onStateChanged);
+    _loadHealthData();
+  }
+
+  void _onStateChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) {
+      oldWidget.state.removeListener(_onStateChanged);
+      widget.state.addListener(_onStateChanged);
+      _loadHealthData();
+    }
+  }
+
+  Future<void> _loadHealthData() async {
+    final data = await HealthService.instance.fetchActivityData(
+      DateTime.now(),
+      state: widget.state,
+    );
+    if (mounted) {
+      setState(() => _activityData = data);
+    }
+  }
+
+  Future<void> _connectHealth() async {
+    final appName = HealthService.instance.platformHealthAppName;
+    if (_activityData.isAuthorized) {
+      await _loadHealthData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Synced with $appName!'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    final granted = await HealthService.instance.requestPermissions();
+    if (mounted) {
+      if (granted) {
+        await _loadHealthData();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connected to $appName! Activity data synced.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not connect to $appName. Please check health permissions in device settings.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _promptStepGoal(BuildContext context, AppState state) async {
+    await showStepGoalDialog(context, state);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _chooseHealthSource() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Activity data source',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Kayleo reads activity from your phone’s health system. On Android, Health Connect combines supported sources such as Samsung Health, HONOR Health, Fitbit, and Google Fit. On iPhone, Kayleo uses Apple Health.',
+                style: TextStyle(fontSize: 12, color: context.kayleoMuted),
+              ),
+              const SizedBox(height: 16),
+              _HealthSourceOption(
+                icon: Icons.favorite_outline_rounded,
+                title: HealthService.instance.phoneHealthSourceLabel,
+                subtitle:
+                    'Uses the health sources you allow in your phone settings',
+                selected: true,
+                onTap: () => Navigator.pop(context),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'To choose Samsung Health, HONOR Health, Google Fit, or another provider, enable that app’s Health Connect sharing and set its data priority in Health Connect settings.',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.5,
+                  color: context.kayleoMuted,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final opened = await HealthService.instance
+                        .openHealthSourceSettings();
+                    if (!opened) await _connectHealth();
+                  },
+                  icon: const Icon(Icons.settings_outlined, size: 17),
+                  label: const Text('Manage health app sharing'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() {});
+      _loadHealthData();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_onStateChanged);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final nutrition = state.totalsFor(now);
-    final meals = state.mealsFor(now);
-    final colors = Theme.of(context).colorScheme;
-    final surfaces = Theme.of(context).extension<KayleoSurfaces>()!;
-    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
-    final greeting = now.hour < 12
-        ? 'Good morning'
-        : now.hour < 18
-        ? 'Good afternoon'
-        : 'Good evening';
+    final state = widget.state;
+    final today = DateTime.now();
+    final date = today;
+    final meals = state.mealsFor(date);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -43,84 +202,157 @@ class DashboardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    greeting,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.3,
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
+                  const Brand(size: 34),
                   const SizedBox(height: 3),
                   Text(
-                    '${state.profile.name}.',
+                    kayleoGreeting(today),
+                    key: const Key('home-time-greeting'),
                     style: TextStyle(
-                      fontSize: 25,
-                      height: 1.2,
-                      fontWeight: FontWeight.w800,
-                      color: colors.onSurface,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: context.kayleoPrimary,
                     ),
                   ),
                 ],
               ),
             ),
-            if (state.demo && !largeText)
-              Tag(
-                'SAMPLE DATA',
-                color: surfaces.soft,
-                textColor: colors.onSurfaceVariant,
+            Material(
+              color: context.kayleoSurfaces.card,
+              borderRadius: BorderRadius.circular(30),
+              child: InkWell(
+                onTap: () => openMilestones(context, state),
+                borderRadius: BorderRadius.circular(30),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.local_fire_department_rounded,
+                        color: badgeColor('streak'),
+                        size: 23,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${state.streak}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            if (onReminders != null)
+            ),
+            if (widget.onReminders != null)
               IconButton(
                 tooltip: 'Your reminders',
-                onPressed: onReminders,
-                icon: Icon(
-                  Icons.notifications_none_rounded,
-                  color: colors.primary,
-                ),
+                onPressed: widget.onReminders,
+                icon: const Icon(Icons.notifications_none_rounded, size: 23),
               ),
           ],
         ),
-        if (state.demo && largeText) ...[
-          const SizedBox(height: 8),
-          Tag(
-            'SAMPLE DATA',
-            color: surfaces.soft,
-            textColor: colors.onSurfaceVariant,
-          ),
-        ],
-        const SizedBox(height: 10),
-        _CalorieSummary(state: state, date: now),
-        const SizedBox(height: 18),
-        _LoggingHero(state: state),
-        const SizedBox(height: 14),
-        Panel(
-          padding: 14,
-          border: false,
-          child: _MacroProgress(state: state, date: now, compact: true),
-        ),
-        const SizedBox(height: 24),
-        Panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionTitle(
-                'Today’s meals',
-                action: 'View diary',
-                onAction: () => navigate(1),
+        const SizedBox(height: 5),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                DateFormat('EEEE, d MMMM').format(date),
+                style: TextStyle(fontSize: 12, color: context.kayleoMuted),
               ),
-              if (meals.isEmpty)
-                EmptyState(
-                  icon: Icons.restaurant_outlined,
-                  title: 'Your first meal starts here',
-                  subtitle: 'Scan your food or tell Kayleo what you ate.',
-                  action: FilledButton.icon(
-                    onPressed: () => showLogger(context, state),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Add food'),
+            ),
+            if (state.demo)
+              Text(
+                'Sample data',
+                style: TextStyle(fontSize: 10, color: context.kayleoMuted),
+              ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _TodayRingsSection(
+          state: state,
+          date: date,
+          activity: _activityData,
+          onConnectHealth: _connectHealth,
+          onSelectHealthSource: _chooseHealthSource,
+          onSetStepGoal: () => _promptStepGoal(context, state),
+        ),
+        const SizedBox(height: 10),
+        _LoggingHero(state: state),
+        const SizedBox(height: 16),
+        SectionTitle(
+          'Your meals',
+          action: 'View diary',
+          onAction: () => widget.navigate(1),
+        ),
+        if (meals.isEmpty)
+          Panel(
+            padding: 14,
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: context.kayleoSurfaces.soft,
+                    shape: BoxShape.circle,
                   ),
-                )
-              else ...[
+                  child: Icon(
+                    Icons.restaurant_outlined,
+                    size: 27,
+                    color: context.kayleoMuted,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'No meals logged yet',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Add your first meal to get started.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.kayleoMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      showLogger(context, state, initialDate: date),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 17),
+                  label: const Text('Add food', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          )
+        else
+          Panel(
+            padding: 16,
+            child: Column(
+              children: [
                 for (var i = 0; i < meals.length; i++) ...[
                   MealRow(meal: meals[i], state: state),
                   if (i < meals.length - 1)
@@ -129,49 +361,13 @@ class DashboardScreen extends StatelessWidget {
                       child: Divider(height: 1),
                     ),
                 ],
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => showLogger(context, state),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Add food'),
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
-        ),
         const SizedBox(height: 20),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final hydration = WaterPanel(state: state, date: now);
-            final consistency = _ConsistencyPanel(
-              state: state,
-              onTap: () => navigate(3),
-            );
-            return constraints.maxWidth >= 700
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: hydration),
-                      const SizedBox(width: 20),
-                      Expanded(child: consistency),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      hydration,
-                      const SizedBox(height: 20),
-                      consistency,
-                    ],
-                  );
-          },
-        ),
-        if (meals.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          _DailyNote(state: state, nutrition: nutrition),
-        ],
+        WaterPanel(state: state, date: date),
+        const SizedBox(height: 20),
+        StreakSummary(state: state),
         const SizedBox(height: 24),
       ],
     );
@@ -181,75 +377,136 @@ class DashboardScreen extends StatelessWidget {
 class _LoggingHero extends StatelessWidget {
   const _LoggingHero({required this.state});
   final AppState state;
-
   @override
-  Widget build(BuildContext context) => Panel(
-    border: false,
-    padding: 14,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'What did you eat?',
-          style: TextStyle(
-            fontSize: 18,
-            height: 1.25,
-            fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => Column(
+    children: [
+      Material(
+        color: context.kayleoSurfaces.card,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          key: const Key('home-food-search'),
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => showLogger(context, state, mode: 'Search'),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search_rounded,
+                  size: 20,
+                  color: context.kayleoMuted,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Search food, dish, or brand',
+                    style: TextStyle(fontSize: 12, color: context.kayleoMuted),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 18,
+                  color: context.kayleoMuted,
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      const SizedBox(height: 10),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _LoggingTile(
+              key: const Key('home-scan'),
+              icon: Icons.camera_alt_outlined,
+              label: 'Scan food',
+              primary: true,
+              onTap: () => showLogger(context, state, openCamera: true),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _LoggingTile(
+              icon: Icons.edit_note_rounded,
+              label: 'Type it',
+              onTap: () => showLogger(context, state, mode: 'Text'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _LoggingTile(
+              icon: Icons.mic_none_rounded,
+              label: 'Tell Kayleo',
+              onTap: () => showLogger(context, state, mode: 'Voice'),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+class _HealthSourceOption extends StatelessWidget {
+  const _HealthSourceOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected
+        ? context.kayleoPrimary.withValues(alpha: .1)
+        : context.kayleoSurfaces.soft,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
           children: [
+            Icon(icon, color: context.kayleoPrimary, size: 22),
+            const SizedBox(width: 12),
             Expanded(
-              child: _LoggingTile(
-                key: const Key('home-scan'),
-                icon: Icons.camera_alt_outlined,
-                label: 'Scan food',
-                primary: true,
-                onTap: () => showLogger(context, state, openCamera: true),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _LoggingTile(
-                icon: Icons.edit_note_rounded,
-                label: 'Type it',
-                onTap: () => showLogger(context, state, mode: 'Text'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _LoggingTile(
-                icon: Icons.mic_none_rounded,
-                label: 'Tell Kayleo',
-                onTap: () => showLogger(context, state, mode: 'Voice'),
-              ),
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              color: selected ? context.kayleoPrimary : context.kayleoMuted,
+              size: 20,
             ),
           ],
         ),
-        const SizedBox(height: 14),
-        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              key: const Key('home-barcode'),
-              onPressed: () => showLogger(context, state, mode: 'Barcode'),
-              icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-              label: const Text('Barcode'),
-            ),
-            OutlinedButton.icon(
-              key: const Key('home-food-search'),
-              onPressed: () => showLogger(context, state, mode: 'Search'),
-              icon: const Icon(Icons.search_rounded, size: 18),
-              label: const Text('Food search'),
-            ),
-          ],
-        ),
-      ],
+      ),
     ),
   );
 }
@@ -272,34 +529,40 @@ class _LoggingTile extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final surfaces = Theme.of(context).extension<KayleoSurfaces>()!;
     return Material(
-      color: primary ? lime : Theme.of(context).scaffoldBackgroundColor,
+      color: primary ? colors.primary : surfaces.card,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 70),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
           decoration: BoxDecoration(
             border: Border.all(
-              color: primary ? lime : surfaces.border.withValues(alpha: .45),
+              color: primary ? colors.primary : surfaces.border,
             ),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 24, color: primary ? forest : colors.primary),
-              const SizedBox(height: 7),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  height: 1.25,
-                  fontWeight: FontWeight.w700,
-                  color: primary ? forest : colors.onSurface,
+              Icon(
+                icon,
+                size: 19,
+                color: primary ? colors.onPrimary : colors.primary,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                    color: primary ? colors.onPrimary : colors.onSurface,
+                  ),
                 ),
               ),
             ],
@@ -314,88 +577,96 @@ class _CalorieSummary extends StatelessWidget {
   const _CalorieSummary({required this.state, required this.date});
   final AppState state;
   final DateTime date;
-
   @override
   Widget build(BuildContext context) {
     final nutrition = state.totalsFor(date);
     final target = state.profile.calorieTarget;
     final remaining = target - nutrition.calories;
-    final scale = MediaQuery.textScalerOf(context).scale(1);
-    final colors = Theme.of(context).colorScheme;
-    final surfaces = Theme.of(context).extension<KayleoSurfaces>()!;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final baseSize = constraints.maxWidth < 330 ? 180.0 : 196.0;
-        final ringSize = (baseSize + (scale - 1).clamp(0.0, 1.0) * 56).clamp(
-          0.0,
-          constraints.maxWidth,
-        );
-        return Column(
-          children: [
-            Center(
-              child: KayleoRing(
-                progress: target > 0 ? nutrition.calories / target : 0,
-                size: ringSize,
-                stroke: 11,
-                color: colors.primary,
-                track: surfaces.soft,
-                semanticLabel:
-                    '${number(nutrition.calories)} calories consumed of $target daily target; ${number(remaining.abs())} calories ${remaining >= 0 ? 'remaining' : 'over target'}',
-                child: Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          number(nutrition.calories),
-                          style: TextStyle(
-                            fontSize: scale > 1.3 ? 28 : 38,
-                            height: 1.15,
-                            letterSpacing: -1.1,
-                            fontWeight: FontWeight.w800,
-                            color: colors.onSurface,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'kcal',
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.3,
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Text(
-                        '${number(remaining.abs())} ${remaining >= 0 ? 'remaining' : 'over target'}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.25,
-                          fontWeight: FontWeight.w700,
-                          color: colors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
+    final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final consumed = state.showConsumedCalories;
+    final label = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          number(consumed ? nutrition.calories : remaining.abs()),
+          style: const TextStyle(
+            fontSize: 38,
+            height: 1.1,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          consumed
+              ? 'Calories consumed'
+              : remaining >= 0
+              ? 'Calories left'
+              : 'Calories over',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '${number(nutrition.calories)} / ${number(target)} kcal · Tap to switch',
+          style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+        ),
+      ],
+    );
+    final ring = KayleoRing(
+      progress: target > 0 ? nutrition.calories / target : 0,
+      key: const Key('today-calorie-ring'),
+      segmented: true,
+      size: 112,
+      stroke: 9,
+      highlight: false,
+      color: context.kayleoPrimary,
+      track: context.kayleoSurfaces.soft,
+      semanticLabel:
+          '${number(nutrition.calories)} calories consumed of $target target',
+      child: Container(
+        margin: const EdgeInsets.all(26),
+        decoration: BoxDecoration(
+          color: context.kayleoBackground,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          Icons.local_fire_department_rounded,
+          size: 26,
+          color: context.kayleoPrimary,
+        ),
+      ),
+    );
+    return Semantics(
+      button: true,
+      label: 'Switch calorie display',
+      child: InkWell(
+        key: const Key('calorie-display-toggle'),
+        borderRadius: BorderRadius.circular(KayleoRadius.large),
+        onTap: () {
+          state.showConsumedCalories = !state.showConsumedCalories;
+          state.persist();
+        },
+        child: Panel(
+          padding: 20,
+          child: large
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    label,
+                    const SizedBox(height: 16),
+                    Center(child: ring),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: label),
+                    const SizedBox(width: 12),
+                    ring,
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Daily target: ${number(target)} kcal',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.25,
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -409,91 +680,634 @@ class _MacroProgress extends StatelessWidget {
   final AppState state;
   final DateTime date;
   final bool compact;
-
   @override
   Widget build(BuildContext context) {
     final nutrition = state.totalsFor(date);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          compact ? 'Today’s macros' : 'Your macros',
-          style: TextStyle(
-            fontSize: compact ? 15 : 16,
-            height: 1.25,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        SizedBox(height: compact ? 10 : 16),
-        LayoutBuilder(
-          builder: (context, c) {
-            final width = (c.maxWidth - 24) / 3;
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final metric in [
-                  NutritionMetric.protein,
-                  NutritionMetric.carbs,
-                  NutritionMetric.fats,
-                ])
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Column(
-                        children: [
-                          KayleoRing(
-                            progress: metric.target(state.profile) > 0
-                                ? metric.amount(nutrition) /
-                                      metric.target(state.profile)
-                                : 0,
-                            size: width.clamp(50, 104),
-                            stroke: 6,
-                            highlight: false,
-                            color: metric.color,
-                            track: context.kayleoSurfaces.soft,
-                            semanticLabel:
-                                '${metric.label}: ${number(metric.amount(nutrition))} g of ${metric.target(state.profile)} g daily target',
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: FittedBox(
-                                child: Text(
-                                  '${number(metric.amount(nutrition))}g',
-                                  style: const TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
+    final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    return LayoutBuilder(
+      builder: (context, c) {
+        final width = large ? c.maxWidth : (c.maxWidth - 20) / 3;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final metric in [
+              NutritionMetric.protein,
+              NutritionMetric.carbs,
+              NutritionMetric.fats,
+            ])
+              SizedBox(
+                width: width,
+                height: large ? null : 161,
+                child: Panel(
+                  padding: large ? 20 : 12,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${number((metric.target(state.profile) - metric.amount(nutrition)).abs())}g',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -.5,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${metric.label} ${metric.amount(nutrition) <= metric.target(state.profile) ? 'left' : 'over'}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: KayleoRing(
+                          progress: metric.target(state.profile) > 0
+                              ? metric.amount(nutrition) /
+                                    metric.target(state.profile)
+                              : 0,
+                          size: 50,
+                          stroke: 5,
+                          highlight: false,
+                          color: metric.color,
+                          track: context.kayleoSurfaces.soft,
+                          semanticLabel:
+                              '${metric.label}: ${number(metric.amount(nutrition))} of ${metric.target(state.profile)} grams',
+                          child:
+                              metric.amount(nutrition) >
+                                  metric.target(state.profile)
+                              ? Padding(
+                                  padding: const EdgeInsets.all(9),
+                                  child: FittedBox(
+                                    child: Text(
+                                      '${number(metric.amount(nutrition))}g',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  margin: const EdgeInsets.all(13),
+                                  decoration: BoxDecoration(
+                                    color: metric.color.withValues(alpha: .08),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    metric.icon,
+                                    color: metric.color,
+                                    size: 18,
                                   ),
                                 ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            metric.label,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            '/ ${metric.target(state.profile)} g',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: context.kayleoMuted,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                    ],
                   ),
-              ],
-            );
-          },
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TodayRingsSection extends StatefulWidget {
+  const _TodayRingsSection({
+    required this.state,
+    required this.date,
+    required this.activity,
+    required this.onConnectHealth,
+    required this.onSelectHealthSource,
+    required this.onSetStepGoal,
+  });
+
+  final AppState state;
+  final DateTime date;
+  final HealthActivityData activity;
+  final VoidCallback onConnectHealth;
+  final VoidCallback onSelectHealthSource;
+  final VoidCallback onSetStepGoal;
+
+  @override
+  State<_TodayRingsSection> createState() => _TodayRingsSectionState();
+}
+
+class _TodayRingsSectionState extends State<_TodayRingsSection> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 1);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final large = textScale > 1.3;
+    final pageHeight = large ? (368.0 + (textScale - 1.0) * 720.0) : 325.0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: pageHeight,
+          child: PageView(
+            key: const Key('today-rings-pageview'),
+            controller: _pageController,
+            clipBehavior: Clip.hardEdge,
+            pageSnapping: true,
+            physics: const PageScrollPhysics(
+              parent: ClampingScrollPhysics(),
+            ),
+            onPageChanged: (idx) => setState(() => _currentPage = idx),
+            children: [
+              // Page 0: Nutrition overview
+              SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _CalorieSummary(state: widget.state, date: widget.date),
+                    const SizedBox(height: 12),
+                    _MacroProgress(
+                      state: widget.state,
+                      date: widget.date,
+                      compact: true,
+                    ),
+                  ],
+                ),
+              ),
+              // Page 1: Health & Activity overview
+              SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _StepSummary(
+                      state: widget.state,
+                      date: widget.date,
+                      activity: widget.activity,
+                      onTap: widget.onSetStepGoal,
+                      onConnectHealth: widget.onConnectHealth,
+                      onSelectHealthSource: widget.onSelectHealthSource,
+                    ),
+                    const SizedBox(height: 12),
+                    _ActivityProgress(
+                      state: widget.state,
+                      activity: widget.activity,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            2,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: _currentPage == index ? 18 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: _currentPage == index
+                    ? context.kayleoPrimary
+                    : context.kayleoSurfaces.border,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
+}
+
+class _StepSummary extends StatelessWidget {
+  const _StepSummary({
+    required this.state,
+    required this.date,
+    required this.activity,
+    required this.onTap,
+    required this.onConnectHealth,
+    required this.onSelectHealthSource,
+  });
+
+  final AppState state;
+  final DateTime date;
+  final HealthActivityData activity;
+  final VoidCallback onTap;
+  final VoidCallback onConnectHealth;
+  final VoidCallback onSelectHealthSource;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = state.stepTarget;
+    final steps = activity.steps;
+    final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final reached = target > 0 && steps >= target;
+    final isAuthorized = activity.isAuthorized;
+    final appName = HealthService.instance.platformHealthAppName;
+    final sourceLabel = HealthService.instance.shortHealthSourceLabel;
+    final hasHealthData =
+        steps > 0 ||
+        activity.activeMinutes > 0 ||
+        activity.activeCalories > 0 ||
+        activity.motionKm > 0;
+
+    const stepColor = Color(0xFF10B981);
+    final ring = KayleoRing(
+      progress: target > 0 ? steps / target : 0,
+      key: const Key('today-step-ring'),
+      size: 112,
+      stroke: 9,
+      highlight: false,
+      color: stepColor,
+      track: context.kayleoSurfaces.soft,
+      semanticLabel: '$steps steps taken of $target target',
+      child: Container(
+        margin: const EdgeInsets.all(23),
+        decoration: BoxDecoration(
+          color: context.kayleoBackground,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.directions_walk_rounded,
+          size: 24,
+          color: stepColor,
+        ),
+      ),
+    );
+
+    final label = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          number(steps),
+          style: const TextStyle(
+            fontSize: 38,
+            height: 1.1,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          reached ? 'Step goal reached!' : 'Steps today',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 14),
+        if (isAuthorized)
+          InkWell(
+            key: const Key('sync-health-button'),
+            onTap: onSelectHealthSource,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.sync_rounded, size: 13, color: stepColor),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    hasHealthData
+                        ? '${number(steps)} / ${number(target)} · $sourceLabel'
+                        : 'No data shared · Check Health Connect',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: stepColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          InkWell(
+            key: const Key('connect-health-button'),
+            onTap: onConnectHealth,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.link_off_rounded, size: 13, color: stepColor),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'Not connected · Connect $appName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: stepColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    return Semantics(
+      button: true,
+      label: isAuthorized ? 'Set step goal' : 'Connect health and set goal',
+      child: InkWell(
+        key: const Key('step-goal-trigger'),
+        borderRadius: BorderRadius.circular(KayleoRadius.large),
+        onTap: onTap,
+        child: Panel(
+          padding: 20,
+          child: large
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    label,
+                    const SizedBox(height: 16),
+                    Center(child: ring),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: label),
+                    const SizedBox(width: 12),
+                    ring,
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityProgress extends StatelessWidget {
+  const _ActivityProgress({required this.state, required this.activity});
+
+  final AppState state;
+  final HealthActivityData activity;
+
+  @override
+  Widget build(BuildContext context) {
+    final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+
+    final metrics = [
+      _ActivityMetricItem(
+        key: const Key('today-active-time-ring'),
+        label: 'Active time',
+        amount: '${activity.activeMinutes}m',
+        targetLabel: '${state.activeMinutesTarget}m',
+        progress: state.activeMinutesTarget > 0
+            ? activity.activeMinutes / state.activeMinutesTarget
+            : 0.0,
+        color: const Color(0xFF10B981),
+        icon: Icons.timer_outlined,
+        reached: activity.activeMinutes >= state.activeMinutesTarget,
+      ),
+      _ActivityMetricItem(
+        key: const Key('today-activity-calorie-ring'),
+        label: 'Activity cal',
+        amount: '${activity.activeCalories}',
+        targetLabel: '${state.activeCaloriesTarget} kcal',
+        progress: state.activeCaloriesTarget > 0
+            ? activity.activeCalories / state.activeCaloriesTarget
+            : 0.0,
+        color: const Color(0xFFFF5722),
+        icon: Icons.local_fire_department_rounded,
+        reached: activity.activeCalories >= state.activeCaloriesTarget,
+      ),
+      _ActivityMetricItem(
+        key: const Key('today-motion-ring'),
+        label: 'Motion',
+        amount: '${activity.motionKm.toStringAsFixed(1)}km',
+        targetLabel: '${state.motionKmTarget.toStringAsFixed(1)}km',
+        progress: state.motionKmTarget > 0
+            ? activity.motionKm / state.motionKmTarget
+            : 0.0,
+        color: const Color(0xFF06B6D4),
+        icon: Icons.moving_rounded,
+        reached: activity.motionKm >= state.motionKmTarget,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, c) {
+        final width = large ? c.maxWidth : (c.maxWidth - 20) / 3;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final m in metrics)
+              SizedBox(
+                width: width,
+                height: large ? null : 161,
+                child: Panel(
+                  padding: large ? 20 : 12,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        m.amount,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -.5,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        m.label,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: KayleoRing(
+                          key: m.key,
+                          progress: m.progress,
+                          size: 50,
+                          stroke: 5,
+                          highlight: false,
+                          color: m.color,
+                          track: context.kayleoSurfaces.soft,
+                          semanticLabel:
+                              '${m.label}: ${m.amount} of ${m.targetLabel}',
+                          child: m.reached
+                              ? Padding(
+                                  padding: const EdgeInsets.all(9),
+                                  child: Icon(
+                                    Icons.check_rounded,
+                                    size: 20,
+                                    color: m.color,
+                                  ),
+                                )
+                              : Container(
+                                  margin: const EdgeInsets.all(13),
+                                  decoration: BoxDecoration(
+                                    color: m.color.withValues(alpha: .08),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(m.icon, color: m.color, size: 18),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ActivityMetricItem {
+  const _ActivityMetricItem({
+    required this.key,
+    required this.label,
+    required this.amount,
+    required this.targetLabel,
+    required this.progress,
+    required this.color,
+    required this.icon,
+    required this.reached,
+  });
+
+  final Key key;
+  final String label;
+  final String amount;
+  final String targetLabel;
+  final double progress;
+  final Color color;
+  final IconData icon;
+  final bool reached;
+}
+
+Future<void> showStepGoalDialog(BuildContext context, AppState state) async {
+  final controller = TextEditingController(text: '${state.stepTarget}');
+  final formKey = GlobalKey<FormState>();
+
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (context, setModalState) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(KayleoRadius.large),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.directions_walk_rounded,
+                  color: Color(0xFF10B981),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Daily Step Goal',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Set your daily step target. Steps will be tracked automatically from your health app.',
+                    style: TextStyle(fontSize: 13, color: context.kayleoMuted),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    key: const Key('step-goal-input'),
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Target steps',
+                      suffixText: 'steps',
+                    ),
+                    validator: (val) {
+                      final n = int.tryParse(val?.trim() ?? '');
+                      if (n == null || n < 500 || n > 100000) {
+                        return 'Enter between 500 and 100,000 steps';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [6000, 8000, 10000, 12000].map((preset) {
+                      final selected = controller.text == '$preset';
+                      return ChoiceChip(
+                        label: Text('$preset'),
+                        selected: selected,
+                        onSelected: (_) {
+                          controller.text = '$preset';
+                          setModalState(() {});
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const Key('save-step-goal-button'),
+              onPressed: () async {
+                if (formKey.currentState?.validate() ?? false) {
+                  final parsed = int.parse(controller.text.trim());
+                  await state.updateStepTarget(parsed);
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('Save goal'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
 }
 
 class EnergyPanel extends StatelessWidget {
@@ -514,149 +1328,6 @@ class EnergyPanel extends StatelessWidget {
       ],
     ),
   );
-}
-
-class _DailyNote extends StatelessWidget {
-  const _DailyNote({required this.state, required this.nutrition});
-  final AppState state;
-  final Nutrients nutrition;
-  @override
-  Widget build(BuildContext context) {
-    final proteinLeft = (state.profile.proteinTarget - nutrition.protein)
-        .clamp(0, 500)
-        .round();
-    return Panel(
-      color: Theme.of(context).extension<KayleoSurfaces>()!.soft,
-      border: false,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconBox(Icons.insights_outlined, size: 36, color: lime),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'From today’s food',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  proteinLeft > 0
-                      ? '${number(nutrition.protein)}g protein logged. ${proteinLeft}g remains to your daily target.'
-                      : '${number(nutrition.protein)}g protein logged. You’ve reached your daily target.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).colorScheme.primary,
-                    height: 1.8,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConsistencyPanel extends StatelessWidget {
-  const _ConsistencyPanel({required this.state, required this.onTap});
-  final AppState state;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    final dates = List.generate(
-      7,
-      (i) => DateTime.now().subtract(Duration(days: 6 - i)),
-    );
-    return Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Your week',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-              ),
-              const Spacer(),
-              Icon(Icons.wb_sunny_outlined, size: 19, color: orange),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: dates
-                .map(
-                  (d) => Column(
-                    children: [
-                      Container(
-                        width: 27,
-                        height: 27,
-                        decoration: BoxDecoration(
-                          color: state.mealsFor(d).isNotEmpty
-                              ? Theme.of(context)
-                                    .extension<KayleoSurfaces>()!
-                                    .soft
-                              : Theme.of(context).scaffoldBackgroundColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          state.mealsFor(d).isNotEmpty
-                              ? Icons.check_rounded
-                              : Icons.remove_rounded,
-                          size: 13,
-                          color: state.mealsFor(d).isNotEmpty
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context)
-                                    .extension<KayleoSurfaces>()!
-                                    .border,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        DateFormat('E').format(d).substring(0, 1),
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: KayleoSpacing.lg),
-          Row(
-            children: [
-              Text(
-                '${state.streak} day${state.streak == 1 ? '' : 's'} in a row',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              InkWell(
-                onTap: onTap,
-                child: Padding(
-                  padding: EdgeInsets.all(6),
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 17,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class MealRow extends StatelessWidget {

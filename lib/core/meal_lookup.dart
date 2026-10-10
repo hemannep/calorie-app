@@ -13,6 +13,8 @@ class MealLookupPlan {
   const MealLookupPlan(this.analysis, this.requests);
   final MealAnalysis analysis;
   final List<MealFoodRequest> requests;
+  static final _knownAliases = foods.expand((food) => food.aliases).toList()
+    ..sort((a, b) => b.length.compareTo(a.length));
 
   static MealLookupPlan parse(
     String description, {
@@ -25,9 +27,19 @@ class MealLookupPlan {
       );
     }
     final original = MealEngine.parse(description, now: now, input: input);
-    final clauses = description.toLowerCase().split(
-      RegExp(r'\s+(?:and|with|plus)\s+|[,;&+]'),
-    );
+    var splitText = description.toLowerCase();
+    // Keep a known dish such as "biryani with chicken" together while still
+    // splitting "rice with curry" into two foods.
+    for (final alias in _knownAliases.where((a) => a.contains(' with '))) {
+      splitText = splitText.replaceAll(
+        alias,
+        alias.replaceAll(' with ', ' _with_ '),
+      );
+    }
+    final clauses = splitText
+        .split(RegExp(r'\s+(?:and|with|plus)\s+|[,;&+]'))
+        .map((clause) => clause.replaceAll(' _with_ ', ' with '))
+        .toList();
     if (clauses.length > 8) {
       throw const FormatException('Please log up to eight foods at a time.');
     }
@@ -100,9 +112,7 @@ class MealLookupPlan {
           .trim();
       if (query.isEmpty) continue;
       var residual = query;
-      final aliases = foods.expand((food) => food.aliases).toList()
-        ..sort((a, b) => b.length.compareTo(a.length));
-      for (final alias in aliases) {
+      for (final alias in _knownAliases) {
         residual = residual.replaceAll(
           RegExp('\\b${RegExp.escape(alias)}\\b'),
           '',

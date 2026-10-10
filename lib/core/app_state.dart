@@ -51,12 +51,19 @@ class AppState extends ChangeNotifier {
   Set<String> hiddenPosts = {};
   List<Map<String, dynamic>> communityPosts = [];
   Map<String, List<String>> comments = {};
+  bool showConsumedCalories = false;
+  int stepTarget = 10000;
+  int activeMinutesTarget = 30;
+  int activeCaloriesTarget = 400;
+  double motionKmTarget = 5.0;
+
   Map<String, bool> preferences = {
     'Meal reminders': true,
     'Hydration reminders': false,
     'Weekly review': true,
     'Quiet hours': true,
     'Milestone celebrations': true,
+    'Smart nudges': false,
     'Device notifications': false,
     'Keep meal photos': true,
     'Improve recognition': false,
@@ -64,6 +71,7 @@ class AppState extends ChangeNotifier {
   Map<String, String> milestoneUnlocks = {};
   List<String> milestoneNotices = [];
   Set<String> notifiedMilestones = {};
+  Set<String> celebratedMilestones = {};
   Future<void> get writesComplete => _pendingWrite;
   Map<String, int> get milestoneCounts {
     final personal = meals
@@ -132,6 +140,9 @@ class AppState extends ChangeNotifier {
           (counts[m.metric] ?? 0) >= m.target) {
         milestoneUnlocks[m.id] = DateTime.now().toIso8601String();
         if (announce) milestoneNotices.add(m.id);
+        if (!announce || preferences['Milestone celebrations'] != true) {
+          celebratedMilestones.add(m.id);
+        }
       }
     }
   }
@@ -238,6 +249,15 @@ class AppState extends ChangeNotifier {
         .where((id) => milestones.any((m) => m.id == id))
         .toList();
     notifiedMilestones = Set<String>.from(j['notifiedMilestones'] ?? []);
+    // Existing accounts keep their earned badges without replaying old wins.
+    celebratedMilestones = Set<String>.from(
+      j['celebratedMilestones'] ?? milestoneUnlocks.keys.toList(),
+    );
+    showConsumedCalories = j['showConsumedCalories'] == true;
+    stepTarget = (j['stepTarget'] as num?)?.toInt() ?? 10000;
+    activeMinutesTarget = (j['activeMinutesTarget'] as num?)?.toInt() ?? 30;
+    activeCaloriesTarget = (j['activeCaloriesTarget'] as num?)?.toInt() ?? 400;
+    motionKmTarget = (j['motionKmTarget'] as num?)?.toDouble() ?? 5.0;
     preferences.addAll(Map<String, bool>.from(j['preferences'] ?? {}));
   }
 
@@ -301,6 +321,7 @@ class AppState extends ChangeNotifier {
     'milestoneUnlocks': milestoneUnlocks,
     'milestoneNotices': milestoneNotices,
     'notifiedMilestones': notifiedMilestones.toList(),
+    'celebratedMilestones': celebratedMilestones.toList(),
     'accountEmail': accountEmail,
     'appearance': appearance,
     'profile': profile.toJson(),
@@ -320,7 +341,36 @@ class AppState extends ChangeNotifier {
     'communityPosts': communityPosts,
     'comments': comments,
     'preferences': preferences,
+    'showConsumedCalories': showConsumedCalories,
+    'stepTarget': stepTarget,
+    'activeMinutesTarget': activeMinutesTarget,
+    'activeCaloriesTarget': activeCaloriesTarget,
+    'motionKmTarget': motionKmTarget,
   };
+
+  Future<void> updateStepTarget(int target) async {
+    stepTarget = target.clamp(500, 100000);
+    notifyListeners();
+    await persist();
+  }
+
+  Future<void> updateActivityTargets({
+    int? step,
+    int? activeMinutes,
+    int? activeCalories,
+    double? motionKm,
+  }) async {
+    if (step != null) stepTarget = step.clamp(500, 100000);
+    if (activeMinutes != null) {
+      activeMinutesTarget = activeMinutes.clamp(5, 360);
+    }
+    if (activeCalories != null) {
+      activeCaloriesTarget = activeCalories.clamp(50, 5000);
+    }
+    if (motionKm != null) motionKmTarget = motionKm.clamp(0.5, 100.0);
+    notifyListeners();
+    await persist();
+  }
 
   Future<void> setAppearance(String value) async {
     if (!['light', 'dark', 'system'].contains(value)) return;
@@ -616,12 +666,15 @@ class AppState extends ChangeNotifier {
     milestoneUnlocks.clear();
     milestoneNotices.clear();
     notifiedMilestones.clear();
+    celebratedMilestones.clear();
+    showConsumedCalories = false;
     preferences = {
       'Meal reminders': true,
       'Hydration reminders': false,
       'Weekly review': true,
       'Quiet hours': true,
       'Milestone celebrations': true,
+      'Smart nudges': false,
       'Device notifications': false,
       'Keep meal photos': true,
       'Improve recognition': false,

@@ -91,6 +91,29 @@ void main() {
     addTearDown(() => CameraPlatform.instance = original);
   });
 
+  testWidgets('Splash types the wordmark before revealing the tagline', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: kayleoTheme(),
+        home: const SplashScreen(duration: Duration(milliseconds: 1200)),
+      ),
+    );
+    int visibleCount() => tester
+        .widgetList<Brand>(find.byType(Brand))
+        .map((brand) => brand.visibleCharacters)
+        .whereType<int>()
+        .single;
+    expect(visibleCount(), 0);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(visibleCount(), inInclusiveRange(1, 6));
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(visibleCount(), 7);
+    await tester.pumpAndSettle();
+    expect(find.text('Your day, in balance.'), findsOneWidget);
+  });
+
   testWidgets(
     'Splash, onboarding, and sample exploration are usable without authentication',
     (tester) async {
@@ -106,14 +129,14 @@ void main() {
           ),
         ),
       );
-      expect(find.byType(Brand), findsOneWidget);
+      expect(find.byKey(const Key('splash-typewriter')), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 650));
       await tester.pumpAndSettle();
       expect(find.text('Snap it.\nKayleo gets it.'), findsOneWidget);
       await snapshot(tester, 'onboarding-desktop');
       await tester.tap(find.byKey(const Key('explore-demo')));
       await tester.pumpAndSettle();
-      expect(find.text('What did you eat?'), findsOneWidget);
+      expect(find.byKey(const Key('home-food-search')), findsOneWidget);
       expect(s.onboarded, isTrue);
       expect(s.demo, isTrue);
       await tester.pumpWidget(const SizedBox());
@@ -123,7 +146,7 @@ void main() {
   );
 
   testWidgets(
-    'Text to clarification to confirmed meal updates the daily records',
+    'Text with known foods reviews directly and updates the daily records',
     (tester) async {
       final s = await fresh();
       final count = s.meals.length;
@@ -142,30 +165,13 @@ void main() {
       await tester.tap(find.byKey(const Key('logging-continue')));
       await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
-      expect(
-        find.text('About how much rice was on your plate?'),
-        findsOneWidget,
-      );
-      await snapshot(tester, 'clarification-mobile');
-      await tester.tap(find.text('1½ cups'));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('logging-continue')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('200 g'));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('logging-continue')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Light / home-style'));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('logging-continue')));
-      await tester.pumpAndSettle();
       expect(find.text('Kayleo sees'), findsOneWidget);
       await snapshot(tester, 'meal-review-mobile');
       await tester.tap(find.byKey(const Key('save-meal')));
       await tester.pumpAndSettle();
       expect(find.text('Your meal is added.'), findsOneWidget);
       expect(s.meals.length, count + 1);
-      expect(s.meals.last.items.first.grams, 237);
+      expect(s.meals.last.items.first.grams, 158);
       await snapshot(tester, 'meal-success-mobile');
       await tester.tap(find.byKey(const Key('logging-continue')));
       await tester.pumpAndSettle();
@@ -189,20 +195,23 @@ void main() {
     );
     await snapshot(tester, 'today-desktop');
     for (final (label, name, title) in [
-      ('Diary', 'diary-desktop', 'Your food story.'),
+      ('Diary', 'diary-desktop', 'Diary'),
       ('Scan food', 'capture-desktop', 'What’s on your plate?'),
-      ('Progress', 'progress-desktop', 'Your progress.'),
+      ('Progress', 'progress-desktop', 'Progress'),
       ('Saved meals', 'saved-meals-desktop', 'Your usuals, ready.'),
       ('Community', 'community-desktop', 'Better, together.'),
     ]) {
       await tester.tap(find.text(label).first);
       await tester.pumpAndSettle();
-      expect(find.text(title), findsOneWidget);
+      expect(
+        find.text(title),
+        title == label ? findsNWidgets(2) : findsOneWidget,
+      );
       await snapshot(tester, name);
     }
     await tester.tap(find.text('Alex').first);
     await tester.pumpAndSettle();
-    expect(find.text('You'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
     await snapshot(tester, 'settings-desktop');
     await tester.pumpWidget(const SizedBox());
     tester.view.resetPhysicalSize();
@@ -345,7 +354,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('onboarding-continue')));
     await tester.tap(find.byKey(const Key('onboarding-continue')));
+    await tester.pump();
+    expect(find.text('Preparing your personal plan'), findsOneWidget);
+    expect(s.onboarded, isFalse);
+    await tester.pump(const Duration(seconds: 10));
     await tester.pumpAndSettle();
+    expect(find.text('Your plan.\nYour pace.'), findsOneWidget);
     await snapshot(tester, 'personal-plan-mobile');
     await tester.ensureVisible(find.byKey(const Key('onboarding-continue')));
     await tester.tap(find.byKey(const Key('onboarding-continue')));
@@ -355,7 +369,7 @@ void main() {
     expect(s.meals, isEmpty);
     expect(s.weights.length, 1);
     expect(s.profile.activity, 'Moderately active');
-    expect(find.text('What did you eat?'), findsOneWidget);
+    expect(find.byKey(const Key('home-food-search')), findsOneWidget);
     await snapshot(tester, 'empty-day-mobile');
     await tester.pumpWidget(const SizedBox());
     tester.view.resetPhysicalSize();
@@ -751,6 +765,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      if (find.byTooltip('Close celebration').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('Close celebration'));
+        await tester.pumpAndSettle();
+      }
       expect(find.text('300g'), findsOneWidget);
       expect(find.text('800g'), findsOneWidget);
       expect(find.text('200g'), findsOneWidget);

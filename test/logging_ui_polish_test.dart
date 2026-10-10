@@ -4,6 +4,7 @@ import 'package:calorie_app/core/ui.dart';
 import 'package:calorie_app/features/dashboard.dart';
 import 'package:calorie_app/features/logging.dart';
 import 'package:calorie_app/features/progress.dart';
+import 'package:calorie_app/features/milestones.dart';
 import 'package:calorie_app/features/settings.dart';
 import 'package:calorie_app/features/shell.dart';
 import 'package:calorie_app/screens/food_lookup_screen.dart';
@@ -58,7 +59,7 @@ void main() {
     final binding = TestWidgetsFlutterBinding.instance;
     binding.platformDispatcher.clearAllTestValues();
   });
-  testWidgets('Today groups barcode and food search and opens live lookup', (
+  testWidgets('Today places search below the rings and opens live lookup', (
     t,
   ) async {
     final s = await fresh();
@@ -67,34 +68,13 @@ void main() {
       const Size(390, 980),
       page(DashboardScreen(state: s, navigate: (_) {})),
     );
-    final hero = find
-        .ancestor(
-          of: find.text('What did you eat?'),
-          matching: find.byType(Panel),
-        )
-        .first;
+    expect(find.byKey(const Key('home-barcode')), findsNothing);
+    expect(find.byKey(const Key('home-food-search')), findsOneWidget);
     expect(
-      find.descendant(
-        of: hero,
-        matching: find.byKey(const Key('home-barcode')),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: hero,
-        matching: find.byKey(const Key('home-food-search')),
-      ),
-      findsOneWidget,
+      t.getTopLeft(find.byKey(const Key('home-food-search'))).dy,
+      greaterThan(t.getBottomLeft(find.byType(KayleoRing).at(3)).dy),
     );
     await snapshot(t, 'today-polished');
-    await t.ensureVisible(find.byKey(const Key('home-barcode')));
-    await t.tap(find.byKey(const Key('home-barcode')));
-    await t.pumpAndSettle();
-    expect(find.text('Open barcode camera'), findsOneWidget);
-    expect(find.textContaining('WORKFLOW DEMO'), findsNothing);
-    await t.pageBack();
-    await t.pumpAndSettle();
     await t.tap(find.byKey(const Key('home-food-search')));
     await t.pumpAndSettle();
     expect(
@@ -103,7 +83,7 @@ void main() {
     );
     await t.pumpWidget(const SizedBox.shrink());
   });
-  testWidgets('Logging barcode chip shares workflow and preserves text draft', (
+  testWidgets('Logging barcode chip opens the camera and manual input', (
     t,
   ) async {
     final s = await fresh();
@@ -121,14 +101,10 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.widgetWithText(ChoiceChip, 'Barcode'));
     await t.pumpAndSettle();
-    expect(find.byType(FoodLookupScreen), findsOneWidget);
-    await t.pageBack();
+    expect(find.byType(ProductBarcodeScreen), findsOneWidget);
+    expect(find.text('Barcode number'), findsOneWidget);
+    await t.tap(find.byTooltip('Close barcode camera'));
     await t.pumpAndSettle();
-    await t.ensureVisible(find.widgetWithText(ChoiceChip, 'Text'));
-    await t.pumpAndSettle();
-    await t.tap(find.widgetWithText(ChoiceChip, 'Text'));
-    await t.pumpAndSettle();
-    expect(find.text('samosa'), findsOneWidget);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox.shrink());
   });
@@ -157,6 +133,9 @@ void main() {
           page(ProgressScreen(state: s), brightness: brightness, scale: 2),
         );
         await t.pumpAndSettle();
+        await t.tap(find.byKey(const Key('open-milestones')));
+        await t.pumpAndSettle();
+        expect(find.byType(MilestonesScreen), findsOneWidget);
         await t.ensureVisible(find.text('5 saved meals'));
         await t.pumpAndSettle();
         expect(t.takeException(), isNull);
@@ -178,7 +157,7 @@ void main() {
     );
     await snapshot(t, 'profile-polished');
     await prepare(t, const Size(390, 980), page(ProgressScreen(state: s)));
-    await t.ensureVisible(find.text('Milestones'));
+    await t.tap(find.byKey(const Key('open-milestones')));
     await t.pumpAndSettle();
     await snapshot(t, 'milestones-polished');
     await t.pumpWidget(const SizedBox.shrink());
@@ -204,7 +183,8 @@ void main() {
     await t.tap(find.text('Send test notification'));
     await t.pumpAndSettle();
     expect(d.shown, contains(99));
-    ScaffoldMessenger.of(t.element(find.byType(ReminderSheet))).clearSnackBars();
+    ScaffoldMessenger.of(t.element(find.byType(ReminderSheet)))
+        .clearSnackBars();
     await t.pump(const Duration(seconds: 5));
     await t.pumpAndSettle();
     await snapshot(t, 'reminders-polished');

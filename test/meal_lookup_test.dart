@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:calorie_app/core/app_state.dart';
-import 'package:calorie_app/core/meal_engine.dart';
 import 'package:calorie_app/core/meal_lookup.dart';
 import 'package:calorie_app/core/ui.dart';
 import 'package:calorie_app/data/food_database.dart';
@@ -59,49 +58,62 @@ void main() {
       MealLookupPlan.parse(text, now: now, input: 'Text');
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test(
-    'Natural speech strips time and quantities but retains unknown dish',
-    () {
-      final p = plan('Yesterday around 1 AM I had two samosas');
-      expect(p.requests.single.query, 'samosas');
-      expect(
-        p.requests.single.amount,
-        null,
-      ); // No fabricated weight for two pieces.
-      expect(p.analysis.meal.time, DateTime(2026, 10, 6, 1));
-    },
-  );
-  test('Mixed meals retain local foods and do not silently drop samosa', () {
+  test('Natural speech resolves a known piece count offline', () {
+    final p = plan('Yesterday around 1 AM I had two samosas');
+    expect(p.requests, isEmpty);
+    expect(p.analysis.meal.items.single.grams, 150);
+    expect(p.analysis.meal.items.single.portion?['quantity'], 2);
+    expect(p.analysis.meal.time, DateTime(2026, 10, 6, 1));
+  });
+  test('Mixed meals retain local foods and exact amounts', () {
     final p = plan('100 g rice and 150 g samosa');
-    expect(p.analysis.meal.items.single.foodId, 'rice');
-    expect(p.analysis.meal.items.single.grams, 100);
-    expect(p.requests.single.query, 'samosa');
-    expect(p.requests.single.amount, 150);
+    expect(p.analysis.meal.items, hasLength(2));
+    expect(p.analysis.meal.items.first.foodId, 'rice');
+    expect(p.analysis.meal.items.first.grams, 100);
+    expect(p.analysis.meal.items.last.grams, 150);
+    expect(p.requests, isEmpty);
   });
-  test('Chicken biryani is not reduced to the chicken alias', () {
+  test('Chicken biryani resolves as the full dish', () {
     final p = plan('I ate chicken biryani');
-    expect(p.analysis.meal.items, isEmpty);
-    expect(p.requests.single.query, 'chicken biryani');
+    expect(p.requests, isEmpty);
+    expect(
+      mealItemFood(p.analysis.meal.items.single).name,
+      'Biryani with chicken',
+    );
   });
-  test(
-    'Known offline flows retain all original questions and item indices',
-    () {
-      final p = plan('rice and chicken curry');
-      expect(p.requests, isEmpty);
-      expect(p.analysis.questions, hasLength(3));
-      MealEngine.answer(p.analysis.meal, p.analysis.questions[1], 1);
-      expect(p.analysis.meal.items[1].grams, 100);
-    },
-  );
+  test('Known dish names containing with stay together', () {
+    final p = plan('I had biryani with chicken');
+    expect(p.requests, isEmpty);
+    expect(p.analysis.meal.items, hasLength(1));
+    expect(
+      mealItemFood(p.analysis.meal.items.single).name,
+      'Biryani with chicken',
+    );
+  });
+  test('Natural plural and region-specific piece units work offline', () {
+    final p = plan('I had 2 fish tacos and one samosa');
+    expect(p.requests, isEmpty);
+    expect(p.analysis.questions, isEmpty);
+    expect(p.analysis.meal.items, hasLength(2));
+    expect(mealItemFood(p.analysis.meal.items.first).name, 'Taco, fish');
+    expect(p.analysis.meal.items.first.portion?['quantity'], 2);
+    expect(p.analysis.meal.items.first.portion?['unit'], 'piece');
+  });
+  test('Known foods use standard servings without a question sequence', () {
+    final p = plan('rice and chicken curry');
+    expect(p.requests, isEmpty);
+    expect(p.analysis.questions, isEmpty);
+    expect(p.analysis.meal.items.map((item) => item.grams), [158, 200]);
+  });
   test(
     'Measured fractions and ounces are normalized independently of counts',
     () {
       expect(
-        plan('five ounces of samosa').requests.single.amount,
+        plan('five ounces of samosa').analysis.meal.items.single.grams,
         closeTo(141.7475, .0001),
       );
       expect(
-        plan('1 1/2 oz samosa').requests.single.amount,
+        plan('1 1/2 oz samosa').analysis.meal.items.single.grams,
         closeTo(42.52425, .0001),
       );
       expect(plan('250 ml lassi').requests.single.unit, 'ml');
@@ -252,41 +264,35 @@ void main() {
 
   for (final mode in ['Text', 'Voice']) {
     testWidgets(
-      '$mode samosa lookup confirms portion, macros, provenance and reload',
+      '$mode samosa count goes straight to review and survives reload',
       (tester) async {
         final state = await AppState.load();
         final service = MatchService();
         await openLogger(tester, state, service, mode);
         final entry = find.byType(TextField).first;
-        await tester.enterText(entry, 'I had two samosas');
+        await tester.enterText(entry, 'I had 3 samosas today');
         final understand = find.text('Understand my meal');
         await tester.ensureVisible(understand);
         await tester.tap(understand);
         await tester.pumpAndSettle();
-        expect(service.queries, ['samosas']);
-        await tester.tap(find.text('Vegetable samosa'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Use this food'));
-        await tester.pumpAndSettle();
-        expect(find.text('Enter an amount from 1 to 3,000'), findsOneWidget);
-        await tester.enterText(
-          find.byKey(const Key('matched-food-amount')),
-          '150',
-        );
-        await tester.tap(find.text('Use this food'));
-        await tester.pumpAndSettle();
-        expect(find.text('USDA FoodData Central'), findsOneWidget);
+        expect(service.queries, isEmpty);
+        expect(find.text('3 × Samosa'), findsOneWidget);
+        expect(find.textContaining('3 pieces'), findsOneWidget);
+        expect(find.textContaining('USDA FoodData Central'), findsWidgets);
         final save = find.text('Add meal');
         await tester.ensureVisible(save);
         await tester.tap(save);
         await tester.pumpAndSettle();
         final restored = await AppState.load();
         expect(restored.meals, hasLength(1));
-        expect(mealNutrition(restored.meals.single).calories, 450);
-        expect(mealNutrition(restored.meals.single).protein, 9);
         expect(
-          restored.meals.single.items.single.snapshot!.sourceUrl,
-          contains('/123/'),
+          mealNutrition(restored.meals.single).calories,
+          closeTo(697.5, .1),
+        );
+        expect(restored.meals.single.items.single.portion?['quantity'], 3);
+        expect(
+          mealItemFood(restored.meals.single.items.single).sourceUrl,
+          contains('/food-details/'),
         );
         await tester.pumpWidget(const SizedBox());
         await service.dispose();
@@ -299,11 +305,13 @@ void main() {
       final state = await AppState.load();
       final service = MatchService()..empty = true;
       await openLogger(tester, state, service, 'Text');
-      await tester.enterText(find.byType(TextField).first, 'samosa');
+      await tester.enterText(find.byType(TextField).first, 'unlisted pastry');
       await tester.tap(find.text('Understand my meal'));
       await tester.pumpAndSettle();
       expect(
-        find.textContaining('Not included: samosa (databases unavailable)'),
+        find.textContaining(
+          'Not included: unlisted pastry (databases unavailable)',
+        ),
         findsOneWidget,
       );
       expect(state.meals, isEmpty);
@@ -318,7 +326,10 @@ void main() {
     final state = await AppState.load();
     final service = MatchService()..incomplete = true;
     await openLogger(tester, state, service, 'Text');
-    await tester.enterText(find.byType(TextField).first, '150 g samosa');
+    await tester.enterText(
+      find.byType(TextField).first,
+      '150 g unlisted pastry',
+    );
     await tester.tap(find.text('Understand my meal'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Samosa incomplete label'));
@@ -346,18 +357,18 @@ void main() {
     final state = await AppState.load();
     final service = MatchService();
     await openLogger(tester, state, service, 'Text');
-    await tester.enterText(find.byType(TextField).first, 'samosa');
+    await tester.enterText(find.byType(TextField).first, 'unlisted pastry');
     await tester.tap(find.text('Understand my meal'));
     await tester.pumpAndSettle();
     final sheetContext = tester.element(find.text('Match your food'));
     Navigator.pop(sheetContext);
     await tester.pumpAndSettle();
-    expect(find.text('samosa'), findsOneWidget);
+    expect(find.text('unlisted pastry'), findsOneWidget);
     expect(state.meals, isEmpty);
     await tester.tap(find.text('Understand my meal'));
     await tester.pumpAndSettle();
     expect(find.text('Match your food'), findsOneWidget);
-    expect(service.queries, ['samosa', 'samosa']);
+    expect(service.queries, ['unlisted pastry', 'unlisted pastry']);
     await tester.pumpWidget(const SizedBox());
     await service.dispose();
   });
@@ -367,7 +378,7 @@ void main() {
     final state = await AppState.load();
     final service = MatchService()..pending = Completer<FoodSearchResults>();
     await openLogger(tester, state, service, 'Text');
-    await tester.enterText(find.byType(TextField).first, 'samosa');
+    await tester.enterText(find.byType(TextField).first, 'unlisted pastry');
     await tester.tap(find.text('Understand my meal'));
     await tester.pump();
     await tester.ensureVisible(find.text('Manual'));

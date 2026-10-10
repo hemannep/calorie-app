@@ -15,6 +15,7 @@ class MealCamera extends StatefulWidget {
     required this.onChoosePhoto,
     this.immersive = false,
     this.onSelectMode,
+    this.onBarcode,
   });
 
   final ValueChanged<Uint8List> onPhoto;
@@ -22,6 +23,7 @@ class MealCamera extends StatefulWidget {
   final VoidCallback onChoosePhoto;
   final bool immersive;
   final ValueChanged<String>? onSelectMode;
+  final VoidCallback? onBarcode;
 
   @override
   State<MealCamera> createState() => _MealCameraState();
@@ -365,6 +367,16 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                         icon: const Icon(Icons.close_rounded),
                       ),
                       const Spacer(),
+                      if (widget.onBarcode != null)
+                        TextButton.icon(
+                          key: const Key('camera-barcode'),
+                          onPressed: widget.onBarcode,
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.qr_code_scanner_rounded),
+                          label: const Text('Barcode'),
+                        ),
                       if (ready && _flashAvailable && _captured == null)
                         IconButton(
                           tooltip: 'Flash: ${_flashMode.name}',

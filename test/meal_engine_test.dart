@@ -5,24 +5,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:calorie_app/core/app_state.dart';
 import 'package:calorie_app/core/meal_engine.dart';
 import 'package:calorie_app/data/food_database.dart';
+import 'package:calorie_app/data/expanded_food_database.dart';
 import 'package:calorie_app/data/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('Rice and curry ask portions for both foods and preparation; answers recalculate nutrition', () {
+  test('Standard servings go straight to review while stated preparation changes nutrition', () {
     final result = MealEngine.parse('Rice and chicken curry');
     expect(result.meal.items.map((i) => i.foodId), ['rice', 'curry']);
-    expect(result.questions.length, 3);
-    MealEngine.answer(result.meal, result.questions[0], 2);
-    MealEngine.answer(result.meal, result.questions[1], 0);
-    MealEngine.answer(result.meal, result.questions[2], 1);
-    expect(result.meal.items.first.grams, 316);
-    expect(mealNutrition(result.meal).calories, closeTo(809.2, .1));
-    expect(result.meal.items.where((i) => i.foodId == 'oil').length, 1);
-    MealEngine.answer(result.meal, result.questions[2], 0);
-    expect(result.meal.items.where((i) => i.foodId == 'oil'), isEmpty);
+    expect(result.questions, isEmpty);
+    expect(result.meal.items.first.grams, 158);
+    expect(mealNutrition(result.meal).calories, closeTo(515.4, .1));
+    final restaurant = MealEngine.parse('Rice and restaurant chicken curry');
+    expect(restaurant.meal.items.where((i) => i.foodId == 'oil'), hasLength(1));
   });
 
   test(
@@ -61,6 +58,47 @@ void main() {
     expect(result.meal.items.first.grams, 240);
     expect(MealEngine.parse('mystery casserole').unmatched, isTrue);
     expect(MealEngine.parse('mystery casserole').meal.items, isEmpty);
+  });
+
+  test('Three samosas use the USDA piece weight without questions', () {
+    expect(foods.length, greaterThanOrEqualTo(500));
+    final result = MealEngine.parse('I had 3 samosas today');
+    expect(result.questions, isEmpty);
+    expect(result.meal.items, hasLength(1));
+    final item = result.meal.items.single;
+    expect(mealItemFood(item).name, 'Samosa');
+    expect(item.grams, 225);
+    expect(item.portion?['quantity'], 3);
+    expect(item.portion?['unit'], 'piece');
+    expect(mealItemFood(item).sourceUrl, contains('/food-details/'));
+    expect(mealNutrition(result.meal).calories, closeTo(697.5, .1));
+  });
+
+  test('An incompatible volume unit asks only for the affected food', () {
+    final result = MealEngine.parse('200 ml samosa and one tea');
+    expect(result.questions, hasLength(1));
+    expect(result.questions.single.itemIndex, 0);
+  });
+  test('A following food keeps its own quantity', () {
+    final result = MealEngine.parse('one samosa with 2 cups of rice');
+    expect(result.questions, isEmpty);
+    expect(result.meal.items.map((i) => i.grams), [75, 316]);
+  });
+  test('The 500 USDA entries have traceable complete nutrition', () {
+    expect(expandedFoods, hasLength(500));
+    expect(expandedFoods.map((f) => f.id).toSet(), hasLength(500));
+    for (final food in expandedFoods) {
+      expect(food.sourceUrl, contains('/food-details/'));
+      expect(food.servingGrams, greaterThan(0));
+      expect(food.per100g.calories, greaterThanOrEqualTo(0));
+      expect(food.per100g.protein, greaterThanOrEqualTo(0));
+      expect(food.per100g.carbs, greaterThanOrEqualTo(0));
+      expect(food.per100g.fat, greaterThanOrEqualTo(0));
+    }
+    expect(
+      expandedFoods.map((f) => f.category).toSet(),
+      containsAll(['Asian', 'European', 'African', 'Americas']),
+    );
   });
 
   test('Manual nutrition combines with deterministic food portions', () {

@@ -19,6 +19,11 @@ ThemeData kayleoTheme({Brightness brightness = Brightness.light}) {
     onPrimary: dark ? KayleoColors.forest : KayleoColors.white,
     secondary: KayleoColors.lime,
     onSecondary: KayleoColors.forest,
+    primaryContainer: surfaces.soft,
+    onPrimaryContainer: text,
+    secondaryContainer: surfaces.soft,
+    onSecondaryContainer: text,
+    surfaceTint: Colors.transparent,
     surface: surfaces.card,
     onSurface: text,
     onSurfaceVariant: secondaryText,
@@ -34,6 +39,25 @@ ThemeData kayleoTheme({Brightness brightness = Brightness.light}) {
     textTheme: KayleoTypography.textTheme(text, secondaryText),
     visualDensity: VisualDensity.standard,
     materialTapTargetSize: MaterialTapTargetSize.padded,
+    appBarTheme: AppBarTheme(
+      backgroundColor: background,
+      foregroundColor: text,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: false,
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: surfaces.card,
+      selectedColor: surfaces.soft,
+      side: BorderSide(color: surfaces.border),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      labelStyle: TextStyle(
+        fontFamily: KayleoTypography.fontFamily,
+        color: text,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: primary,

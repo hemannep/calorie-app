@@ -1,0 +1,40 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="@drawable/widget_card">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="14dp" android:gravity="center_vertical">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="Kayleo" android:textColor="#163E2D" android:textSize="10sp" android:textStyle="bold" android:singleLine="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Calories" android:textColor="#626E64" android:textSize="8sp" android:textStyle="bold" android:singleLine="true" />
+    </LinearLayout>
+
+    <FrameLayout android:id="@+id/calorie_display" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:layout_marginTop="2dp">
+        <ImageView android:id="@+id/calorie_ring" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:layout_gravity="center" android:src="@drawable/widget_ring_preview"
+            android:contentDescription="Calorie progress" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+            android:orientation="vertical" android:gravity="center">
+            <TextView android:id="@+id/calorie_value" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="720" android:textColor="#163E2D" android:textSize="24sp" android:textStyle="bold"
+                android:includeFontPadding="false" android:singleLine="true" android:maxWidth="112dp" />
+            <TextView android:id="@+id/calorie_target" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Calories left" android:textColor="#626E64" android:textSize="8sp"
+                android:includeFontPadding="false" android:singleLine="true" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <LinearLayout android:id="@+id/log_food_button" android:layout_width="match_parent" android:layout_height="28dp"
+        android:layout_marginTop="2dp" android:background="@drawable/widget_button" android:gravity="center">
+        <ImageView android:id="@+id/calorie_camera_icon" android:layout_width="13dp" android:layout_height="13dp" android:src="@drawable/widget_camera_icon"
+            android:contentDescription="Log food with camera" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp"
+            android:text="Log your food" android:textColor="#163E2D" android:textSize="10sp" android:textStyle="bold"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+</LinearLayout>

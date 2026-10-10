@@ -8,6 +8,12 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <application
         android:label="Kayleo"
         android:name="${applicationName}"
@@ -33,7 +39,26 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
+        <receiver android:name=".CalorieWidget" android:exported="true" android:label="Kayleo Calories">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /><action android:name="android.intent.action.DATE_CHANGED" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/calorie_widget_info" />
+        </receiver>
+        <receiver android:name=".BarcodeWidget" android:exported="true" android:label="Kayleo Barcode">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /><action android:name="android.intent.action.DATE_CHANGED" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/barcode_widget_info" />
+        </receiver>
+        <receiver android:name=".StreakWidget" android:exported="true" android:label="Kayleo Streak">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /><action android:name="android.intent.action.DATE_CHANGED" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/streak_widget_info" />
+        </receiver>
+        <receiver android:name=".RingsWidget" android:exported="true" android:label="Kayleo Nutrition">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /><action android:name="android.intent.action.DATE_CHANGED" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/rings_widget_info" />
+        </receiver>
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
             <intent-filter>
@@ -43,6 +68,16 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+        <activity-alias
+             android:name="ViewPermissionUsageActivity"
+             android:exported="true"
+             android:targetActivity=".MainActivity"
+             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+                <intent-filter>
+                    <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                    <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+                </intent-filter>
+        </activity-alias>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -55,6 +90,11 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Check whether Health Connect is installed -->
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>

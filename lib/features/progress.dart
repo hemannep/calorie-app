@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
-import '../core/milestones.dart';
+import 'milestones.dart';
 import '../core/nutrition_view.dart';
 import '../core/ui.dart';
 import '../data/models.dart';
@@ -75,11 +75,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Your progress.',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: 14),
+        Text('Progress', style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: 22),
+        AchievementOverview(state: state),
+        const SizedBox(height: 24),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -444,51 +443,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ),
         ),
         const SizedBox(height: KayleoSpacing.xl),
-        Panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SectionTitle('Milestones'),
-              Text(
-                '${state.milestoneUnlocks.length} of ${milestones.length} earned',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: context.kayleoPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Small steps worth celebrating. Sample records don’t unlock milestones.',
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.6,
-                  color: context.kayleoMuted,
-                ),
-              ),
-              const SizedBox(height: 16),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final counts = state.milestoneCounts;
-                  final width = constraints.maxWidth >= 500
-                      ? (constraints.maxWidth - 12) / 2
-                      : constraints.maxWidth;
-                  return Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      for (final m in milestones)
-                        SizedBox(
-                          width: width,
-                          child: _milestoneCard(m, counts[m.metric] ?? 0),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -559,83 +513,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ),
     ),
   );
-  Widget _milestoneCard(Milestone m, int count) {
-    final earned = widget.state.milestoneUnlocks.containsKey(m.id);
-    final icon = switch (m.metric) {
-      'water' => Icons.water_drop_outlined,
-      'protein' => Icons.restaurant_outlined,
-      'saved' => Icons.bookmark_border_rounded,
-      'streak' => Icons.local_fire_department_outlined,
-      'days' => Icons.calendar_today_outlined,
-      _ => Icons.spa_outlined,
-    };
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: earned ? context.kayleoSurfaces.soft : context.kayleoBackground,
-        border: Border.all(color: context.kayleoSurfaces.border),
-        borderRadius: BorderRadius.circular(KayleoRadius.small),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                icon,
-                color: earned ? context.kayleoPrimary : context.kayleoMuted,
-                size: 22,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      m.title,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      earned
-                          ? 'Earned · well done!'
-                          : '${count.clamp(0, m.target)} / ${m.target}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: context.kayleoMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (earned)
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: context.kayleoPrimary,
-                  size: 18,
-                ),
-            ],
-          ),
-          if (!earned) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (count / m.target).clamp(0, 1),
-                minHeight: 4,
-                color: context.kayleoPrimary,
-                backgroundColor: context.kayleoSurfaces.border,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
 
 class _WeeklyReviewEntry extends StatelessWidget {

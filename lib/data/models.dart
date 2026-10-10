@@ -236,10 +236,21 @@ class BodyProfile {
     this.fatTarget = 65,
     this.waterTarget = 2000,
     this.units = 'Metric',
+    this.photoBase64,
   });
   String name, sex, activity, goal, diet, units;
+  String? photoBase64;
   int age, calorieTarget, proteinTarget, carbTarget, fatTarget, waterTarget;
   double height, weight;
+  double get bmi => weight / ((height / 100) * (height / 100));
+  String get bmiCategory {
+    if (age < 20) return 'Age-specific interpretation needed';
+    if (bmi < 18.5) return 'Below range';
+    if (bmi < 25) return 'In range';
+    if (bmi < 30) return 'Above range';
+    return 'Well above range';
+  }
+
   int get maintenance {
     final offset = sex == 'Male'
         ? 5
@@ -285,6 +296,7 @@ class BodyProfile {
     'fatTarget': fatTarget,
     'waterTarget': waterTarget,
     'units': units,
+    'photoBase64': photoBase64,
   };
   factory BodyProfile.fromJson(Map<String, dynamic> j) => BodyProfile(
     name: j['name'] ?? 'Alex',
@@ -301,6 +313,7 @@ class BodyProfile {
     fatTarget: j['fatTarget'] ?? 65,
     waterTarget: j['waterTarget'] ?? 2000,
     units: j['units'] ?? 'Metric',
+    photoBase64: j['photoBase64'] as String?,
   );
 }
 

@@ -137,6 +137,7 @@ void main() {
           'What brings\nyou here?',
           'About you.',
           'Find your\nrhythm.',
+          'Preparing your personal plan',
           'Your plan.\nYour pace.',
         ];
         for (var step = 0; step < titles.length; step++) {
@@ -178,6 +179,11 @@ void main() {
                   .selected,
               isTrue,
             );
+          }
+          if (step == 6) {
+            await tester.pump(const Duration(seconds: 10));
+            await tester.pumpAndSettle();
+            continue;
           }
           await _tapVisible(
             tester,

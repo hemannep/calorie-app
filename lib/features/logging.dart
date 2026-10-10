@@ -33,7 +33,9 @@ Future<void> showLogger(
         fullscreenDialog: true,
       ),
     );
-    if (context.mounted && (result == 'manual' || result == 'voice')) {
+    if (context.mounted && result == 'barcode') {
+      await showLogger(context, state, mode: 'Barcode');
+    } else if (context.mounted && (result == 'manual' || result == 'voice')) {
       await showLogger(
         context,
         state,
@@ -1681,6 +1683,24 @@ class _LoggingFlowState extends State<LoggingFlow> {
 
   Widget _itemRow(MealItem item) {
     final food = mealItemFood(item);
+    final quantity = (item.portion?['quantity'] as num?)?.toDouble();
+    final portionUnit = item.portion?['unit'] as String?;
+    final quantityText = quantity == null
+        ? ''
+        : quantity == quantity.roundToDouble()
+        ? '${quantity.toInt()}'
+        : '$quantity';
+    final countLabel =
+        quantity != null &&
+            quantity != 1 &&
+            ['piece', 'egg', 'slice'].contains(portionUnit)
+        ? '$quantityText × '
+        : '';
+    final amountLabel = quantity == null || portionUnit == null
+        ? '${item.grams.round()} ${food.nutritionBasisUnit}'
+        : portionUnit == 'g' || portionUnit == 'ml' || portionUnit == 'oz'
+        ? '$quantityText $portionUnit'
+        : '$quantityText ${quantity == 1 ? portionUnit : '${portionUnit}s'} · ≈${item.grams.round()} g';
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -1703,7 +1723,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        food.name,
+                        '$countLabel${food.name}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
@@ -1711,7 +1731,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${item.grams.round()} ${food.nutritionBasisUnit}${food.unit == food.nutritionBasisUnit ? '' : ' · ${(item.grams / food.servingGrams).toStringAsFixed(1)} ${food.unit}'}',
+                        amountLabel,
                         style: TextStyle(fontSize: 10, color: _secondary),
                       ),
                       const SizedBox(height: 4),
@@ -2120,10 +2140,11 @@ class _FoodPickerState extends State<FoodPicker> {
               (f.name.toLowerCase().contains(search.toLowerCase()) ||
                   f.aliases.any((a) => a.contains(search.toLowerCase()))),
         )
+        .take(80)
         .toList();
     return SheetFrame(
       title: 'Find a food',
-      subtitle: 'A small local library, including regional favorites.',
+      subtitle: '500+ foods ready offline. Search or browse by category.',
       child: Column(
         children: [
           TextField(
@@ -2139,7 +2160,18 @@ class _FoodPickerState extends State<FoodPicker> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children:
-                  ['All', 'Regional', 'Basics', 'Breakfast', 'Snacks', 'Drinks']
+                  [
+                        'All',
+                        'Regional',
+                        'Asian',
+                        'European',
+                        'African',
+                        'Americas',
+                        'Basics',
+                        'Breakfast',
+                        'Snacks',
+                        'Drinks',
+                      ]
                       .map(
                         (c) => Padding(
                           padding: const EdgeInsets.only(right: 6),
@@ -2166,6 +2198,11 @@ class _FoodPickerState extends State<FoodPicker> {
               icon: Icons.search_off_rounded,
               title: 'No match just yet',
               subtitle: 'Try a simpler name, or go back and enter your own calories and macros.',
+            ),
+          if (matches.length == 80)
+            Text(
+              'Showing the first 80 matches. Search to narrow the list.',
+              style: TextStyle(fontSize: 11, color: context.kayleoMuted),
             ),
           for (final f in matches)
             ListTile(

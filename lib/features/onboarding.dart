@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,8 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   int step = 0;
   bool saving = false;
+  Timer? preparationTimer;
+  int preparationTick = 0;
   final profile = BodyProfile();
   final form = GlobalKey<FormState>();
   final name = TextEditingController();
@@ -31,6 +34,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   void dispose() {
+    preparationTimer?.cancel();
     name.dispose();
     age.dispose();
     height.dispose();
@@ -50,11 +54,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
     if (step == 5) {
       profile.calculateTargets();
+      setState(() {
+        step = 6;
+        preparationTick = 0;
+      });
+      preparationTimer?.cancel();
+      preparationTimer = Timer.periodic(const Duration(milliseconds: 100), (
+        timer,
+      ) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          preparationTick++;
+          if (preparationTick >= 100) {
+            timer.cancel();
+            step = 7;
+          }
+        });
+      });
+      return;
     }
-    if (step < 6) {
+    if (step < 7) {
       setState(() => step++);
     } else {
       complete();
+    }
+  }
+
+  void previous() {
+    if (step == 7) {
+      setState(() => step = 5);
+    } else if (step > 0 && step != 6) {
+      setState(() => step--);
     }
   }
 
@@ -94,9 +127,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   width: 48,
                                   child: step > 0
                                       ? IconButton(
-                                          onPressed: saving
-                                              ? null
-                                              : () => setState(() => step--),
+                                          onPressed: saving ? null : previous,
                                           tooltip: 'Previous step',
                                           icon: Icon(Icons.arrow_back_rounded),
                                         )
@@ -137,11 +168,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   ),
                                 ),
                               ),
-                              if (step > 0)
+                              if (step > 0 && step != 6)
                                 IconButton(
-                                  onPressed: saving
-                                      ? null
-                                      : () => setState(() => step--),
+                                  onPressed: saving ? null : previous,
                                   tooltip: 'Previous step',
                                   icon: Icon(
                                     Icons.arrow_back_rounded,
@@ -149,10 +178,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   ),
                                 ),
                               Semantics(
-                                label: 'Step ${step + 1} of 7',
+                                label: 'Step ${step + 1} of 8',
                                 excludeSemantics: true,
                                 child: Text(
-                                  '${step + 1} / 7',
+                                  '${step + 1} / 8',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: context.kayleoMuted,
@@ -165,36 +194,37 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           const SizedBox(height: KayleoSpacing.card),
                         _content(),
                         const SizedBox(height: KayleoSpacing.xxl),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            key: const Key('onboarding-continue'),
-                            onPressed: saving ? null : next,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: lime,
-                              foregroundColor: forest,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    saving
-                                        ? 'Preparing your space…'
-                                        : step == 6
-                                        ? 'Let’s start your day'
-                                        : step == 0
-                                        ? 'Get started'
-                                        : 'Continue',
-                                    textAlign: TextAlign.center,
+                        if (step != 6)
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              key: const Key('onboarding-continue'),
+                              onPressed: saving ? null : next,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: lime,
+                                foregroundColor: forest,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      saving
+                                          ? 'Preparing your space…'
+                                          : step == 7
+                                          ? 'Let’s start your day'
+                                          : step == 0
+                                          ? 'Get started'
+                                          : 'Continue',
+                                      textAlign: TextAlign.center,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: KayleoSpacing.md),
-                                Icon(Icons.arrow_forward_rounded, size: 18),
-                              ],
+                                  const SizedBox(width: KayleoSpacing.md),
+                                  Icon(Icons.arrow_forward_rounded, size: 18),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
                         const SizedBox(height: KayleoSpacing.md),
                         if (step < 3)
                           Center(
@@ -224,7 +254,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             const SizedBox(width: 7),
                             Flexible(
                               child: Text(
-                                'Demo account. Your data stays on this device.',
+                                'Your plan is always yours to adjust.',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: context.kayleoMuted,
@@ -486,6 +516,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   );
 
   Widget _content() {
+    if (step == 6) return _preparingPlan();
     const titles = [
       'Snap it.\nKayleo gets it.',
       'Speak naturally.\nJust like you.',
@@ -493,6 +524,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'What brings\nyou here?',
       'About you.',
       'Find your\nrhythm.',
+      '',
       'Your plan.\nYour pace.',
     ];
     const descriptions = [
@@ -502,7 +534,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'There’s no perfect goal. Choose what feels right for this chapter.',
       'We use these details to estimate your daily energy needs. You can always change your targets.',
       'Your routine helps us set a useful starting point. No workouts or wearables required.',
-      'Your energy needs vary. Adjust every target in You whenever you need to.',
+      '',
+      'A practical starting point for your day. Every target is editable in Your space.',
     ];
     return Column(
       crossAxisAlignment: step < 3
@@ -702,7 +735,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 .toList(),
           ),
         ],
-        if (step == 6) ...[
+        if (step == 7) ...[
           Panel(
             color: context.kayleoSurfaces.soft,
             border: false,
@@ -785,9 +818,119 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          _benefit(Icons.check_rounded, 'Your space is ready. Demo access.'),
+          Panel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Built from your details',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Resting energy and activity estimate: ${number(profile.maintenance)} kcal/day',
+                ),
+                const SizedBox(height: 8),
+                Text('Goal: ${profile.goal} · Activity: ${profile.activity}'),
+                const SizedBox(height: 8),
+                Text(
+                  'BMI ${profile.bmi.toStringAsFixed(1)} · ${profile.bmiCategory}',
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'BMI is a screening measure, not a diagnosis. Your calorie and macro targets are estimates you can adjust.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: context.kayleoMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ],
+    );
+  }
+
+  Widget _preparingPlan() {
+    final progress = (preparationTick / 100).clamp(0.0, 1.0);
+    final phase = preparationTick < 34
+        ? 'Estimating daily energy from your measurements'
+        : preparationTick < 68
+        ? 'Accounting for your activity and goal'
+        : 'Balancing calories and macros';
+    return Semantics(
+      liveRegion: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 32),
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: context.kayleoSurfaces.soft,
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: context.kayleoPrimary,
+              size: 34,
+            ),
+          ),
+          const SizedBox(height: 28),
+          const Text(
+            'Preparing your personal plan',
+            style: TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
+              letterSpacing: -1.4,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'We’re using your answers to calculate a useful starting point.',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.7,
+              color: context.kayleoMuted,
+            ),
+          ),
+          const SizedBox(height: 38),
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: 9,
+            borderRadius: BorderRadius.circular(12),
+            backgroundColor: context.kayleoSurfaces.soft,
+          ),
+          const SizedBox(height: 14),
+          Text(phase, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 24),
+          for (final (index, label) in [
+            (0, 'Your measurements'),
+            (1, 'Your activity and goal'),
+            (2, 'Daily nutrition targets'),
+          ])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    preparationTick >= (index + 1) * 33
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: context.kayleoPrimary,
+                    size: 21,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(label)),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -814,18 +957,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     },
   );
 
-  Widget _benefit(IconData icon, String text) => Row(
-    children: [
-      IconBox(icon, size: 34),
-      const SizedBox(width: KayleoSpacing.md),
-      Expanded(
-        child: Text(
-          text,
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-      ),
-    ],
-  );
   Widget _choice(
     String title,
     String sub,

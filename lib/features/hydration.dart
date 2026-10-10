@@ -45,32 +45,59 @@ class WaterPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final ml = state.waterFor(date), goal = state.profile.waterTarget;
     return Panel(
+      padding: 14,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionTitle(
-            'Hydration',
-            action: 'Details',
-            onAction: () =>
-                openSheet(context, HydrationDetails(state: state, date: date)),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Hydration',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+              ),
+              TextButton(
+                onPressed: () => openSheet(
+                  context,
+                  HydrationDetails(state: state, date: date),
+                ),
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Details', style: TextStyle(fontSize: 11)),
+                    SizedBox(width: 3),
+                    Icon(Icons.arrow_forward_rounded, size: 14),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
           Row(
             children: [
               KayleoRing(
                 progress: goal > 0 ? ml / goal : 0,
-                size: 84,
-                stroke: 6,
+                size: 58,
+                stroke: 5,
                 color: blue,
                 track: context.kayleoSurfaces.soft,
                 semanticLabel: 'Water: $ml of $goal ml',
                 child: const Icon(
                   Icons.water_drop_outlined,
                   color: blue,
-                  size: 30,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 18),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,21 +105,17 @@ class WaterPanel extends StatelessWidget {
                     Text(
                       '${(ml / 1000).toStringAsFixed(2)} L',
                       style: const TextStyle(
-                        fontSize: 26,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
-                      'of ${(goal / 1000).toStringAsFixed(1)} L goal',
-                      style: TextStyle(color: context.kayleoMuted),
-                    ),
-                    Text(
                       ml >= goal
                           ? 'Daily goal reached'
-                          : '${goal - ml} ml remaining',
+                          : '${goal - ml} ml left of ${(goal / 1000).toStringAsFixed(1)} L',
                       style: TextStyle(
                         color: context.kayleoMuted,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -100,25 +123,29 @@ class WaterPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          const SizedBox(height: 12),
+          Row(
             children: [
               for (final amount in [250, 500])
-                OutlinedButton.icon(
-                  key: amount == 250 ? const Key('add-water') : null,
-                  onPressed: () => add(context, amount),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: Text('Add $amount ml'),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: amount == 250 ? 8 : 0),
+                    child: OutlinedButton.icon(
+                      key: amount == 250 ? const Key('add-water') : null,
+                      onPressed: () => add(context, amount),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 38),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 15),
+                      label: Text(
+                        '$amount ml',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ),
                 ),
-              TextButton(
-                onPressed: () => openSheet(
-                  context,
-                  HydrationDetails(state: state, date: date, custom: true),
-                ),
-                child: const Text('Custom'),
-              ),
             ],
           ),
         ],

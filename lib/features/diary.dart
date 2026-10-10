@@ -41,7 +41,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
           children: [
             Expanded(
               child: Text(
-                'Your food story.',
+                'Diary',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             ),

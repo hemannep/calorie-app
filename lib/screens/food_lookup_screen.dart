@@ -25,8 +25,19 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
   final service = FoodAIService(), query = TextEditingController();
   List<FoodNutrition> results = [];
   String? error;
-  bool busy = false, usda = false;
+  bool busy = false;
+  List<String> unavailableSources = [];
   int generation = 0;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.barcode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) scan();
+      });
+    }
+  }
+
   @override
   void dispose() {
     generation++;
@@ -44,18 +55,20 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
       results = [];
     });
     try {
+      final combined = widget.barcode
+          ? null
+          : await service.searchAll(query.text);
       final found = widget.barcode
           ? [await service.lookupBarcode(query.text)]
                 .whereType<FoodNutrition>()
                 .toList()
-          : usda
-          ? await service.searchUsda(query.text)
-          : await service.fetchNutrition(query.text, localFallback: false);
+          : combined!.foods;
       if (!mounted || token != generation) return;
       setState(() {
         results = found;
+        unavailableSources = combined?.unavailableSources ?? [];
         error = found.isEmpty
-            ? 'No matching food found. Try another name or type the label manually.'
+            ? 'No matching food found. Try a more specific food, dish, or brand.'
             : null;
       });
     } catch (e) {
@@ -95,23 +108,6 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                   icon: const Icon(Icons.qr_code_scanner),
                   label: const Text('Open barcode camera'),
                 ),
-              if (!widget.barcode)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final source in [false, true])
-                      ChoiceChip(
-                        label: Text(
-                          source ? 'USDA FoodData Central' : 'Open Food Facts',
-                        ),
-                        selected: usda == source,
-                        onSelected: busy
-                            ? null
-                            : (_) => setState(() => usda = source),
-                      ),
-                  ],
-                ),
               const SizedBox(height: 20),
               TextField(
                 controller: query,
@@ -139,6 +135,10 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                 Text(
                   error!,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              if (unavailableSources.isNotEmpty && !widget.barcode)
+                Text(
+                  'Some sources are temporarily unavailable: ${unavailableSources.join(', ')}',
                 ),
               for (final food in results)
                 Padding(
@@ -189,6 +189,7 @@ class ProductBarcodeScreen extends StatefulWidget {
 
 class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
     with WidgetsBindingObserver {
+  final barcodeInput = TextEditingController();
   MobileScannerController? controller;
   Future<void> operations = Future.value();
   bool closing = false, starting = false, paused = false;
@@ -289,6 +290,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
   @override
   void dispose() {
     closing = true;
+    barcodeInput.dispose();
     WidgetsBinding.instance.removeObserver(this);
     unawaited(
       operations
@@ -308,11 +310,8 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
       if (!didPop) unawaited(finish(null));
     },
     child: Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Point at the barcode'),
+        title: const Text('Scan a barcode'),
         leading: IconButton(
           tooltip: 'Close barcode camera',
           onPressed: () => finish(null),
@@ -322,7 +321,8 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * .46,
               child: error != null
                   ? Center(
                       child: Padding(
@@ -332,7 +332,9 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                           children: [
                             Text(
                               error!,
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                             ),
                             const SizedBox(height: 20),
                             if (supported)
@@ -374,13 +376,48 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                       ],
                     ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: OutlinedButton(
-                onPressed: () => finish(null),
-                child: const Text(
-                  'Enter barcode instead',
-                  style: TextStyle(color: Colors.white),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  20,
+                  24,
+                  24 + MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Place the barcode inside the frame, or enter the number printed below it.',
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: barcodeInput,
+                      keyboardType: TextInputType.number,
+                      maxLength: 14,
+                      decoration: const InputDecoration(
+                        labelText: 'Barcode number',
+                        hintText: '8–14 digits',
+                        prefixIcon: Icon(Icons.numbers_rounded),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (_) {
+                        if (RegExp(r'^\d{8,14}$')
+                            .hasMatch(barcodeInput.text.trim())) {
+                          finish(barcodeInput.text.trim());
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    FilledButton(
+                      onPressed:
+                          RegExp(r'^\d{8,14}$')
+                              .hasMatch(barcodeInput.text.trim())
+                          ? () => finish(barcodeInput.text.trim())
+                          : null,
+                      child: const Text('Find product'),
+                    ),
+                  ],
                 ),
               ),
             ),

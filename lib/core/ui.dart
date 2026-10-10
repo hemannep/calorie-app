@@ -27,37 +27,49 @@ const blue = KayleoColors.hydration;
 
 /// Kayleo's wordmark complements the K-and-leaf launcher mark.
 class Brand extends StatelessWidget {
-  const Brand({super.key, this.light = false, this.size = 30});
+  const Brand({
+    super.key,
+    this.light = false,
+    this.size = 30,
+    this.visibleCharacters,
+  });
   final bool light;
   final double size;
+
+  /// Optional splash reveal: six letters followed by the accent dot.
+  final int? visibleCharacters;
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Kayleo',
-    excludeSemantics: true,
-    child: Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: 'kayleo',
-            style: TextStyle(
-              color: light || Theme.of(context).brightness == Brightness.dark
-                  ? KayleoColors.white
-                  : context.kayleoText,
+  Widget build(BuildContext context) {
+    final count = visibleCharacters?.clamp(0, 7) ?? 7;
+    return Semantics(
+      label: 'Kayleo',
+      excludeSemantics: true,
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: 'kayleo'.substring(0, count.clamp(0, 6)),
+              style: TextStyle(
+                color: light || Theme.of(context).brightness == Brightness.dark
+                    ? KayleoColors.white
+                    : context.kayleoText,
+              ),
             ),
-          ),
-          const TextSpan(
-            text: '.',
-            style: TextStyle(color: lime),
-          ),
-        ],
+            if (count == 7)
+              const TextSpan(
+                text: '.',
+                style: TextStyle(color: lime),
+              ),
+          ],
+        ),
+        style: TextStyle(
+          fontSize: size,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -1.4,
+        ),
       ),
-      style: TextStyle(
-        fontSize: size,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -1.4,
-      ),
-    ),
-  );
+    );
+  }
 }
 
 class KayleoDot extends StatelessWidget {
@@ -87,21 +99,37 @@ class Panel extends StatelessWidget {
   final Color? color;
   final bool border;
   @override
-  Widget build(BuildContext context) => Material(
-    color: color == null
-        ? context.kayleoSurfaces.card
-        : _surfaceColor(context, color!),
-    shape: RoundedRectangleBorder(
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(KayleoRadius.large),
-      side: border
-          ? BorderSide(
-              color:
-                  (Theme.of(context).extension<KayleoSurfaces>()?.border ??
-                  line),
-            )
-          : BorderSide.none,
+      boxShadow: Theme.of(context).brightness == Brightness.light
+          ? const [
+              BoxShadow(
+                color: Color(0x06000000),
+                blurRadius: 18,
+                offset: Offset(0, 5),
+              ),
+            ]
+          : null,
     ),
-    child: Padding(padding: EdgeInsets.all(padding), child: child),
+    child: Material(
+      color: color == null
+          ? context.kayleoSurfaces.card
+          : _surfaceColor(context, color!),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(KayleoRadius.large),
+        side: border
+            ? BorderSide(
+                color:
+                    (Theme.of(context).extension<KayleoSurfaces>()?.border ??
+                    line),
+              )
+            : BorderSide(
+                color: context.kayleoSurfaces.border.withValues(alpha: .65),
+              ),
+      ),
+      child: Padding(padding: EdgeInsets.all(padding), child: child),
+    ),
   );
 }
 
@@ -360,6 +388,7 @@ class KayleoRing extends StatelessWidget {
     this.state = KayleoRingState.progress,
     this.semanticLabel,
     this.highlight = true,
+    this.segmented = false,
   });
   final double progress, size, stroke;
   final Color color, track;
@@ -367,11 +396,14 @@ class KayleoRing extends StatelessWidget {
   final KayleoRingState state;
   final String? semanticLabel;
   final bool highlight;
+  final bool segmented;
   @override
   Widget build(BuildContext context) => Semantics(
     label: semanticLabel,
     child: TweenAnimationBuilder<double>(
-      tween: Tween(end: progress.clamp(0, 1)),
+      tween: Tween(
+        end: segmented ? math.max(0, progress) : progress.clamp(0, 1),
+      ),
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
           : const Duration(milliseconds: 320),
@@ -391,6 +423,7 @@ class KayleoRing extends StatelessWidget {
             track == mint ? context.kayleoSurfaces.soft : track,
             stroke,
             highlight: highlight && state == KayleoRingState.progress,
+            segmented: segmented,
           ),
           child: Center(child: content),
         ),
@@ -407,22 +440,74 @@ class _RingPainter extends CustomPainter {
     this.track,
     this.stroke, {
     this.highlight = false,
+    this.segmented = false,
   });
   final bool highlight;
+  final bool segmented;
   final double progress, stroke;
   final Color color, track;
   @override
   void paint(Canvas canvas, Size size) {
+    final inset = segmented && progress > 1 ? stroke + 4 : 0.0;
     final rect = Rect.fromLTWH(
-      stroke / 2,
-      stroke / 2,
-      size.width - stroke,
-      size.height - stroke,
+      stroke / 2 + inset,
+      stroke / 2 + inset,
+      size.width - stroke - inset * 2,
+      size.height - stroke - inset * 2,
     );
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;
+    if (segmented) {
+      paint.strokeCap = StrokeCap.butt;
+      canvas.drawArc(
+        rect,
+        -math.pi / 2,
+        math.pi * 2,
+        false,
+        paint..color = track,
+      );
+      const parts = [
+        (0.0, .3, forest),
+        (.3, .7, Color(0xFF6B9F52)),
+        (.7, 1.0, lime),
+      ];
+      for (final part in parts) {
+        final end = math.min(progress, part.$2);
+        if (end <= part.$1) continue;
+        canvas.drawArc(
+          rect,
+          -math.pi / 2 + math.pi * 2 * part.$1,
+          math.pi * 2 * (end - part.$1),
+          false,
+          paint..color = part.$3,
+        );
+      }
+      if (progress > 1) {
+        final outer = Rect.fromLTWH(
+          stroke / 2,
+          stroke / 2,
+          size.width - stroke,
+          size.height - stroke,
+        );
+        canvas.drawArc(
+          outer,
+          -math.pi / 2,
+          math.pi * 2,
+          false,
+          paint..color = track,
+        );
+        canvas.drawArc(
+          outer,
+          -math.pi / 2,
+          math.pi * 2 * (progress - 1).clamp(0, 1),
+          false,
+          paint..color = orange,
+        );
+      }
+      return;
+    }
     canvas.drawArc(
       rect,
       -math.pi / 2,
@@ -456,7 +541,8 @@ class _RingPainter extends CustomPainter {
       old.color != color ||
       old.track != track ||
       old.stroke != stroke ||
-      old.highlight != highlight;
+      old.highlight != highlight ||
+      old.segmented != segmented;
 }
 
 class MacroBar extends StatelessWidget {
@@ -665,6 +751,9 @@ Color _surfaceColor(BuildContext context, Color color) {
 }
 
 Color _foregroundColor(BuildContext context, Color color, Color background) {
+  if (color == forest && (background == lime || background == forest)) {
+    return forest;
+  }
   if (color == muted) return context.kayleoMuted;
   if (color == ink) return context.kayleoText;
   if (color == forest && background != lime && background != forest) {

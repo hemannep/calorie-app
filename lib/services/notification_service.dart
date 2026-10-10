@@ -222,6 +222,76 @@ List<ReminderRequest> reminderPlan(
   ];
 }
 
+const _smartNudgeMessages = <(String, String)>[
+  ('A small win counts', 'Log one meal today and keep your momentum going.'),
+  (
+    'Make your next choice easier',
+    'Add a meal or save a favorite so future logging takes less time.',
+  ),
+  (
+    'Check in with yourself',
+    'How hungry, energized, or satisfied do you feel right now?',
+  ),
+  (
+    'Progress, not perfection',
+    'One useful choice is enough for this moment. Kayleo is here when you are.',
+  ),
+  (
+    'A quick hydration check',
+    'Take a sip and see whether your water goal needs a little attention.',
+  ),
+  (
+    'Your future self will thank you',
+    'A quick food or water check-in now can make the rest of the day clearer.',
+  ),
+  (
+    'Keep the streak gentle',
+    'Consistency grows from small check-ins, not perfect days.',
+  ),
+];
+
+List<ReminderRequest> smartNudgePlan(
+  Map<String, bool> preferences,
+  tz.TZDateTime now, {
+  String seed = '',
+}) {
+  if (preferences['Smart nudges'] != true) return const [];
+  var hash = seed.codeUnits.fold<int>(
+    17,
+    (value, code) => (value * 31 + code) & 0x7fffffff,
+  );
+  final requests = <ReminderRequest>[];
+  for (var day = 0; day < 7; day++) {
+    for (var slot = 0; slot < 2; slot++) {
+      hash = (hash * 1103515245 + 12345) & 0x7fffffff;
+      final hour = 9 + (hash % 11); // 9 AM–7 PM, always outside quiet hours.
+      hash = (hash * 1103515245 + 12345) & 0x7fffffff;
+      final minute = (hash % 4) * 15;
+      var at = tz.TZDateTime(
+        now.location,
+        now.year,
+        now.month,
+        now.day + day,
+        hour,
+        minute,
+      );
+      if (!at.isAfter(now)) continue;
+      final message =
+          _smartNudgeMessages[(day * 2 + slot) % _smartNudgeMessages.length];
+      requests.add(
+        ReminderRequest(
+          200 + day * 2 + slot,
+          message.$1,
+          message.$2,
+          at,
+          repeat: false,
+        ),
+      );
+    }
+  }
+  return requests;
+}
+
 tz.TZDateTime? celebrationTime(tz.TZDateTime now, bool quiet) {
   if (!quiet || (now.hour >= 8 && now.hour < 21)) return null;
   return tz.TZDateTime(
@@ -315,6 +385,9 @@ class NotificationService extends ChangeNotifier {
       for (var id = 10; id <= 15; id++) {
         await driver.cancel(id);
       }
+      for (var id = 200; id < 214; id++) {
+        await driver.cancel(id);
+      }
       for (var i = 0; i < milestones.length; i++) {
         if (!enabled ||
             state.preferences['Milestone celebrations'] != true ||
@@ -324,6 +397,13 @@ class NotificationService extends ChangeNotifier {
       }
       if (enabled) {
         for (final request in reminderPlan(state.preferences, clock())) {
+          await driver.schedule(request);
+        }
+        for (final request in smartNudgePlan(
+          state.preferences,
+          clock(),
+          seed: state.recordKey,
+        )) {
           await driver.schedule(request);
         }
       }

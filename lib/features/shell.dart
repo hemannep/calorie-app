@@ -8,7 +8,9 @@ import 'diary.dart';
 import 'logging.dart';
 import 'progress.dart';
 import 'settings.dart';
+import 'profile_avatar.dart';
 import 'community.dart';
+import 'milestones.dart';
 
 const _nav = [
   ('Today', Icons.grid_view_rounded),
@@ -24,10 +26,10 @@ class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.state});
   final AppState state;
   @override
-  State<AppShell> createState() => _AppShellState();
+  State<AppShell> createState() => AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class AppShellState extends State<AppShell> {
   int selected = 0;
   final scroll = ScrollController();
   void navigate(int index) {
@@ -47,85 +49,90 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 1050;
     final state = widget.state;
-    return Scaffold(
-      body: SafeArea(
-        child: Row(
-          children: [
-            if (wide) _sidebar(),
-            Expanded(
-              child: Column(
-                children: [
-                  if (wide || ![0, 1, 3, 6].contains(selected)) _topbar(wide),
-                  if (state.storageError != null)
-                    MaterialBanner(
-                      content: Text(
-                        state.storageError!,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => exportData(context, state),
-                          child: const Text('Export backup'),
+    return MilestoneCelebrationHost(
+      state: state,
+      child: Scaffold(
+        body: SafeArea(
+          child: Row(
+            children: [
+              if (wide) _sidebar(),
+              Expanded(
+                child: Column(
+                  children: [
+                    if (wide || ![0, 1, 3, 6].contains(selected)) _topbar(wide),
+                    if (state.storageError != null)
+                      MaterialBanner(
+                        content: Text(
+                          state.storageError!,
+                          style: const TextStyle(fontSize: 12),
                         ),
-                      ],
-                    ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scroll,
-                      padding: EdgeInsets.fromLTRB(
-                        wide ? 40 : KayleoSpacing.page,
-                        wide ? 34 : 18,
-                        wide ? 40 : KayleoSpacing.page,
-                        40,
+                        actions: [
+                          TextButton(
+                            onPressed: () => exportData(context, state),
+                            child: const Text('Export backup'),
+                          ),
+                        ],
                       ),
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1240),
-                          child: switch (selected) {
-                            0 => DashboardScreen(
-                              state: state,
-                              navigate: navigate,
-                              onReminders: () =>
-                                  openSheet(context, InboxSheet(state: state)),
-                            ),
-                            1 => DiaryScreen(state: state),
-                            2 => CaptureScreen(state: state),
-                            3 => ProgressScreen(state: state),
-                            4 => SavedMealsScreen(state: state),
-                            5 => CommunityScreen(state: state),
-                            _ => SettingsScreen(
-                              state: state,
-                              navigate: navigate,
-                            ),
-                          },
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: scroll,
+                        padding: EdgeInsets.fromLTRB(
+                          wide ? 40 : KayleoSpacing.page,
+                          wide ? 34 : 18,
+                          wide ? 40 : KayleoSpacing.page,
+                          40,
+                        ),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1240),
+                            child: switch (selected) {
+                              0 => DashboardScreen(
+                                state: state,
+                                navigate: navigate,
+                                onReminders: () => openSheet(
+                                  context,
+                                  InboxSheet(state: state),
+                                ),
+                              ),
+                              1 => DiaryScreen(state: state),
+                              2 => CaptureScreen(state: state),
+                              3 => ProgressScreen(state: state),
+                              4 => SavedMealsScreen(state: state),
+                              5 => CommunityScreen(state: state),
+                              _ => SettingsScreen(
+                                state: state,
+                                navigate: navigate,
+                              ),
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: wide
-          ? null
-          : FloatingActionButton(
-              key: const Key('bottom-camera-button'),
-              tooltip: 'Scan food',
-              backgroundColor: lime,
-              foregroundColor: forest,
-              elevation: 0,
-              shape: CircleBorder(
-                side: BorderSide(color: context.kayleoBackground, width: 4),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButton: wide
+            ? null
+            : FloatingActionButton(
+                key: const Key('bottom-camera-button'),
+                tooltip: 'Scan food',
+                backgroundColor: lime,
+                foregroundColor: forest,
+                elevation: 0,
+                shape: CircleBorder(
+                  side: BorderSide(color: context.kayleoBackground, width: 4),
+                ),
+                onPressed: () =>
+                    showLogger(context, widget.state, openCamera: true),
+                child: const Icon(Icons.camera_alt_rounded, size: 28),
               ),
-              onPressed: () =>
-                  showLogger(context, widget.state, openCamera: true),
-              child: const Icon(Icons.camera_alt_rounded, size: 28),
-            ),
-      bottomNavigationBar: wide ? null : _bottomBar(),
+        bottomNavigationBar: wide ? null : _bottomBar(),
+      ),
     );
   }
 
@@ -359,20 +366,7 @@ class _AppShellState extends State<AppShell> {
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 17,
-                    backgroundColor: context.kayleoSurfaces.soft,
-                    child: Text(
-                      widget.state.profile.name.isEmpty
-                          ? 'K'
-                          : widget.state.profile.name.substring(0, 1),
-                      style: TextStyle(
-                        color: context.kayleoPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
+                  ProfileAvatar(profile: widget.state.profile, radius: 17),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -469,20 +463,7 @@ class _AppShellState extends State<AppShell> {
           InkWell(
             onTap: () => navigate(6),
             borderRadius: BorderRadius.circular(20),
-            child: CircleAvatar(
-              radius: 17,
-              backgroundColor: context.kayleoSurfaces.soft,
-              child: Text(
-                widget.state.profile.name.isEmpty
-                    ? 'K'
-                    : widget.state.profile.name.substring(0, 1).toUpperCase(),
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: context.kayleoPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
+            child: ProfileAvatar(profile: widget.state.profile, radius: 17),
           ),
         ],
       ],

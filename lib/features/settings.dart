@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
@@ -11,6 +12,9 @@ import '../core/firebase_auth_repository.dart';
 import '../services/cloud_sync_service.dart';
 import '../core/ui.dart';
 import '../data/models.dart';
+import 'profile_avatar.dart';
+import 'milestones.dart';
+import 'widget_gallery.dart';
 
 Color _settingsMuted(BuildContext context) =>
     Theme.of(context).colorScheme.onSurfaceVariant;
@@ -24,179 +28,150 @@ class SettingsScreen extends StatelessWidget {
   final AppState state;
   final ValueChanged<int> navigate;
 
+  Future<void> _pickProfilePhoto(BuildContext context) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from photos'),
+              onTap: () => Navigator.pop(sheetContext, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(sheetContext, 'camera'),
+            ),
+            if (state.profile.photoBase64 != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Remove photo'),
+                onTap: () => Navigator.pop(sheetContext, 'remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == null) return;
+    if (action == 'remove') {
+      state.profile.photoBase64 = null;
+      await state.persist();
+      return;
+    }
+    try {
+      final photo = await ImagePicker().pickImage(
+        source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 68,
+      );
+      if (photo == null) return;
+      final bytes = await photo.readAsBytes();
+      if (bytes.length > 350000) {
+        if (context.mounted) toast(context, 'Choose a smaller photo.');
+        return;
+      }
+      state.profile.photoBase64 = base64Encode(bytes);
+      await state.persist();
+      if (context.mounted && state.storageError != null) {
+        toast(context, state.storageError!);
+      }
+    } catch (_) {
+      if (context.mounted) toast(context, 'Could not open photos. Try again.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = state.profile;
-    final scheme = Theme.of(context).colorScheme;
-    final sections = [
-      if (state.accountEmail != null)
-        Panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                state.accountEmail!,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Tag(
-                state.accountUid != null ? 'FIREBASE ACCOUNT' : 'DEMO ACCOUNT',
-              ),
-              if (state.accountUid != null) ...[
-                const SizedBox(height: 8),
-                Text(state.cloudStatus),
-                TextButton(
-                  onPressed: CloudSyncService.instance.refresh,
-                  child: const Text('Retry cloud backup'),
-                ),
-              ],
-              const SizedBox(height: 12),
-              TextButton.icon(
-                onPressed: () async {
-                  await state.persist();
-                  if (state.storageError != null) {
-                    if (context.mounted) toast(context, state.storageError!);
-                    return;
-                  }
-                  try {
-                    if (state.accountUid != null) {
-                      await CloudSyncService.instance.prepareSignOut();
-                      await FirebaseAuthRepository.instance.signOut();
-                    } else {
-                      await DemoAuthRepository().signOut();
-                    }
-                    state.markSignedOut();
-                  } catch (_) {
-                    if (context.mounted) {
-                      toast(context, 'Could not sign out. Try again.');
-                    }
-                  }
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text('Sign out'),
-              ),
-            ],
-          ),
-        ),
-      _group(context, [
-        _setting(
-          context,
-          Icons.flag_outlined,
-          'Goals',
-          () => openSheet(context, TargetsSheet(state: state)),
-        ),
-        _setting(
-          context,
-          Icons.restaurant_outlined,
-          'Diet preferences',
-          () => openSheet(context, DietPreferencesSheet(state: state)),
-        ),
-        _setting(
-          context,
-          Icons.straighten_rounded,
-          'Measurements',
-          () => openSheet(context, EditProfileSheet(state: state)),
-        ),
-        _setting(
-          context,
-          Icons.notifications_none_rounded,
-          'Notifications',
-          () => openSheet(context, ReminderSheet(state: state)),
-        ),
-        _setting(
-          context,
-          Icons.palette_outlined,
-          'Appearance',
-          () => openSheet(context, AppearanceSheet(state: state)),
-        ),
-        _setting(
-          context,
-          Icons.lock_outline_rounded,
-          'Privacy & data',
-          () => openSheet(context, PrivacySheet(state: state)),
-        ),
-      ]),
-      _group(context, [
-        _setting(
-          context,
-          Icons.add_circle_outline_rounded,
-          'Kayleo+',
-          () => openSheet(context, PremiumSheet(state: state)),
-        ),
-        _setting(
-          context,
-          Icons.info_outline_rounded,
-          'About Kayleo',
-          () => openSheet(context, const AboutSheet()),
-        ),
-      ]),
-      _group(context, [
-        _setting(
-          context,
-          Icons.bookmark_border_rounded,
-          'Saved meals',
-          () => navigate(4),
-        ),
-        _setting(
-          context,
-          Icons.people_outline_rounded,
-          'Community',
-          () => navigate(5),
-        ),
-        _setting(
-          context,
-          Icons.monitor_weight_outlined,
-          'Log weight',
-          () => logWeightDialog(context, state),
-        ),
-        _setting(
-          context,
-          Icons.straighten_rounded,
-          'Units',
-          () => unitDialog(context),
-        ),
-        _setting(
-          context,
-          Icons.download_outlined,
-          'Export my data',
-          () => exportData(context, state),
-        ),
-        _setting(
-          context,
-          Icons.refresh_rounded,
-          'Reset & sample data',
-          () => openSheet(context, DataToolsSheet(state: state)),
-        ),
-      ]),
-    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('You', style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: KayleoSpacing.xl),
-        Panel(
-          color: context.kayleoSurfaces.soft,
-          border: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        Row(
+          children: [
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ExcludeSemantics(
-                    child: CircleAvatar(
-                      radius: 28,
-                      backgroundColor: scheme.surface,
-                      child: Text(
-                        p.name.isEmpty
-                            ? 'K'
-                            : p.name.characters.first.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.w800,
-                          color: scheme.primary,
+                  Text(
+                    'Profile',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Your plan, progress and preferences',
+                    style: TextStyle(fontSize: 12, color: context.kayleoMuted),
+                  ),
+                ],
+              ),
+            ),
+            IconButton.filledTonal(
+              tooltip: 'Edit your details',
+              onPressed: () =>
+                  openSheet(context, EditProfileSheet(state: state)),
+              icon: const Icon(Icons.edit_outlined, size: 20),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                context.kayleoPrimary,
+                Color.lerp(context.kayleoPrimary, Colors.black, .22)!,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: context.kayleoPrimary.withValues(alpha: .18),
+                blurRadius: 28,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () => _pickProfilePhoto(context),
+                    borderRadius: BorderRadius.circular(48),
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: .65),
+                              width: 2,
+                            ),
+                          ),
+                          child: ProfileAvatar(profile: p, radius: 38),
                         ),
-                      ),
+                        const Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: CircleAvatar(
+                            radius: 12,
+                            backgroundColor: lime,
+                            child: Icon(
+                              Icons.camera_alt_rounded,
+                              size: 13,
+                              color: forest,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -206,14 +181,44 @@ class SettingsScreen extends StatelessWidget {
                       children: [
                         Text(
                           p.name.isEmpty ? 'Your profile' : p.name,
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
                         Text(
-                          p.goal,
+                          '${p.goal} · ${p.age} years',
                           style: TextStyle(
-                            color: scheme.onSurfaceVariant,
-                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: .78),
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (state.accountEmail != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            state.accountEmail!,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: .64),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () => openSheet(
+                            context,
+                            EditProfileSheet(state: state),
+                          ),
+                          child: const Text(
+                            'Edit profile',
+                            style: TextStyle(
+                              color: lime,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ],
@@ -221,75 +226,216 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    openSheet(context, EditProfileSheet(state: state)),
-                icon: const Icon(Icons.edit_outlined, size: 17),
-                label: const Text('Edit profile'),
-              ),
-              const SizedBox(height: 14),
-              Divider(color: scheme.outlineVariant, height: 1),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 20,
-                runSpacing: 16,
-                children: [
-                  _profileStat(
-                    context,
-                    '${state.meals.map((m) => dateKey(m.time)).toSet().length}',
-                    'Logged days',
-                  ),
-                  _profileStat(context, '${state.streak}', 'Day streak'),
-                  _profileStat(
-                    context,
-                    '${state.templates.length}',
-                    'Meal shortcuts',
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        Panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SectionTitle('Your daily goals'),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  Tag('${p.calorieTarget} kcal'),
-                  Tag('${p.proteinTarget} g protein'),
-                  Tag('${number(p.waterTarget / 1000)} L water'),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => openSheet(context, TargetsSheet(state: state)),
-                child: const Text('Adjust goals'),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .11),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: _profileStat(
+                        context,
+                        '${state.meals.map((m) => dateKey(m.time)).toSet().length}',
+                        'Logged days',
+                        light: true,
+                      ),
+                    ),
+                    _heroDivider(),
+                    Expanded(
+                      child: _profileStat(
+                        context,
+                        '${state.streak}',
+                        'Day streak',
+                        light: true,
+                      ),
+                    ),
+                    _heroDivider(),
+                    Expanded(
+                      child: _profileStat(
+                        context,
+                        '${state.milestoneUnlocks.length}',
+                        'Milestones',
+                        light: true,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: KayleoSpacing.xl),
-        for (var i = 0; i < sections.length; i++) ...[
-          if (i == (state.accountEmail != null ? 1 : 0))
-            const SectionTitle('Your preferences'),
-          if (i == (state.accountEmail != null ? 2 : 1))
-            const SectionTitle('About & membership'),
-          if (i == (state.accountEmail != null ? 3 : 2))
-            const SectionTitle('Your tools & data'),
-          sections[i],
-          if (i != sections.length - 1)
-            const SizedBox(height: KayleoSpacing.lg),
+        const SizedBox(height: 22),
+        _planCard(context, p),
+        const SizedBox(height: 24),
+        const SectionTitle('Quick access'),
+        GridView.count(
+          crossAxisCount: MediaQuery.sizeOf(context).width > 700 ? 4 : 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 2.25,
+          children: [
+            _quickAction(
+              context,
+              Icons.workspace_premium_outlined,
+              'Milestones',
+              () => openMilestones(context, state),
+            ),
+            _quickAction(
+              context,
+              Icons.widgets_outlined,
+              'Home screen widgets',
+              () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => WidgetGalleryScreen(state: state),
+                ),
+              ),
+            ),
+            _quickAction(
+              context,
+              Icons.bookmark_border_rounded,
+              'Saved meals',
+              () => navigate(4),
+            ),
+            _quickAction(
+              context,
+              Icons.people_outline_rounded,
+              'Community',
+              () => navigate(5),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const SectionTitle('Personalize'),
+        _group(context, [
+          _setting(
+            context,
+            Icons.badge_outlined,
+            'Measurements',
+            () => openSheet(context, EditProfileSheet(state: state)),
+            subtitle: 'Measurements, activity and goal',
+          ),
+          _setting(
+            context,
+            Icons.restaurant_menu_rounded,
+            'Diet preferences',
+            () => openSheet(context, DietPreferencesSheet(state: state)),
+            subtitle: p.diet,
+          ),
+          _setting(
+            context,
+            Icons.palette_outlined,
+            'Appearance',
+            () => openSheet(context, AppearanceSheet(state: state)),
+            subtitle:
+                '${state.appearance[0].toUpperCase()}${state.appearance.substring(1)} mode',
+          ),
+          _setting(
+            context,
+            Icons.straighten_rounded,
+            'Units',
+            () => unitDialog(context),
+            subtitle: p.units,
+          ),
+        ]),
+        const SizedBox(height: 24),
+        const SectionTitle('Goals & tracking'),
+        _group(context, [
+          _setting(
+            context,
+            Icons.track_changes_rounded,
+            'Goals',
+            () => openSheet(context, TargetsSheet(state: state)),
+            subtitle: '${number(p.calorieTarget)} kcal daily target',
+          ),
+          _setting(
+            context,
+            Icons.monitor_weight_outlined,
+            'Weight check-in',
+            () => logWeightDialog(context, state),
+            subtitle: 'Log and review your trend',
+          ),
+          _setting(
+            context,
+            Icons.notifications_none_rounded,
+            'Notifications',
+            () => openSheet(context, ReminderSheet(state: state)),
+            subtitle: 'Meals, water and weekly review',
+          ),
+        ]),
+        const SizedBox(height: 24),
+        const SectionTitle('Your data'),
+        _group(context, [
+          _setting(
+            context,
+            Icons.lock_outline_rounded,
+            'Privacy & data',
+            () => openSheet(context, PrivacySheet(state: state)),
+            subtitle: 'Photos and recognition settings',
+          ),
+          _setting(
+            context,
+            Icons.download_outlined,
+            'Export my data',
+            () => exportData(context, state),
+            subtitle: 'Download a portable backup',
+          ),
+          _setting(
+            context,
+            Icons.refresh_rounded,
+            'Reset & sample data',
+            () => openSheet(context, DataToolsSheet(state: state)),
+            subtitle: 'Manage local records',
+          ),
+        ]),
+        const SizedBox(height: 24),
+        const SectionTitle('Kayleo'),
+        _group(context, [
+          _setting(
+            context,
+            Icons.auto_awesome_rounded,
+            'Kayleo+',
+            () => openSheet(context, PremiumSheet(state: state)),
+            subtitle: 'Explore premium tools',
+          ),
+          _setting(
+            context,
+            Icons.info_outline_rounded,
+            'About Kayleo',
+            () => openSheet(context, const AboutSheet()),
+            subtitle: 'How Kayleo works',
+          ),
+        ]),
+        if (state.accountEmail != null) ...[
+          const SizedBox(height: 24),
+          const SectionTitle('Account'),
+          _group(context, [
+            if (state.accountUid != null)
+              _setting(
+                context,
+                Icons.cloud_done_outlined,
+                'Cloud backup',
+                CloudSyncService.instance.refresh,
+                subtitle: state.cloudStatus,
+              ),
+            _setting(
+              context,
+              Icons.logout_rounded,
+              'Sign out',
+              () => _signOut(context),
+              subtitle: state.accountEmail,
+            ),
+          ]),
         ],
         const SizedBox(height: KayleoSpacing.xl),
         Center(
           child: Text(
-            'kayleo.  ·  Your day, in balance.',
+            'Kayleo · Your day, in balance.',
             style: TextStyle(fontSize: 12, color: _settingsMuted(context)),
           ),
         ),
@@ -297,29 +443,277 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _profileStat(BuildContext context, String value, String label) =>
-      ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 75),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.primary,
+  Widget _heroDivider() => Container(
+    width: 1,
+    height: 34,
+    color: Colors.white.withValues(alpha: .2),
+  );
+
+  Widget _planCard(BuildContext context, BodyProfile p) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.kayleoSurfaces.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: context.kayleoSurfaces.border),
+      ),
+      child: Row(
+        children: [
+          KayleoRing(
+            progress: 1,
+            segmented: true,
+            size: 112,
+            stroke: 9,
+            highlight: false,
+            color: context.kayleoPrimary,
+            track: context.kayleoSurfaces.soft,
+            semanticLabel: '${p.calorieTarget} calorie daily goal',
+            child: Container(
+              margin: const EdgeInsets.all(23),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: context.kayleoBackground,
+                shape: BoxShape.circle,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      number(p.calorieTarget),
+                      style: TextStyle(
+                        color: context.kayleoText,
+                        fontSize: 21,
+                        height: 1,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'kcal goal',
+                      style: TextStyle(
+                        color: context.kayleoMuted,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+          ),
+          const SizedBox(width: 17),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Your daily plan',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () =>
+                          openSheet(context, TargetsSheet(state: state)),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.tune_rounded,
+                          size: 19,
+                          color: context.kayleoPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 9),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _goalRing(
+                      context,
+                      '${p.proteinTarget}g',
+                      'Protein',
+                      const Color(0xFFF07894),
+                    ),
+                    _goalRing(
+                      context,
+                      '${p.carbTarget}g',
+                      'Carbs',
+                      const Color(0xFFF1B963),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Center(
+                  child: _goalRing(
+                    context,
+                    '${p.fatTarget}g',
+                    'Fat',
+                    const Color(0xFF9A7DDD),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _goalRing(
+    BuildContext context,
+    String value,
+    String label,
+    Color color,
+  ) => SizedBox(
+    width: 56,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KayleoRing(
+          progress: 1,
+          size: 44,
+          stroke: 5,
+          highlight: false,
+          color: color,
+          track: context.kayleoSurfaces.soft,
+          semanticLabel: '$label goal $value',
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: TextStyle(
+                  color: context.kayleoText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+          style: TextStyle(
+            color: context.kayleoMuted,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _quickAction(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback action,
+  ) => Material(
+    color: context.kayleoSurfaces.card,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(18),
+      side: BorderSide(color: context.kayleoSurfaces.border),
+    ),
+    child: InkWell(
+      onTap: action,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: context.kayleoSurfaces.soft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 19, color: context.kayleoPrimary),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
-      );
+      ),
+    ),
+  );
+
+  Future<void> _signOut(BuildContext context) async {
+    await state.persist();
+    if (state.storageError != null) {
+      if (context.mounted) toast(context, state.storageError!);
+      return;
+    }
+    try {
+      if (state.accountUid != null) {
+        await CloudSyncService.instance.prepareSignOut();
+        await FirebaseAuthRepository.instance.signOut();
+      } else {
+        await DemoAuthRepository().signOut();
+      }
+      state.markSignedOut();
+    } catch (_) {
+      if (context.mounted) toast(context, 'Could not sign out. Try again.');
+    }
+  }
+
+  Widget _profileStat(
+    BuildContext context,
+    String value,
+    String label, {
+    bool light = false,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        value,
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          color: light ? Colors.white : Theme.of(context).colorScheme.primary,
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        label,
+        maxLines: 2,
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          color: light ? Colors.white70 : context.kayleoMuted,
+        ),
+      ),
+    ],
+  );
+
   Widget _group(BuildContext context, List<Widget> rows) => Panel(
     padding: 0,
     border: false,
@@ -338,17 +732,34 @@ class SettingsScreen extends StatelessWidget {
     BuildContext context,
     IconData icon,
     String title,
-    VoidCallback action,
-  ) => ListTile(
+    VoidCallback action, {
+    String? subtitle,
+  }) => ListTile(
     contentPadding: const EdgeInsets.symmetric(
       horizontal: KayleoSpacing.lg,
       vertical: 3,
     ),
-    leading: Icon(icon, size: 22, color: Theme.of(context).colorScheme.primary),
+    leading: Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: context.kayleoSurfaces.soft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+    ),
     title: Text(
       title,
       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
     ),
+    subtitle: subtitle == null
+        ? null
+        : Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+          ),
     trailing: Icon(
       Icons.chevron_right_rounded,
       size: 20,
@@ -607,6 +1018,7 @@ class EditProfileSheet extends StatefulWidget {
 }
 
 class _EditProfileSheetState extends State<EditProfileSheet> {
+  bool recalculateTargets = false;
   late final BodyProfile profile = BodyProfile.fromJson(
     widget.state.profile.toJson(),
   );
@@ -643,13 +1055,16 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           profile.age = int.parse(age.text);
           profile.height = double.parse(height.text);
           profile.weight = double.parse(weight.text);
+          if (recalculateTargets) profile.calculateTargets();
           widget.state.profile = profile;
           await widget.state.persist();
           if (context.mounted) {
             Navigator.pop(context);
             toast(
               context,
-              'Profile updated. Your custom targets are preserved.',
+              recalculateTargets
+                  ? 'Profile and daily targets updated.'
+                  : 'Profile updated. Your custom targets are preserved.',
             );
           }
         },
@@ -736,6 +1151,16 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
             ['Everything', 'Vegetarian', 'Vegan', 'Pescatarian'],
             profile.diet,
             (v) => profile.diet = v,
+          ),
+          const SizedBox(height: KayleoSpacing.md),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Recalculate my daily plan'),
+            subtitle: const Text(
+              'Use these measurements, activity, and goal to refresh calories and macros.',
+            ),
+            value: recalculateTargets,
+            onChanged: (value) => setState(() => recalculateTargets = value),
           ),
         ],
       ),
@@ -1076,6 +1501,10 @@ class _ReminderSheetState extends State<ReminderSheet> {
             ('Meal reminders', 'Around 12:30 PM and 7:30 PM daily'),
             ('Hydration reminders', 'Around 10 AM, 2 PM and 6 PM daily'),
             ('Weekly review', 'Sundays around 6 PM'),
+            (
+              'Smart nudges',
+              'Two varied, gentle check-ins each day between 9 AM and 7 PM',
+            ),
             (
               'Milestone celebrations',
               'A compliment when you earn a new milestone',

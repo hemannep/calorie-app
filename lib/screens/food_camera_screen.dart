@@ -304,6 +304,7 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
                 Navigator.pop(context, mode == 'Voice' ? 'voice' : 'manual');
               }
             },
+            onBarcode: () => Navigator.pop(context, 'barcode'),
           ),
   );
 }

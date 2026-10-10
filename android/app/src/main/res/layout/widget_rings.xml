@@ -1,0 +1,51 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+ android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+ android:orientation="vertical" android:padding="10dp" android:background="@drawable/widget_card">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="16dp" android:gravity="center_vertical">
+  <TextView android:id="@+id/rings_brand" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Kayleo" android:textColor="#163E2D" android:textSize="10sp" android:textStyle="bold" android:singleLine="true" />
+  <TextView android:id="@+id/rings_day" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TODAY" android:textColor="#626E64" android:textSize="8sp" />
+ </LinearLayout>
+ <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+  <FrameLayout android:id="@+id/calorie_display" android:layout_width="0dp" android:layout_weight="44" android:layout_height="match_parent">
+   <ImageView android:id="@+id/calorie_ring" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/widget_ring_preview" android:contentDescription="Tap to switch calories left and consumed" />
+   <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+    <TextView android:id="@+id/rings_calories" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="720" android:textColor="#163E2D" android:textSize="28sp" android:textStyle="bold" android:singleLine="true" android:includeFontPadding="false" />
+    <TextView android:id="@+id/rings_target" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Calories left" android:textColor="#626E64" android:textSize="9sp" android:singleLine="true" android:includeFontPadding="false" />
+   </LinearLayout>
+  </FrameLayout>
+  <LinearLayout android:layout_width="0dp" android:layout_weight="35" android:layout_height="match_parent" android:orientation="vertical" android:layout_marginStart="8dp" android:layout_marginEnd="7dp">
+   <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical">
+    <ImageView android:id="@+id/protein_ring" android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/widget_ring_protein" android:contentDescription="Protein progress" />
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="6dp">
+     <TextView android:id="@+id/protein_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="38g" android:textColor="#163E2D" android:textSize="17sp" android:textStyle="bold" android:includeFontPadding="false" android:singleLine="true" />
+     <TextView android:id="@+id/protein_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Protein left" android:textColor="#F07894" android:textSize="9sp" android:includeFontPadding="false" android:singleLine="true" />
+    </LinearLayout>
+   </LinearLayout>
+   <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical">
+    <ImageView android:id="@+id/carbs_ring" android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/widget_ring_carbs" android:contentDescription="Carbs progress" />
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="6dp">
+     <TextView android:id="@+id/carbs_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="106g" android:textColor="#163E2D" android:textSize="17sp" android:textStyle="bold" android:includeFontPadding="false" android:singleLine="true" />
+     <TextView android:id="@+id/carbs_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Carbs left" android:textColor="#F1B963" android:textSize="9sp" android:includeFontPadding="false" android:singleLine="true" />
+    </LinearLayout>
+   </LinearLayout>
+   <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical">
+    <ImageView android:id="@+id/fat_ring" android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/widget_ring_fat" android:contentDescription="Fat progress" />
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="6dp">
+     <TextView android:id="@+id/fat_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="26g" android:textColor="#163E2D" android:textSize="17sp" android:textStyle="bold" android:includeFontPadding="false" android:singleLine="true" />
+     <TextView android:id="@+id/fat_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Fat left" android:textColor="#9A7DDD" android:textSize="9sp" android:includeFontPadding="false" android:singleLine="true" />
+    </LinearLayout>
+   </LinearLayout>
+  </LinearLayout>
+  <LinearLayout android:layout_width="0dp" android:layout_weight="21" android:layout_height="match_parent" android:orientation="vertical">
+   <LinearLayout android:id="@+id/rings_scan" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginBottom="3dp" android:orientation="horizontal" android:gravity="center" android:background="@drawable/widget_action_tile">
+    <ImageView android:id="@+id/rings_camera_icon" android:layout_width="29dp" android:layout_height="29dp" android:src="@drawable/widget_camera_light_icon" android:contentDescription="Scan food" />
+   </LinearLayout>
+   <LinearLayout android:id="@+id/rings_barcode" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginBottom="3dp" android:orientation="horizontal" android:gravity="center" android:background="@drawable/widget_action_tile">
+    <ImageView android:id="@+id/rings_barcode_icon" android:layout_width="29dp" android:layout_height="29dp" android:src="@drawable/widget_barcode_icon" android:contentDescription="Barcode" />
+   </LinearLayout>
+   <LinearLayout android:id="@+id/rings_voice" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginBottom="3dp" android:orientation="horizontal" android:gravity="center" android:background="@drawable/widget_action_tile">
+    <ImageView android:id="@+id/rings_mic_icon" android:layout_width="29dp" android:layout_height="29dp" android:src="@drawable/widget_mic_icon" android:contentDescription="Voice" />
+   </LinearLayout>
+  </LinearLayout>
+ </LinearLayout>
+</LinearLayout>

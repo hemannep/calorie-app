@@ -1,0 +1,6 @@
+<resources>
+    <string name="calorie_widget_description">2×2 · Daily calorie ring and one-tap food camera</string>
+    <string name="barcode_widget_description">2×2 · Scan a product barcode instantly</string>
+    <string name="streak_widget_description">2×2 · Your meal logging streak</string>
+    <string name="rings_widget_description">4×2 · Large calorie and macro rings with photo, barcode and voice logging</string>
+</resources>

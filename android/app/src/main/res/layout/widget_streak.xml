@@ -1,0 +1,68 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="@drawable/widget_card">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="14dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/streak_brand" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="Kayleo" android:textColor="#163E2D" android:textSize="10sp" android:textStyle="bold" android:singleLine="true" />
+        <TextView android:id="@+id/streak_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Streak" android:textColor="#626E64" android:textSize="8sp" android:textStyle="bold" android:singleLine="true" />
+    </LinearLayout>
+
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_gravity="center"
+            android:scaleType="centerInside" android:adjustViewBounds="true" android:padding="0dp"
+            android:src="@drawable/widget_flame_icon" android:contentDescription="Logging streak" />
+        <TextView android:id="@+id/streak_value" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="center" android:layout_marginTop="22dp" android:text="12"
+            android:textColor="#6F351D" android:textSize="31sp" android:textStyle="bold" android:includeFontPadding="false" />
+    </FrameLayout>
+
+    <TextView android:id="@+id/streak_caption" android:layout_width="match_parent" android:layout_height="14dp" android:gravity="center"
+        android:text="day streak" android:textColor="#163E2D" android:textSize="10sp" android:textStyle="bold" android:includeFontPadding="false" />
+    <TextView android:id="@+id/streak_hint" android:layout_width="match_parent" android:layout_height="10dp" android:gravity="center"
+        android:text="Keep your rhythm" android:textColor="#626E64" android:textSize="8sp"
+        android:includeFontPadding="false" android:singleLine="true" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="18dp" android:layout_marginTop="5dp" android:gravity="center">
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/week_mon" android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="center"
+                android:gravity="center" android:text="M" android:textSize="8sp" android:textStyle="bold" android:includeFontPadding="false"
+                android:textColor="#FFFFFF" android:background="@drawable/widget_week_done" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/week_tue" android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="center"
+                android:gravity="center" android:text="T" android:textSize="8sp" android:textStyle="bold" android:includeFontPadding="false"
+                android:textColor="#FFFFFF" android:background="@drawable/widget_week_done" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/week_wed" android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="center"
+                android:gravity="center" android:text="W" android:textSize="8sp" android:textStyle="bold" android:includeFontPadding="false"
+                android:textColor="#FFFFFF" android:background="@drawable/widget_week_done" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/week_thu" android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="center"
+                android:gravity="center" android:text="T" android:textSize="8sp" android:textStyle="bold" android:includeFontPadding="false"
+                android:textColor="#FFFFFF" android:background="@drawable/widget_week_done" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/week_fri" android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="center"
+                android:gravity="center" android:text="F" android:textSize="8sp" android:textStyle="bold" android:includeFontPadding="false"
+                android:textColor="#FFFFFF" android:background="@drawable/widget_week_done" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/week_sat" android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="center"
+                android:gravity="center" android:text="S" android:textSize="8sp" android:textStyle="bold" android:includeFontPadding="false"
+                android:textColor="#626E64" android:background="@drawable/widget_week_dot" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/week_sun" android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="center"
+                android:gravity="center" android:text="S" android:textSize="8sp" android:textStyle="bold" android:includeFontPadding="false"
+                android:textColor="#626E64" android:background="@drawable/widget_week_dot" />
+        </FrameLayout>
+    </LinearLayout>
+</LinearLayout>
