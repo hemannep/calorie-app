@@ -14,11 +14,10 @@ import 'milestones.dart';
 
 const _nav = [
   ('Today', Icons.grid_view_rounded),
-  ('Diary', Icons.menu_book_outlined),
-  ('Scan food', Icons.camera_alt_outlined),
-  ('Progress', Icons.show_chart_rounded),
-  ('Saved meals', Icons.bookmark_border_rounded),
   ('Community', Icons.people_outline_rounded),
+  ('Progress', Icons.show_chart_rounded),
+  ('Scan food', Icons.camera_alt_outlined),
+  ('Saved meals', Icons.bookmark_border_rounded),
   ('You', Icons.tune_rounded),
 ];
 
@@ -51,7 +50,12 @@ class AppShellState extends State<AppShell> {
     final state = widget.state;
     return MilestoneCelebrationHost(
       state: state,
-      child: Scaffold(
+      child: PopScope<void>(
+        canPop: selected != 6,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && selected == 6) navigate(2);
+        },
+        child: Scaffold(
         body: SafeArea(
           child: Row(
             children: [
@@ -59,7 +63,7 @@ class AppShellState extends State<AppShell> {
               Expanded(
                 child: Column(
                   children: [
-                    if (wide || ![0, 1, 3, 6].contains(selected)) _topbar(wide),
+                    if (selected != 6 && (wide || ![0, 1, 2, 5].contains(selected))) _topbar(wide),
                     if (state.storageError != null)
                       MaterialBanner(
                         content: Text(
@@ -95,11 +99,14 @@ class AppShellState extends State<AppShell> {
                                   InboxSheet(state: state),
                                 ),
                               ),
-                              1 => DiaryScreen(state: state),
-                              2 => CaptureScreen(state: state),
-                              3 => ProgressScreen(state: state),
+                              1 => CommunityScreen(state: state),
+                              2 => ProgressScreen(
+                                state: state,
+                                onOpenDiary: () => navigate(6),
+                              ),
+                              3 => CaptureScreen(state: state),
                               4 => SavedMealsScreen(state: state),
-                              5 => CommunityScreen(state: state),
+                              6 => DiaryScreen(state: state),
                               _ => SettingsScreen(
                                 state: state,
                                 navigate: navigate,
@@ -132,13 +139,14 @@ class AppShellState extends State<AppShell> {
                 child: const Icon(Icons.camera_alt_rounded, size: 28),
               ),
         bottomNavigationBar: wide ? null : _bottomBar(),
+        ),
       ),
     );
   }
 
   Widget _bottomBar() {
     var labelHeight = 0.0;
-    for (final label in ['Today', 'Diary', 'Progress', 'You']) {
+    for (final label in ['Today', 'Community', 'Progress', 'You']) {
       final painter = TextPainter(
         text: TextSpan(
           text: label,
@@ -165,10 +173,10 @@ class AppShellState extends State<AppShell> {
       child: Row(
         children: [
           _bottomItem(0, Icons.grid_view_rounded, 'Today'),
-          _bottomItem(1, Icons.menu_book_outlined, 'Diary'),
+          _bottomItem(1, Icons.people_outline_rounded, 'Community'),
           const Expanded(child: SizedBox()),
-          _bottomItem(3, Icons.show_chart_rounded, 'Progress'),
-          _bottomItem(6, Icons.person_outline_rounded, 'You'),
+          _bottomItem(2, Icons.show_chart_rounded, 'Progress'),
+          _bottomItem(5, Icons.person_outline_rounded, 'You'),
         ],
       ),
     );
@@ -280,7 +288,7 @@ class AppShellState extends State<AppShell> {
                                   : context.kayleoMuted,
                             ),
                           ),
-                          if (i == 5)
+                          if (i == 1)
                             Text(
                               'Preview',
                               style: TextStyle(
@@ -356,7 +364,7 @@ class AppShellState extends State<AppShell> {
             KayleoSpacing.page,
           ),
           child: InkWell(
-            onTap: () => navigate(6),
+            onTap: () => navigate(5),
             borderRadius: BorderRadius.circular(KayleoRadius.small),
             child: Container(
               padding: const EdgeInsets.all(KayleoSpacing.md),
@@ -410,7 +418,15 @@ class AppShellState extends State<AppShell> {
     ),
     child: Row(
       children: [
-        if (wide) ...[
+        if (selected == 6)
+          Text(
+            'Diary',
+            style: TextStyle(
+              fontSize: wide ? 20 : 18,
+              fontWeight: FontWeight.w800,
+            ),
+          )
+        else if (wide) ...[
           Icon(Icons.circle_outlined, size: 18, color: context.kayleoPrimary),
           const SizedBox(width: 10),
           Text(
@@ -449,15 +465,16 @@ class AppShellState extends State<AppShell> {
           ),
           const SizedBox(width: KayleoSpacing.md),
         ],
-        IconButton(
-          onPressed: () => openSheet(context, InboxSheet(state: widget.state)),
-          tooltip: 'Your reminders',
-          icon: Icon(
-            Icons.notifications_none_rounded,
-            size: 21,
-            color: context.kayleoText,
+        if (selected != 6)
+          IconButton(
+            onPressed: () => openSheet(context, InboxSheet(state: widget.state)),
+            tooltip: 'Your reminders',
+            icon: Icon(
+              Icons.notifications_none_rounded,
+              size: 21,
+              color: context.kayleoText,
+            ),
           ),
-        ),
         if (wide) ...[
           const SizedBox(width: 6),
           InkWell(

@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'core/app_state.dart';
 import 'services/notification_service.dart';
 import 'services/cloud_sync_service.dart';
+import 'services/community_service.dart';
 import 'services/home_widget_service.dart';
 import 'core/ui.dart';
 import 'features/onboarding.dart';
@@ -49,6 +50,7 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
   String? identity;
   late final SemanticsHandle semantics;
   StreamSubscription<dynamic>? authSubscription;
+  bool _notificationPromptQueued = false;
   @override
   void initState() {
     super.initState();
@@ -120,6 +122,7 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
           ready = true;
           if (widget.state == null) NotificationService.instance.attach(state);
           if (widget.state == null) CloudSyncService.instance.attach(state);
+          if (widget.state == null) CommunityService.instance.attach(state);
           HomeWidgetService.instance.attach(state);
         });
         HomeWidgetService.instance.onAction = state != null && !state!.signedOut
@@ -154,6 +157,7 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
     if (widget.state == null) {
       NotificationService.instance.attach(null);
       CloudSyncService.instance.attach(null);
+      CommunityService.instance.attach(null);
     }
     if (widget.state == null) state?.dispose();
     HomeWidgetService.instance.attach(null);
@@ -176,6 +180,7 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
       state = next;
       if (widget.state == null) NotificationService.instance.attach(next);
       if (widget.state == null) CloudSyncService.instance.attach(next);
+      if (widget.state == null) CommunityService.instance.attach(next);
       HomeWidgetService.instance.attach(next);
       ready = true;
     });
@@ -187,6 +192,10 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
   }
 
   Widget _application() {
+    if (state?.onboarded == true && !_notificationPromptQueued) {
+      _notificationPromptQueued = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAskForNotifications());
+    }
     final next = state?.signedOut == true
         ? 'signed-out'
         : state?.accountUid ??
@@ -248,6 +257,29 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
           ? AppShell(key: shellKey, state: state!)
           : OnboardingScreen(state: state!),
     );
+  }
+
+  Future<void> _maybeAskForNotifications() async {
+    final current = state;
+    if (!mounted || current == null || !current.onboarded || current.signedOut) return;
+    if (current.storage.getBool('kayleo_notification_prompted_v1') == true) return;
+    await current.storage.setBool('kayleo_notification_prompted_v1', true);
+    if (!mounted) return;
+    final enable = await showDialog<bool>(
+      context: navigatorKey.currentContext!,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Stay on track with reminders'),
+        content: const Text('Allow notifications for meal check-ins, hydration, weekly reviews, smart nudges, and milestone celebrations? You can change these anytime in Reminders.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Allow notifications')),
+        ],
+      ),
+    );
+    if (enable == true && mounted) {
+      await NotificationService.instance.enable(current);
+    }
   }
 }
 

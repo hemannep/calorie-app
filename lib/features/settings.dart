@@ -1882,7 +1882,7 @@ class AboutSheet extends StatelessWidget {
         ),
         SizedBox(height: 18),
         Text(
-          'Meal descriptions use the local catalog and searches of Open Food Facts and USDA FoodData Central. Barcode lookup and device reminders are available on supported phones. Review estimates before saving. Subscriptions, wearables and live community remain previews. Sample records are clearly labeled.',
+          'Meal descriptions use the local catalog and searches of Open Food Facts and USDA FoodData Central. Barcode lookup and device reminders are available on supported phones. Review estimates before saving. Subscriptions and wearable integrations remain previews. Communities and invite-only friends use live Firebase conversations with optional progress sharing. Sample records are clearly labeled.',
           style: TextStyle(
             fontSize: 12,
             color: context.kayleoMuted,

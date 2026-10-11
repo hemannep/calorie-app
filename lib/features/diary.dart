@@ -5,6 +5,7 @@ import '../core/app_state.dart';
 import '../core/ui.dart';
 import '../data/models.dart';
 import '../data/food_database.dart';
+import '../services/health_service.dart';
 import 'dashboard.dart';
 import 'logging.dart';
 
@@ -38,35 +39,32 @@ class _DiaryScreenState extends State<DiaryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
-              child: Text(
-                'Diary',
-                style: Theme.of(context).textTheme.headlineMedium,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Your food log', style: Theme.of(context).textTheme.headlineMedium),
+                  const SizedBox(height: 6),
+                  Text(
+                    DateFormat('EEEE, d MMMM').format(date),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+                  ),
+                ],
               ),
-            ),
-            IconButton.filledTonal(
-              style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context)
-                    .extension<KayleoSurfaces>()!
-                    .soft,
-                foregroundColor: Theme.of(context).colorScheme.primary,
-              ),
-              tooltip: 'Log a meal',
-              onPressed: () => showLogger(context, state, initialDate: date),
-              icon: Icon(Icons.add_rounded, size: 24),
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
         Panel(
-          padding: 14,
+          padding: 18,
           border: false,
           child: Column(
             children: [
               Row(
                 children: [
-                  IconButton(
+                  IconButton.filledTonal(
                     onPressed: () => setState(
                       () => date = date.subtract(const Duration(days: 7)),
                     ),
@@ -75,7 +73,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   ),
                   Expanded(
                     child: Center(
-                      child: TextButton.icon(
+                      child: OutlinedButton.icon(
                         onPressed: () async {
                           final d = await showDatePicker(
                             context: context,
@@ -89,7 +87,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             setState(() => date = d);
                           }
                         },
-                        icon: Icon(Icons.calendar_today_outlined, size: 15),
+                        icon: const Icon(Icons.calendar_today_outlined, size: 15),
                         label: Text(
                           DateFormat('MMMM yyyy').format(date),
                           style: TextStyle(
@@ -100,7 +98,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                       ),
                     ),
                   ),
-                  IconButton(
+                  IconButton.filledTonal(
                     onPressed: days.last.isBefore(DateTime.now())
                         ? () => setState(
                             () => date = date.add(const Duration(days: 7)),
@@ -112,10 +110,26 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 ],
               ),
               const SizedBox(height: KayleoSpacing.md),
-              Row(
-                children: days
-                    .map(
-                      (d) => Expanded(
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Choose a day',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onHorizontalDragEnd: (details) {
+                  final velocity = details.primaryVelocity ?? 0;
+                  if (velocity.abs() < 80) return;
+                  setState(() {
+                    date = date.add(Duration(days: velocity < 0 ? 7 : -7));
+                  });
+                },
+                child: Row(
+                  children: days
+                      .map(
+                        (d) => Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 3),
                           child: InkWell(
@@ -191,13 +205,16 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             ),
                           ),
                         ),
-                      ),
-                    )
-                    .toList(),
+                        ),
+                      )
+                      .toList(),
+                ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        _DiaryOverview(state: state, date: date, nutrition: n),
         const SizedBox(height: KayleoSpacing.xl),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -206,12 +223,13 @@ class _DiaryScreenState extends State<DiaryScreen> {
               children: [
                 TextField(
                   onChanged: (v) => setState(() => search = v),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search_rounded, size: 20),
-                    hintText: 'Search your meals...',
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                    hintText: 'Search meals for this day',
+                    suffixIcon: search.isEmpty ? null : IconButton(onPressed: () => setState(() => search = ''), icon: const Icon(Icons.close_rounded, size: 18)),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -244,7 +262,12 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             .toList(),
                   ),
                 ),
-                const SizedBox(height: KayleoSpacing.card),
+                const SizedBox(height: 16),
+                Text(
+                  'All meals',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
                 if (meals.isEmpty)
                   Panel(
                     child: EmptyState(
@@ -255,11 +278,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                       subtitle: search.isNotEmpty || category != 'All meals'
                           ? 'Try another meal name or choose All meals.'
                           : 'Nothing logged on ${DateFormat('d MMM').format(date)}. Start with one meal.',
-                      action: FilledButton(
-                        onPressed: () =>
-                            showLogger(context, state, initialDate: date),
-                        child: Text('Log a meal'),
-                      ),
                     ),
                   )
                 else
@@ -321,6 +339,15 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     if (meals.any((m) => m.category == cat))
                       const SizedBox(height: KayleoSpacing.lg),
                   ],
+                if (meals.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: OutlinedButton.icon(
+                      onPressed: () => showLogger(context, state, initialDate: date),
+                      icon: const Icon(Icons.add_rounded, size: 17),
+                      label: const Text('Forgot to log a meal that day? Do it now'),
+                    ),
+                  ),
               ],
             );
             return constraints.maxWidth > 850
@@ -333,8 +360,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         flex: 4,
                         child: Column(
                           children: [
-                            EnergyPanel(state: state, date: date),
-                            const SizedBox(height: KayleoSpacing.page),
                             WaterPanel(state: state, date: date),
                             const SizedBox(height: KayleoSpacing.page),
                             Tag(
@@ -349,8 +374,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     children: [
                       feed,
                       const SizedBox(height: KayleoSpacing.page),
-                      EnergyPanel(state: state, date: date),
-                      const SizedBox(height: KayleoSpacing.page),
                       WaterPanel(state: state, date: date),
                     ],
                   );
@@ -359,6 +382,120 @@ class _DiaryScreenState extends State<DiaryScreen> {
       ],
     );
   }
+}
+
+class _DiaryOverview extends StatefulWidget {
+  const _DiaryOverview({required this.state, required this.date, required this.nutrition});
+  final AppState state;
+  final DateTime date;
+  final Nutrients nutrition;
+
+  @override
+  State<_DiaryOverview> createState() => _DiaryOverviewState();
+}
+
+class _DiaryOverviewState extends State<_DiaryOverview> {
+  HealthActivityData activity = HealthActivityData.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_DiaryOverview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (dateKey(oldWidget.date) != dateKey(widget.date)) _load();
+  }
+
+  Future<void> _load() async {
+    final result = await HealthService.instance.fetchActivityData(widget.date, state: widget.state);
+    if (mounted) setState(() => activity = result);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => DashboardRingsSection(
+    state: widget.state,
+    date: widget.date,
+    activity: activity,
+    onConnectHealth: () {},
+    onSelectHealthSource: () {},
+    onSetStepGoal: () {},
+  );
+}
+
+// Kept as a fallback reference for activity-only previews.
+// ignore: unused_element
+class _ActivityDayCard extends StatelessWidget {
+  const _ActivityDayCard({required this.activity});
+  final HealthActivityData activity;
+
+  @override
+  Widget build(BuildContext context) => Panel(
+    padding: 18,
+    border: false,
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(Icons.directions_walk_rounded, color: context.kayleoPrimary),
+        const SizedBox(width: 9),
+        const Text('Activity for this day', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+      ]),
+      const SizedBox(height: 18),
+      Center(
+        child: Column(
+          children: [
+            KayleoRing(
+              size: 150,
+              stroke: 12,
+              progress: activity.steps / 10000,
+              color: Colors.green,
+              track: context.kayleoSurfaces.soft,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.directions_walk_rounded, size: 25, color: Colors.green),
+                const SizedBox(height: 5),
+                Text('${activity.steps}', style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
+                Text('steps', style: TextStyle(fontSize: 11, color: context.kayleoMuted)),
+              ]),
+            ),
+            const SizedBox(height: 16),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              _activityMetric(context, Icons.timer_outlined, '${activity.activeMinutes} min', 'Active time', activity.activeMinutes / 60, Colors.teal),
+              _activityMetric(context, Icons.local_fire_department_outlined, '${activity.activeCalories}', 'Calories burned', activity.activeCalories / 500, Colors.deepOrange),
+              _activityMetric(context, Icons.straighten_rounded, '${activity.motionKm.toStringAsFixed(1)} km', 'Distance', activity.motionKm / 5, Colors.cyan),
+            ]),
+          ],
+        ),
+      ),
+    ]),
+  );
+
+  Widget _activityMetric(BuildContext context, IconData icon, String value, String label, double progress, Color color) => SizedBox(
+    width: 96,
+    child: Panel(
+      padding: 12,
+      child: Column(children: [
+        KayleoRing(
+          size: 52,
+          stroke: 6,
+          progress: progress,
+          color: color,
+          track: context.kayleoSurfaces.soft,
+          highlight: false,
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(height: 8),
+        Text(value, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 3),
+        Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 9, color: context.kayleoMuted)),
+      ]),
+    ),
+  );
 }
 
 class SavedMealsScreen extends StatefulWidget {

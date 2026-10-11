@@ -13,6 +13,7 @@ import '../core/ui.dart';
 import '../data/models.dart';
 import '../data/food_database.dart';
 import 'meal_camera.dart';
+import 'capture_input_layout.dart';
 import 'portion_editor.dart';
 import 'meal_food_match.dart';
 import '../screens/food_camera_screen.dart';
@@ -26,10 +27,18 @@ Future<void> showLogger(
   DateTime? initialDate,
   bool openCamera = false,
 }) async {
-  if (meal == null && mode == 'Photo' && openCamera) {
+  if (meal == null &&
+      ((mode == 'Photo' && openCamera) ||
+          mode == 'Text' ||
+          mode == 'Voice' ||
+          mode == 'Barcode')) {
     final result = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => FoodCameraScreen(state: state),
+        builder: (_) => FoodCameraScreen(
+          state: state,
+          initialMode: mode,
+          initialDate: initialDate,
+        ),
         fullscreenDialog: true,
       ),
     );
@@ -282,6 +291,8 @@ class LoggingFlow extends StatefulWidget {
     this.initialDate,
     this.openCamera = false,
     this.foodService,
+    this.captureSurface = false,
+    this.draftController,
   });
   final AppState state;
   final String initialMode;
@@ -289,6 +300,8 @@ class LoggingFlow extends StatefulWidget {
   final DateTime? initialDate;
   final bool openCamera;
   final FoodAIService? foodService;
+  final bool captureSurface;
+  final TextEditingController? draftController;
   @override
   State<LoggingFlow> createState() => _LoggingFlowState();
 }
@@ -305,7 +318,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
   Uint8List? photo;
   String sample = 'Chicken bowl';
   String? error;
-  final description = TextEditingController();
+  late final description = widget.draftController ?? TextEditingController();
   final title = TextEditingController();
   final notes = TextEditingController();
   final speech = SpeechToText();
@@ -348,7 +361,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
     if (widget.foodService == null) {
       foodService.dispose();
     }
-    description.dispose();
+    if (widget.draftController == null) description.dispose();
     title.dispose();
     notes.dispose();
     super.dispose();
@@ -737,9 +750,11 @@ class _LoggingFlowState extends State<LoggingFlow> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.captureSurface) return _captureSurface();
     if (widget.openCamera && cameraOpen && stage == 0) {
       return MealCamera(
         immersive: true,
+        bottomInset: 0,
         onClose: () => Navigator.pop(context),
         onChoosePhoto: pickPhoto,
         onPhoto: usePhoto,
@@ -806,6 +821,217 @@ class _LoggingFlowState extends State<LoggingFlow> {
           child: frame,
         ),
       ),
+    );
+  }
+
+  Widget _captureSurface() => Theme(
+    data: kayleoTheme(brightness: Brightness.dark),
+    child: Material(
+      color: Colors.transparent,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 24, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(context),
+                      color: Colors.white70,
+                      icon: const Icon(Icons.close_rounded, size: 22),
+                    ),
+                    if (stage > 0 && stage < 3)
+                      IconButton(
+                        tooltip: 'Back to input',
+                        onPressed: () => setState(() {
+                          stage = 0;
+                          error = null;
+                        }),
+                        color: Colors.white70,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                    const Spacer(),
+                    if (MediaQuery.viewInsetsOf(context).bottom > 0)
+                      TextButton(
+                        onPressed: () =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        child: const Text('Done'),
+                      )
+                    else
+                      const Brand(light: true, size: 20),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: CaptureInputLayout(
+                  footer: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+                    child: Theme(
+                      data: Theme.of(context).copyWith(
+                        filledButtonTheme: FilledButtonThemeData(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: lime,
+                            foregroundColor: forest,
+                            minimumSize: const Size(double.infinity, 52),
+                            textStyle: const TextStyle(
+                              fontFamily: 'Manrope',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                        ),
+                      ),
+                      child: _footer() ?? const SizedBox.shrink(),
+                    ),
+                  ),
+                  content: LayoutBuilder(
+                    key: const Key('capture-editor-viewport'),
+                    builder: (context, constraints) => SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: (constraints.maxHeight - 44).clamp(
+                            0,
+                            double.infinity,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (stage == 0) _captureEditor(),
+                            if (stage == 1) _question(),
+                            if (stage == 2) _review(),
+                            if (stage == 3) _success(),
+                            if (error != null) ...[
+                              const SizedBox(height: 16),
+                              Text(
+                                error!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFFF3C6B9),
+                                  fontSize: 12,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _captureEditor() {
+    final voice = mode == 'Voice';
+    return Column(
+      key: Key(voice ? 'capture-voice-composer' : 'capture-type-composer'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: voice ? Alignment.center : Alignment.centerLeft,
+          child: _CaptureEyebrow(
+            icon: voice ? Icons.graphic_eq_rounded : Icons.auto_awesome_rounded,
+            label: voice
+                ? (listening ? 'LISTENING NOW' : 'VOICE ENTRY')
+                : 'SMART ENTRY',
+            active: listening,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          voice
+              ? (listening ? 'Listening…' : 'Tell Kayleo')
+              : 'What did you eat?',
+          textAlign: voice ? TextAlign.center : TextAlign.left,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 32,
+            height: 1.2,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -1.1,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          voice
+              ? (listening
+                    ? 'Speak naturally — your words appear below.'
+                    : 'Tap and tell Kayleo what you ate')
+              : 'Add the foods and portions you remember.',
+          textAlign: voice ? TextAlign.center : TextAlign.left,
+          style: const TextStyle(
+            color: Colors.white60,
+            fontSize: 13,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: 24),
+        if (voice) ...[
+          Center(
+            child: _VoiceControl(
+              listening: listening,
+              onTap: microphone,
+              premium: true,
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+        _CaptureMealComposer(
+          controller: description,
+          voice: voice,
+          listening: listening,
+        ),
+        if (!voice) ...[
+          const SizedBox(height: 14),
+          Text(
+            'QUICK START',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: .42),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.25,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final example in ['Two eggs and toast', 'Chicken rice bowl'])
+                ActionChip(
+                  label: Text(example),
+                  avatar: const Icon(Icons.add_rounded, size: 14),
+                  backgroundColor: Colors.white.withValues(alpha: .045),
+                  side: BorderSide(color: Colors.white.withValues(alpha: .1)),
+                  labelStyle: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() => description.text = example),
+                ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -1082,6 +1308,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
           borderRadius: BorderRadius.circular(20),
           child: cameraOpen
               ? MealCamera(
+                  bottomInset: 0,
                   onClose: () => setState(() => cameraOpen = false),
                   onChoosePhoto: pickPhoto,
                   onPhoto: usePhoto,
@@ -2009,10 +2236,199 @@ class _KayleoStatus extends StatelessWidget {
   );
 }
 
+class _CaptureEyebrow extends StatelessWidget {
+  const _CaptureEyebrow({
+    required this.icon,
+    required this.label,
+    required this.active,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: const Duration(milliseconds: 220),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: active
+          ? lime.withValues(alpha: .14)
+          : Colors.white.withValues(alpha: .055),
+      borderRadius: BorderRadius.circular(30),
+      border: Border.all(
+        color: active
+            ? lime.withValues(alpha: .28)
+            : Colors.white.withValues(alpha: .08),
+      ),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: active ? lime : Colors.white54),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: active ? lime : Colors.white54,
+              fontSize: 8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.15,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CaptureMealComposer extends StatefulWidget {
+  const _CaptureMealComposer({
+    required this.controller,
+    required this.voice,
+    required this.listening,
+  });
+
+  final TextEditingController controller;
+  final bool voice, listening;
+
+  @override
+  State<_CaptureMealComposer> createState() => _CaptureMealComposerState();
+}
+
+class _CaptureMealComposerState extends State<_CaptureMealComposer> {
+  bool focused = false;
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: const Duration(milliseconds: 180),
+    padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: focused ? .065 : .04),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(
+        color: focused
+            ? lime.withValues(alpha: .48)
+            : Colors.white.withValues(alpha: .1),
+      ),
+      boxShadow: focused
+          ? [
+              BoxShadow(
+                color: lime.withValues(alpha: .06),
+                blurRadius: 24,
+                spreadRadius: 1,
+              ),
+            ]
+          : null,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: widget.listening ? lime : Colors.white30,
+                shape: BoxShape.circle,
+                boxShadow: widget.listening
+                    ? [
+                        BoxShadow(
+                          color: lime.withValues(alpha: .4),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.voice ? 'LIVE TRANSCRIPT' : 'MEAL DESCRIPTION',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: widget.controller,
+              builder: (context, value, _) => value.text.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        '${value.text.length}',
+                        style: const TextStyle(
+                          color: Colors.white30,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Focus(
+          onFocusChange: (value) => setState(() => focused = value),
+          child: TextField(
+            key: const Key('meal-description'),
+            controller: widget.controller,
+            minLines: widget.voice ? 2 : 4,
+            maxLines: widget.voice ? 4 : 7,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.done,
+            onEditingComplete: () =>
+                FocusManager.instance.primaryFocus?.unfocus(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              height: 1.55,
+            ),
+            decoration: InputDecoration(
+              hintText: widget.voice
+                  ? 'Your words will appear here…'
+                  : 'e.g. two eggs, avocado toast and coffee',
+              hintStyle: const TextStyle(
+                color: Colors.white30,
+                fontSize: 14,
+                height: 1.55,
+              ),
+              isCollapsed: true,
+              filled: false,
+              fillColor: Colors.transparent,
+              contentPadding: EdgeInsets.zero,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _VoiceControl extends StatefulWidget {
-  const _VoiceControl({required this.listening, required this.onTap});
+  const _VoiceControl({
+    required this.listening,
+    required this.onTap,
+    this.premium = false,
+  });
   final bool listening;
   final VoidCallback onTap;
+  final bool premium;
 
   @override
   State<_VoiceControl> createState() => _VoiceControlState();
@@ -2055,64 +2471,159 @@ class _VoiceControlState extends State<_VoiceControl>
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
+  Widget build(BuildContext context) => widget.premium
+      ? _premiumControl()
+      : Semantics(
+          button: true,
+          label: widget.listening ? 'Stop listening' : 'Start listening',
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(100),
+            child: SizedBox(
+              width: 180,
+              height: 180,
+              child: AnimatedBuilder(
+                animation: _pulse,
+                builder: (context, child) => Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Transform.scale(
+                      scale: 1 + _pulse.value * .045,
+                      child: KayleoRing(
+                        progress: 1,
+                        highlight: false,
+                        size: 172,
+                        stroke: 1,
+                        color: lime.withValues(alpha: .15),
+                        track: Colors.transparent,
+                        state: widget.listening
+                            ? KayleoRingState.listening
+                            : KayleoRingState.idle,
+                        child: const SizedBox.shrink(),
+                      ),
+                    ),
+                    KayleoRing(
+                      progress: 1,
+                      highlight: false,
+                      size: 140,
+                      stroke: 1,
+                      color: lime.withValues(alpha: .3),
+                      track: Colors.transparent,
+                      child: const SizedBox.shrink(),
+                    ),
+                    Container(
+                      width: 106,
+                      height: 106,
+                      decoration: BoxDecoration(
+                        color: lime,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: lime.withValues(
+                              alpha: .17 + _pulse.value * .09,
+                            ),
+                            blurRadius: 28,
+                            spreadRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        widget.listening
+                            ? Icons.stop_rounded
+                            : Icons.mic_none_rounded,
+                        size: 38,
+                        color: forest,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+  Widget _premiumControl() => Semantics(
     button: true,
     label: widget.listening ? 'Stop listening' : 'Start listening',
     child: InkWell(
+      borderRadius: BorderRadius.circular(80),
       onTap: widget.onTap,
-      borderRadius: BorderRadius.circular(100),
       child: SizedBox(
-        width: 180,
-        height: 180,
+        width: 144,
+        height: 144,
         child: AnimatedBuilder(
           animation: _pulse,
           builder: (context, child) => Stack(
             alignment: Alignment.center,
             children: [
               Transform.scale(
-                scale: 1 + _pulse.value * .045,
+                scale: 1 + _pulse.value * .055,
                 child: KayleoRing(
                   progress: 1,
                   highlight: false,
-                  size: 172,
+                  size: 136,
                   stroke: 1,
-                  color: lime.withValues(alpha: .15),
+                  color: widget.listening
+                      ? lime.withValues(alpha: .5)
+                      : Colors.white.withValues(alpha: .1),
                   track: Colors.transparent,
-                  state: widget.listening
-                      ? KayleoRingState.listening
-                      : KayleoRingState.idle,
                   child: const SizedBox.shrink(),
                 ),
               ),
-              KayleoRing(
-                progress: 1,
-                highlight: false,
-                size: 140,
-                stroke: 1,
-                color: lime.withValues(alpha: .3),
-                track: Colors.transparent,
-                child: const SizedBox.shrink(),
-              ),
-              Container(
-                width: 106,
-                height: 106,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 112,
+                height: 112,
                 decoration: BoxDecoration(
-                  color: lime,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: lime.withValues(alpha: .17 + _pulse.value * .09),
-                      blurRadius: 28,
-                      spreadRadius: 6,
+                  gradient: RadialGradient(
+                    colors: widget.listening
+                        ? [
+                            lime.withValues(alpha: .24),
+                            lime.withValues(alpha: .1),
+                          ]
+                        : [
+                            Colors.white.withValues(alpha: .09),
+                            Colors.white.withValues(alpha: .035),
+                          ],
+                  ),
+                  border: Border.all(
+                    color: widget.listening
+                        ? lime.withValues(alpha: .32)
+                        : Colors.white.withValues(alpha: .12),
+                  ),
+                  boxShadow: widget.listening
+                      ? [
+                          BoxShadow(
+                            color: lime.withValues(
+                              alpha: .08 + _pulse.value * .08,
+                            ),
+                            blurRadius: 32,
+                            spreadRadius: 4,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      widget.listening
+                          ? Icons.stop_rounded
+                          : Icons.mic_none_rounded,
+                      size: 34,
+                      color: lime,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.listening ? 'STOP' : 'TAP TO SPEAK',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 7,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: .8,
+                      ),
                     ),
                   ],
-                ),
-                child: Icon(
-                  widget.listening
-                      ? Icons.stop_rounded
-                      : Icons.mic_none_rounded,
-                  size: 38,
-                  color: forest,
                 ),
               ),
             ],

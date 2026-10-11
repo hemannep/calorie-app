@@ -70,6 +70,16 @@ void main() {
     );
     expect(find.byKey(const Key('home-barcode')), findsNothing);
     expect(find.byKey(const Key('home-food-search')), findsOneWidget);
+    final macroCard = find
+        .ancestor(
+          of: find.byType(KayleoRing).at(3),
+          matching: find.byType(Panel),
+        )
+        .first;
+    final dotsGap =
+        t.getTopLeft(find.byKey(const Key('rings-pill-nutrition'))).dy -
+        t.getBottomLeft(macroCard).dy;
+    expect(dotsGap, inInclusiveRange(0, 16));
     expect(
       t.getTopLeft(find.byKey(const Key('home-food-search'))).dy,
       greaterThan(t.getBottomLeft(find.byType(KayleoRing).at(3)).dy),

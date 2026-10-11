@@ -16,6 +16,9 @@ class MealCamera extends StatefulWidget {
     this.immersive = false,
     this.onSelectMode,
     this.onBarcode,
+    this.showModeBar = true,
+    this.bottomInset = 0,
+    this.onReleased,
   });
 
   final ValueChanged<Uint8List> onPhoto;
@@ -24,6 +27,9 @@ class MealCamera extends StatefulWidget {
   final bool immersive;
   final ValueChanged<String>? onSelectMode;
   final VoidCallback? onBarcode;
+  final bool showModeBar;
+  final double bottomInset;
+  final VoidCallback? onReleased;
 
   @override
   State<MealCamera> createState() => _MealCameraState();
@@ -216,7 +222,9 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
   void dispose() {
     ++_generation;
     WidgetsBinding.instance.removeObserver(this);
-    _operations = _operations.then((_) => _release());
+    _operations = _operations
+        .then((_) => _release())
+        .whenComplete(() => widget.onReleased?.call());
     super.dispose();
   }
 
@@ -348,288 +356,298 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
             ),
           ),
           SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    KayleoSpacing.md,
-                    KayleoSpacing.md,
-                    KayleoSpacing.page,
-                    0,
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        key: const Key('close-camera'),
-                        tooltip: 'Close camera',
-                        onPressed: widget.onClose,
-                        color: Colors.white,
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                      const Spacer(),
-                      if (widget.onBarcode != null)
-                        TextButton.icon(
-                          key: const Key('camera-barcode'),
-                          onPressed: widget.onBarcode,
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.white,
-                          ),
-                          icon: const Icon(Icons.qr_code_scanner_rounded),
-                          label: const Text('Barcode'),
-                        ),
-                      if (ready && _flashAvailable && _captured == null)
-                        IconButton(
-                          tooltip: 'Flash: ${_flashMode.name}',
-                          onPressed: _changingFlash || _capturing
-                              ? null
-                              : _toggleFlash,
-                          color: _flashMode != FlashMode.off
-                              ? lime
-                              : Colors.white,
-                          icon: Icon(
-                            _flashMode == FlashMode.auto
-                                ? Icons.flash_auto_rounded
-                                : _flashMode == FlashMode.always
-                                ? Icons.flash_on_rounded
-                                : Icons.flash_off_rounded,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: KayleoSpacing.xxl,
-                      ),
-                      child: _loading || _paused
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_loading)
-                                  const CircularProgressIndicator(color: lime),
-                                const SizedBox(height: KayleoSpacing.lg),
-                                Text(
-                                  _paused
-                                      ? 'Camera paused'
-                                      : 'Opening your camera…',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            )
-                          : _error != null
-                          ? SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.no_photography_outlined,
-                                    size: 32,
-                                    color: lime,
-                                  ),
-                                  const SizedBox(height: KayleoSpacing.lg),
-                                  Text(
-                                    _error!,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      height: 1.6,
-                                    ),
-                                  ),
-                                  const SizedBox(height: KayleoSpacing.page),
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: lime,
-                                      foregroundColor: forest,
-                                    ),
-                                    onPressed: _open,
-                                    child: const Text('Try camera again'),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : _captured != null
-                          ? const Tag('PHOTO PREVIEW', color: Colors.white)
-                          : LayoutBuilder(
-                              builder: (context, constraints) {
-                                final textScale = MediaQuery.textScalerOf(
-                                  context,
-                                );
-                                final copyHeight = textScale.scale(13) * 2 + 56;
-                                final frameSize =
-                                    (constraints.maxHeight - copyHeight).clamp(
-                                      32.0,
-                                      270.0,
-                                    );
-                                return SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      SizedBox(
-                                        width: frameSize,
-                                        height: frameSize,
-                                        child: const CustomPaint(
-                                          painter: _MealGuidePainter(),
-                                        ),
-                                      ),
-                                      const SizedBox(height: KayleoSpacing.xl),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 18,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: forest.withValues(alpha: .88),
-                                          borderRadius: BorderRadius.circular(
-                                            40,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Point at your meal',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+            child: Padding(
+              padding: EdgeInsets.only(bottom: widget.bottomInset),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      KayleoSpacing.md,
+                      KayleoSpacing.md,
+                      KayleoSpacing.page,
+                      0,
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    KayleoSpacing.xl,
-                    KayleoSpacing.md,
-                    KayleoSpacing.xl,
-                    KayleoSpacing.page,
-                  ),
-                  child: _captured != null
-                      ? LayoutBuilder(
-                          builder: (context, constraints) {
-                            final retake = OutlinedButton.icon(
-                              key: const Key('retake-photo'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: const BorderSide(
-                                  color: Color(0x80FFFFFF),
-                                ),
-                              ),
-                              onPressed: _capturing ? null : _open,
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: const Text('Retake'),
-                            );
-                            final usePhoto = FilledButton.icon(
-                              key: const Key('use-camera-photo'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: lime,
-                                foregroundColor: forest,
-                              ),
-                              onPressed: _capturing
-                                  ? null
-                                  : () => widget.onPhoto(_captured!),
-                              icon: const Icon(Icons.check_rounded),
-                              label: const Text('Use photo'),
-                            );
-                            if (MediaQuery.textScalerOf(context).scale(14) >
-                                20) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  retake,
-                                  const SizedBox(height: KayleoSpacing.md),
-                                  usePhoto,
-                                ],
-                              );
-                            }
-                            return Row(
-                              children: [
-                                Expanded(child: retake),
-                                const SizedBox(width: KayleoSpacing.md),
-                                Expanded(child: usePhoto),
-                              ],
-                            );
-                          },
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _CameraControl(
-                              icon: Icons.photo_library_outlined,
-                              label: 'Gallery',
-                              onTap: _capturing ? null : widget.onChoosePhoto,
-                            ),
-                            if (ready)
-                              _shutter(size: 78)
-                            else
-                              const SizedBox(width: 78, height: 78),
-                            _CameraControl(
-                              controlKey: const Key('switch-camera'),
-                              icon: Icons.flip_camera_ios_outlined,
-                              label: 'Flip',
-                              onTap: !ready || _cameras.length < 2 || _capturing
-                                  ? null
-                                  : _switchCamera,
-                            ),
-                          ],
-                        ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 24),
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .09),
-                      borderRadius: BorderRadius.circular(40),
-                    ),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
+                    child: Row(
                       children: [
-                        for (final (label, mode) in [
-                          ('Type', 'Text'),
-                          ('Camera', 'Photo'),
-                          ('Voice', 'Voice'),
-                        ])
-                          TextButton(
-                            onPressed: mode == 'Photo'
-                                ? null
-                                : () => widget.onSelectMode?.call(mode),
+                        IconButton(
+                          key: const Key('close-camera'),
+                          tooltip: 'Close camera',
+                          onPressed: widget.onClose,
+                          color: Colors.white,
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                        const Spacer(),
+                        if (widget.onBarcode != null && widget.showModeBar)
+                          TextButton.icon(
+                            key: const Key('camera-barcode'),
+                            onPressed: widget.onBarcode,
                             style: TextButton.styleFrom(
-                              backgroundColor: mode == 'Photo'
-                                  ? forest
-                                  : Colors.transparent,
                               foregroundColor: Colors.white,
-                              disabledForegroundColor: Colors.white,
-                              minimumSize: const Size(76, 44),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              shape: const StadiumBorder(),
                             ),
-                            child: Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: mode == 'Photo'
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                              ),
+                            icon: const Icon(Icons.qr_code_scanner_rounded),
+                            label: const Text('Barcode'),
+                          ),
+                        if (ready && _flashAvailable && _captured == null)
+                          IconButton(
+                            tooltip: 'Flash: ${_flashMode.name}',
+                            onPressed: _changingFlash || _capturing
+                                ? null
+                                : _toggleFlash,
+                            color: _flashMode != FlashMode.off
+                                ? lime
+                                : Colors.white,
+                            icon: Icon(
+                              _flashMode == FlashMode.auto
+                                  ? Icons.flash_auto_rounded
+                                  : _flashMode == FlashMode.always
+                                  ? Icons.flash_on_rounded
+                                  : Icons.flash_off_rounded,
                             ),
                           ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: KayleoSpacing.xxl,
+                        ),
+                        child: _loading || _paused
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_loading)
+                                    const CircularProgressIndicator(
+                                      color: lime,
+                                    ),
+                                  const SizedBox(height: KayleoSpacing.lg),
+                                  Text(
+                                    _paused
+                                        ? 'Camera paused'
+                                        : 'Opening your camera…',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              )
+                            : _error != null
+                            ? SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.no_photography_outlined,
+                                      size: 32,
+                                      color: lime,
+                                    ),
+                                    const SizedBox(height: KayleoSpacing.lg),
+                                    Text(
+                                      _error!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        height: 1.6,
+                                      ),
+                                    ),
+                                    const SizedBox(height: KayleoSpacing.page),
+                                    FilledButton(
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: lime,
+                                        foregroundColor: forest,
+                                      ),
+                                      onPressed: _open,
+                                      child: const Text('Try camera again'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : _captured != null
+                            ? const Tag('PHOTO PREVIEW', color: Colors.white)
+                            : LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final textScale = MediaQuery.textScalerOf(
+                                    context,
+                                  );
+                                  final copyHeight =
+                                      textScale.scale(13) * 2 + 56;
+                                  final frameSize =
+                                      (constraints.maxHeight - copyHeight)
+                                          .clamp(32.0, 270.0);
+                                  return SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: frameSize,
+                                          height: frameSize,
+                                          child: const CustomPaint(
+                                            painter: _MealGuidePainter(),
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                          height: KayleoSpacing.xl,
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 18,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: forest.withValues(
+                                              alpha: .88,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              40,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Point at your meal',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      KayleoSpacing.xl,
+                      KayleoSpacing.md,
+                      KayleoSpacing.xl,
+                      KayleoSpacing.page,
+                    ),
+                    child: _captured != null
+                        ? LayoutBuilder(
+                            builder: (context, constraints) {
+                              final retake = OutlinedButton.icon(
+                                key: const Key('retake-photo'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(
+                                    color: Color(0x80FFFFFF),
+                                  ),
+                                ),
+                                onPressed: _capturing ? null : _open,
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('Retake'),
+                              );
+                              final usePhoto = FilledButton.icon(
+                                key: const Key('use-camera-photo'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: lime,
+                                  foregroundColor: forest,
+                                ),
+                                onPressed: _capturing
+                                    ? null
+                                    : () => widget.onPhoto(_captured!),
+                                icon: const Icon(Icons.check_rounded),
+                                label: const Text('Use photo'),
+                              );
+                              if (MediaQuery.textScalerOf(context).scale(14) >
+                                  20) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    retake,
+                                    const SizedBox(height: KayleoSpacing.md),
+                                    usePhoto,
+                                  ],
+                                );
+                              }
+                              return Row(
+                                children: [
+                                  Expanded(child: retake),
+                                  const SizedBox(width: KayleoSpacing.md),
+                                  Expanded(child: usePhoto),
+                                ],
+                              );
+                            },
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _CameraControl(
+                                icon: Icons.photo_library_outlined,
+                                label: 'Gallery',
+                                onTap: _capturing ? null : widget.onChoosePhoto,
+                              ),
+                              if (ready)
+                                _shutter(size: 78)
+                              else
+                                const SizedBox(width: 78, height: 78),
+                              _CameraControl(
+                                controlKey: const Key('switch-camera'),
+                                icon: Icons.flip_camera_ios_outlined,
+                                label: 'Flip',
+                                onTap:
+                                    !ready || _cameras.length < 2 || _capturing
+                                    ? null
+                                    : _switchCamera,
+                              ),
+                            ],
+                          ),
+                  ),
+                  if (widget.showModeBar)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: .1),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final (label, mode, icon) in [
+                              ('Type', 'Text', Icons.edit_note_rounded),
+                              ('Camera', 'Photo', Icons.camera_alt_rounded),
+                              ('Voice', 'Voice', Icons.mic_rounded),
+                              (
+                                'Barcode',
+                                'Barcode',
+                                Icons.qr_code_scanner_rounded,
+                              ),
+                            ])
+                              Expanded(
+                                child: _CameraModePill(
+                                  key: mode == 'Barcode'
+                                      ? const Key('camera-mode-barcode')
+                                      : null,
+                                  label: label,
+                                  icon: icon,
+                                  isSelected: mode == 'Photo',
+                                  onTap: mode == 'Photo'
+                                      ? null
+                                      : () {
+                                          if (mode == 'Barcode') {
+                                            widget.onBarcode?.call();
+                                          } else {
+                                            widget.onSelectMode?.call(mode);
+                                          }
+                                        },
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ],
@@ -917,4 +935,101 @@ class _MealGuidePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MealGuidePainter oldDelegate) => false;
+}
+
+class _CameraModePill extends StatefulWidget {
+  const _CameraModePill({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  @override
+  State<_CameraModePill> createState() => _CameraModePillState();
+}
+
+class _CameraModePillState extends State<_CameraModePill> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.isSelected;
+    final hovered = _isHovered && !active;
+
+    final bgColor = active
+        ? forest
+        : hovered
+        ? Colors.white.withValues(alpha: .20)
+        : Colors.transparent;
+
+    final textColor = active
+        ? Colors.white
+        : hovered
+        ? Colors.white
+        : Colors.white70;
+
+    return MouseRegion(
+      cursor: active ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(30),
+            onTap: widget.onTap,
+            child: AnimatedPadding(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.symmetric(
+                horizontal: active ? 14 : 10,
+                vertical: 9,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(widget.icon, size: 15, color: textColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 11,
+                        fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

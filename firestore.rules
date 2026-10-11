@@ -17,5 +17,149 @@ service cloud.firestore {
       // Deletions use tombstones so other devices can remove their cached copies.
       allow delete: if false;
     }
+    function signedIn() { return request.auth != null; }
+    function self(uid) { return signedIn() && request.auth.uid == uid; }
+    function knownGroup(group) {
+      return group in ['getting-started', 'fitness', 'weight-loss', 'muscle-gain', 'maintain', 'keto', 'vegan', 'vegetarian', 'pescatarian', 'fasting', 'meal-prep', 'walking', 'cal-1500', 'cal-1800', 'cal-2000', 'cal-2200', 'cal-2500', 'cal-3000'];
+    }
+    function member(group) {
+      return signedIn() && exists(/databases/$(database)/documents/communities/$(group)/members/$(request.auth.uid));
+    }
+    function friend(pair) {
+      return signedIn() && request.auth.uid in get(/databases/$(database)/documents/friendships/$(pair)).data.members;
+    }
+    function roomAccess(room, group) { return group ? member(room) : friend(room); }
+    function validName(name) { return name is string && name.size() > 0 && name.size() <= 60; }
+    function validStreak(streak) { return streak is int && streak >= 0 && streak <= 365; }
+    function privateProfile(uid) { return get(/databases/$(database)/documents/socialUsers/$(uid)).data; }
+    function validProfile(data) {
+      return data.keys().hasOnly(['name', 'inviteCode', 'joined', 'shareNutrition', 'shareActivity'])
+        && validName(data.name) && data.inviteCode.matches('^K-[A-F0-9]{24}$')
+        && data.joined is list && data.joined.size() <= 18
+        && data.joined.hasOnly(['getting-started', 'fitness', 'weight-loss', 'muscle-gain', 'maintain', 'keto', 'vegan', 'vegetarian', 'pescatarian', 'fasting', 'meal-prep', 'walking', 'cal-1500', 'cal-1800', 'cal-2000', 'cal-2200', 'cal-2500', 'cal-3000'])
+        && data.shareNutrition is bool && data.shareActivity is bool;
+    }
+    match /socialUsers/{uid} {
+      allow read: if self(uid);
+      allow create, update: if self(uid) && validProfile(request.resource.data)
+        && getAfter(/databases/$(database)/documents/friendInvites/$(request.resource.data.inviteCode)).data.uid == uid;
+      match /friends/{peer} {
+        allow read: if self(uid);
+        allow create: if signedIn() && request.resource.data.keys().hasOnly(['pairId'])
+          && uid != peer
+          && getAfter(/databases/$(database)/documents/friendships/$(request.resource.data.pairId)).data.members.hasAll([uid, peer])
+          && getAfter(/databases/$(database)/documents/friendships/$(request.resource.data.pairId)).data.from == request.auth.uid
+          && getAfter(/databases/$(database)/documents/friendships/$(request.resource.data.pairId)).data.createdAt == request.time;
+        allow delete: if signedIn() && request.auth.uid in [uid, peer]
+          && !existsAfter(/databases/$(database)/documents/friendships/$(resource.data.pairId));
+      }
+    }
+    match /friendInvites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && code.matches('^K-[A-F0-9]{24}$')
+        && request.resource.data.keys().hasOnly(['uid', 'name'])
+        && request.resource.data.uid == request.auth.uid && validName(request.resource.data.name)
+        && getAfter(/databases/$(database)/documents/socialUsers/$(request.auth.uid)).data.inviteCode == code;
+      allow delete: if self(resource.data.uid)
+        && getAfter(/databases/$(database)/documents/socialUsers/$(request.auth.uid)).data.inviteCode != code;
+    }
+    match /friendships/{pair} {
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/friendships/$(pair)) || request.auth.uid in resource.data.members);
+      allow list: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['members', 'from', 'to', 'inviteCode', 'names', 'createdAt'])
+        && request.resource.data.from == request.auth.uid && request.resource.data.to != request.auth.uid
+        && request.resource.data.members == [request.auth.uid, request.resource.data.to]
+        && pair in [request.auth.uid + '_' + request.resource.data.to, request.resource.data.to + '_' + request.auth.uid]
+        && request.resource.data.createdAt == request.time
+        && get(/databases/$(database)/documents/friendInvites/$(request.resource.data.inviteCode)).data.uid == request.resource.data.to
+        && privateProfile(request.resource.data.to).inviteCode == request.resource.data.inviteCode
+        && request.resource.data.names.keys().hasOnly(request.resource.data.members)
+        && validName(request.resource.data.names[request.auth.uid])
+        && request.resource.data.names[request.resource.data.to] == get(/databases/$(database)/documents/friendInvites/$(request.resource.data.inviteCode)).data.name
+        && getAfter(/databases/$(database)/documents/socialUsers/$(request.auth.uid)/friends/$(request.resource.data.to)).data.pairId == pair
+        && getAfter(/databases/$(database)/documents/socialUsers/$(request.resource.data.to)/friends/$(request.auth.uid)).data.pairId == pair;
+      allow delete: if friend(pair)
+        && !existsAfter(/databases/$(database)/documents/socialUsers/$(resource.data.from)/friends/$(resource.data.to))
+        && !existsAfter(/databases/$(database)/documents/socialUsers/$(resource.data.to)/friends/$(resource.data.from));
+      match /messages/{message} {
+        allow read: if friend(pair);
+        allow create: if friend(pair) && validMessage(request.resource.data);
+        allow delete: if friend(pair) && self(resource.data.authorId);
+        match /cheers/{uid} {
+          allow read: if friend(pair);
+          allow create: if friend(pair) && self(uid) && validCheer(request.resource.data);
+          allow delete: if friend(pair) && self(uid);
+        }
+      }
+    }
+    function validAttachment(a) {
+      return a == null || (a is map
+        && a.keys().hasOnly(['title', 'calories', 'protein', 'carbs', 'fat'])
+        && a.title is string && a.title.size() > 0 && a.title.size() <= 120
+        && validNumber(a.calories) && validNumber(a.protein) && validNumber(a.carbs) && validNumber(a.fat));
+    }
+    function validNumber(n) { return n >= 0 && n <= 100000; }
+    function validMessage(data) {
+      return data.keys().hasOnly(['authorId', 'authorName', 'body', 'createdAt', 'attachment', 'replyTo'])
+        && self(data.authorId) && validName(data.authorName)
+        && data.body is string && data.body.size() <= 2000 && (data.body.size() > 0 || data.attachment != null)
+        && data.createdAt == request.time && validAttachment(data.attachment)
+        && (data.replyTo == null || (data.replyTo is string && data.replyTo.size() <= 128));
+    }
+    function validCheer(data) { return data.keys().hasOnly(['createdAt']) && data.createdAt == request.time; }
+    match /communities/{group}/members/{uid} {
+      allow read: if signedIn() && knownGroup(group);
+      allow create, update: if self(uid) && knownGroup(group)
+        && request.resource.data.keys().hasOnly(['name', 'streak', 'updatedAt'])
+        && validName(request.resource.data.name) && validStreak(request.resource.data.streak)
+        && request.resource.data.updatedAt == request.time
+        && group in getAfter(/databases/$(database)/documents/socialUsers/$(uid)).data.joined;
+      allow delete: if self(uid) && !(group in getAfter(/databases/$(database)/documents/socialUsers/$(uid)).data.joined);
+    }
+    match /communities/{group}/messages/{message} {
+      allow read: if member(group);
+      allow create: if member(group) && validMessage(request.resource.data);
+      allow delete: if member(group) && self(resource.data.authorId);
+      match /cheers/{uid} {
+        allow read: if member(group);
+        allow create: if member(group) && self(uid) && validCheer(request.resource.data);
+        allow delete: if member(group) && self(uid);
+      }
+    }
+    function validDay(day, settings) {
+      return day is map && day.keys().hasOnly(['date', 'nutrition', 'activity'])
+        && day.date is string && day.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (settings.shareNutrition ? (day.nutrition is map && day.nutrition.keys().hasOnly(['calories', 'protein', 'carbs', 'fat'])
+          && day.nutrition.calories is int && day.nutrition.protein is int && day.nutrition.carbs is int && day.nutrition.fat is int) : day.nutrition == null)
+        && (settings.shareActivity ? (day.activity is map && day.activity.keys().hasOnly(['minutes']) && day.activity.minutes is int) : day.activity == null);
+    }
+    function validProgress(data, uid) {
+      let settings = getAfter(/databases/$(database)/documents/socialUsers/$(uid)).data;
+      return data.keys().hasOnly(['name', 'date', 'streak', 'days', 'updatedAt'])
+        && validName(data.name) && validStreak(data.streak)
+        && data.date is string && data.updatedAt == request.time
+        && data.days is list && data.days.size() == 7
+        && validDay(data.days[0], settings) && validDay(data.days[1], settings)
+        && validDay(data.days[2], settings) && validDay(data.days[3], settings)
+        && validDay(data.days[4], settings) && validDay(data.days[5], settings)
+        && validDay(data.days[6], settings);
+    }
+    match /socialProgress/{uid} {
+      allow read: if self(uid) || (signedIn()
+        && exists(/databases/$(database)/documents/socialUsers/$(uid)/friends/$(request.auth.uid))
+        && friend(get(/databases/$(database)/documents/socialUsers/$(uid)/friends/$(request.auth.uid)).data.pairId));
+      allow create, update: if self(uid) && validProgress(request.resource.data, uid);
+    }
+    match /socialReports/{report} {
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['reporter', 'room', 'message', 'group', 'reason', 'createdAt'])
+        && self(request.resource.data.reporter) && request.resource.data.group is bool
+        && request.resource.data.room is string && request.resource.data.message is string
+        && request.resource.data.message.size() <= 128
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 500
+        && request.resource.data.createdAt == request.time
+        && roomAccess(request.resource.data.room, request.resource.data.group);
+    }
   }
 }

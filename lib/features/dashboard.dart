@@ -273,7 +273,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
         const SizedBox(height: 20),
-        _TodayRingsSection(
+        DashboardRingsSection(
           state: state,
           date: date,
           activity: _activityData,
@@ -413,7 +413,7 @@ class _LoggingHero extends StatelessWidget {
           ),
         ),
       ),
-      const SizedBox(height: 10),
+      const SizedBox(height: 14),
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -684,6 +684,7 @@ class _MacroProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final nutrition = state.totalsFor(date);
     final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final consumed = state.showConsumedCalories;
     return LayoutBuilder(
       builder: (context, c) {
         final width = large ? c.maxWidth : (c.maxWidth - 20) / 3;
@@ -698,73 +699,58 @@ class _MacroProgress extends StatelessWidget {
             ])
               SizedBox(
                 width: width,
-                height: large ? null : 161,
-                child: Panel(
-                  padding: large ? 20 : 12,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${number((metric.target(state.profile) - metric.amount(nutrition)).abs())}g',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -.5,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${metric.label} ${metric.amount(nutrition) <= metric.target(state.profile) ? 'left' : 'over'}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Center(
-                        child: KayleoRing(
-                          progress: metric.target(state.profile) > 0
-                              ? metric.amount(nutrition) /
-                                    metric.target(state.profile)
-                              : 0,
-                          size: 50,
-                          stroke: 5,
-                          highlight: false,
-                          color: metric.color,
-                          track: context.kayleoSurfaces.soft,
-                          semanticLabel:
-                              '${metric.label}: ${number(metric.amount(nutrition))} of ${metric.target(state.profile)} grams',
-                          child:
-                              metric.amount(nutrition) >
-                                  metric.target(state.profile)
-                              ? Padding(
-                                  padding: const EdgeInsets.all(9),
-                                  child: FittedBox(
-                                    child: Text(
-                                      '${number(metric.amount(nutrition))}g',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  margin: const EdgeInsets.all(13),
-                                  decoration: BoxDecoration(
-                                    color: metric.color.withValues(alpha: .08),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    metric.icon,
-                                    color: metric.color,
-                                    size: 18,
-                                  ),
+                child: _DashboardMetricCard(
+                  key: Key('today-${metric.name}-card'),
+                  onTap: () {
+                    state.showConsumedCalories = !state.showConsumedCalories;
+                    state.persist();
+                  },
+                  amount: consumed
+                      ? '${number(metric.amount(nutrition))}g'
+                      : '${number((metric.target(state.profile) - metric.amount(nutrition)).abs())}g',
+                  label: consumed
+                      ? '${metric.label} consumed'
+                      : '${metric.label} ${metric.amount(nutrition) <= metric.target(state.profile) ? 'left' : 'over'}',
+                  ring: KayleoRing(
+                    progress: metric.target(state.profile) > 0
+                        ? metric.amount(nutrition) /
+                              metric.target(state.profile)
+                        : 0,
+                    size: 50,
+                    stroke: 5,
+                    highlight: false,
+                    color: metric.color,
+                    track: context.kayleoSurfaces.soft,
+                    semanticLabel:
+                        '${metric.label}: ${number(metric.amount(nutrition))} of ${metric.target(state.profile)} grams',
+                    child:
+                        !consumed &&
+                            metric.amount(nutrition) >
+                                metric.target(state.profile)
+                        ? Padding(
+                            padding: const EdgeInsets.all(9),
+                            child: FittedBox(
+                              child: Text(
+                                '${number(metric.amount(nutrition))}g',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
                                 ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+                              ),
+                            ),
+                          )
+                        : Container(
+                            margin: const EdgeInsets.all(13),
+                            decoration: BoxDecoration(
+                              color: metric.color.withValues(alpha: .08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              metric.icon,
+                              color: metric.color,
+                              size: 18,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -775,8 +761,8 @@ class _MacroProgress extends StatelessWidget {
   }
 }
 
-class _TodayRingsSection extends StatefulWidget {
-  const _TodayRingsSection({
+class DashboardRingsSection extends StatefulWidget {
+  const DashboardRingsSection({super.key,
     required this.state,
     required this.date,
     required this.activity,
@@ -793,12 +779,30 @@ class _TodayRingsSection extends StatefulWidget {
   final VoidCallback onSetStepGoal;
 
   @override
-  State<_TodayRingsSection> createState() => _TodayRingsSectionState();
+  State<DashboardRingsSection> createState() => _DashboardRingsSectionState();
 }
 
-class _TodayRingsSectionState extends State<_TodayRingsSection> {
+class _DashboardRingsSectionState extends State<DashboardRingsSection> {
   late final PageController _pageController;
   int _currentPage = 0;
+  final _pageKeys = [GlobalKey(), GlobalKey()];
+  final _pageHeights = <int, double>{};
+
+  void _measurePages() {
+    if (!mounted) return;
+    var changed = false;
+    for (var index = 0; index < _pageKeys.length; index++) {
+      final box = _pageKeys[index].currentContext?.findRenderObject();
+      if (box is RenderBox && box.hasSize) {
+        final height = box.size.height;
+        if (height > 0 && ((_pageHeights[index] ?? 0) - height).abs() > .5) {
+          _pageHeights[index] = height;
+          changed = true;
+        }
+      }
+    }
+    if (changed) setState(() {});
+  }
 
   @override
   void initState() {
@@ -814,64 +818,74 @@ class _TodayRingsSectionState extends State<_TodayRingsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final large = textScale > 1.3;
-    final pageHeight = large ? (368.0 + (textScale - 1.0) * 720.0) : 325.0;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measurePages());
+    final pageHeight = _pageHeights[_currentPage] ?? 325.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          height: pageHeight,
-          child: PageView(
-            key: const Key('today-rings-pageview'),
-            controller: _pageController,
-            clipBehavior: Clip.hardEdge,
-            pageSnapping: true,
-            physics: const PageScrollPhysics(
-              parent: ClampingScrollPhysics(),
+        AnimatedSize(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            height: pageHeight,
+            child: PageView(
+              key: const Key('today-rings-pageview'),
+              controller: _pageController,
+              clipBehavior: Clip.hardEdge,
+              pageSnapping: true,
+              physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+              onPageChanged: (idx) => setState(() => _currentPage = idx),
+              children: [
+                // Page 0: Nutrition overview
+                OverflowBox(
+                  minHeight: 0,
+                  maxHeight: double.infinity,
+                  alignment: Alignment.topCenter,
+                  child: Column(
+                    key: _pageKeys[0],
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _CalorieSummary(state: widget.state, date: widget.date),
+                      const SizedBox(height: 12),
+                      _MacroProgress(
+                        state: widget.state,
+                        date: widget.date,
+                        compact: true,
+                      ),
+                    ],
+                  ),
+                ),
+                // Page 1: Health & Activity overview
+                OverflowBox(
+                  minHeight: 0,
+                  maxHeight: double.infinity,
+                  alignment: Alignment.topCenter,
+                  child: Column(
+                    key: _pageKeys[1],
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _StepSummary(
+                        state: widget.state,
+                        date: widget.date,
+                        activity: widget.activity,
+                        onTap: widget.onSetStepGoal,
+                        onConnectHealth: widget.onConnectHealth,
+                        onSelectHealthSource: widget.onSelectHealthSource,
+                      ),
+                      const SizedBox(height: 12),
+                      _ActivityProgress(
+                        state: widget.state,
+                        activity: widget.activity,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            onPageChanged: (idx) => setState(() => _currentPage = idx),
-            children: [
-              // Page 0: Nutrition overview
-              SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _CalorieSummary(state: widget.state, date: widget.date),
-                    const SizedBox(height: 12),
-                    _MacroProgress(
-                      state: widget.state,
-                      date: widget.date,
-                      compact: true,
-                    ),
-                  ],
-                ),
-              ),
-              // Page 1: Health & Activity overview
-              SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _StepSummary(
-                      state: widget.state,
-                      date: widget.date,
-                      activity: widget.activity,
-                      onTap: widget.onSetStepGoal,
-                      onConnectHealth: widget.onConnectHealth,
-                      onSelectHealthSource: widget.onSelectHealthSource,
-                    ),
-                    const SizedBox(height: 12),
-                    _ActivityProgress(
-                      state: widget.state,
-                      activity: widget.activity,
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -879,16 +893,29 @@ class _TodayRingsSectionState extends State<_TodayRingsSection> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(
             2,
-            (index) => AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: _currentPage == index ? 18 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _currentPage == index
-                    ? context.kayleoPrimary
-                    : context.kayleoSurfaces.border,
-                borderRadius: BorderRadius.circular(6),
+            (index) => InkWell(
+              key: Key(
+                index == 0 ? 'rings-pill-nutrition' : 'rings-pill-activity',
+              ),
+              borderRadius: BorderRadius.circular(6),
+              onTap: () {
+                _pageController.animateToPage(
+                  index,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                width: _currentPage == index ? 18 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: _currentPage == index
+                      ? context.kayleoPrimary
+                      : context.kayleoSurfaces.border,
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
           ),
@@ -929,6 +956,17 @@ class _StepSummary extends StatelessWidget {
         activity.activeMinutes > 0 ||
         activity.activeCalories > 0 ||
         activity.motionKm > 0;
+
+    // Build a concise subtitle showing steps + calories burned
+    String buildSubtitle() {
+      if (!hasHealthData) return 'No data shared · Check Health Connect';
+      final parts = <String>['${number(steps)} / ${number(target)} steps'];
+      if (activity.activeCalories > 0) {
+        parts.add('${number(activity.activeCalories)} kcal burned');
+      }
+      parts.add(sourceLabel);
+      return parts.join(' · ');
+    }
 
     const stepColor = Color(0xFF10B981);
     final ring = KayleoRing(
@@ -984,9 +1022,7 @@ class _StepSummary extends StatelessWidget {
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
-                    hasHealthData
-                        ? '${number(steps)} / ${number(target)} · $sourceLabel'
-                        : 'No data shared · Check Health Connect',
+                    buildSubtitle(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1067,11 +1103,16 @@ class _ActivityProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
 
+    // Format active time as hours + minutes when >= 60 min
+    final activeTimeLabel = activity.activeMinutes >= 60
+        ? '${activity.activeMinutes ~/ 60}h ${activity.activeMinutes % 60}m'
+        : '${activity.activeMinutes}m';
+
     final metrics = [
       _ActivityMetricItem(
-        key: const Key('today-active-time-ring'),
+        key: const ValueKey('today-active-time-ring'),
         label: 'Active time',
-        amount: '${activity.activeMinutes}m',
+        amount: activeTimeLabel,
         targetLabel: '${state.activeMinutesTarget}m',
         progress: state.activeMinutesTarget > 0
             ? activity.activeMinutes / state.activeMinutesTarget
@@ -1079,10 +1120,11 @@ class _ActivityProgress extends StatelessWidget {
         color: const Color(0xFF10B981),
         icon: Icons.timer_outlined,
         reached: activity.activeMinutes >= state.activeMinutesTarget,
+        isEstimated: !activity.rawActiveMinutes && activity.steps > 0,
       ),
       _ActivityMetricItem(
-        key: const Key('today-activity-calorie-ring'),
-        label: 'Activity cal',
+        key: const ValueKey('today-activity-calorie-ring'),
+        label: 'Calories burned',
         amount: '${activity.activeCalories}',
         targetLabel: '${state.activeCaloriesTarget} kcal',
         progress: state.activeCaloriesTarget > 0
@@ -1091,94 +1133,234 @@ class _ActivityProgress extends StatelessWidget {
         color: const Color(0xFFFF5722),
         icon: Icons.local_fire_department_rounded,
         reached: activity.activeCalories >= state.activeCaloriesTarget,
+        isEstimated: !activity.rawActiveCalories && activity.steps > 0,
       ),
       _ActivityMetricItem(
-        key: const Key('today-motion-ring'),
-        label: 'Motion',
-        amount: '${activity.motionKm.toStringAsFixed(1)}km',
-        targetLabel: '${state.motionKmTarget.toStringAsFixed(1)}km',
+        key: const ValueKey('today-motion-ring'),
+        label: 'Distance',
+        amount: '${activity.motionKm.toStringAsFixed(1)} km',
+        targetLabel: '${state.motionKmTarget.toStringAsFixed(1)} km',
         progress: state.motionKmTarget > 0
             ? activity.motionKm / state.motionKmTarget
             : 0.0,
         color: const Color(0xFF06B6D4),
-        icon: Icons.moving_rounded,
+        icon: Icons.directions_walk_rounded,
         reached: activity.motionKm >= state.motionKmTarget,
+        isEstimated: !activity.rawDistance && activity.steps > 0,
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, c) {
-        final width = large ? c.maxWidth : (c.maxWidth - 20) / 3;
-        return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            for (final m in metrics)
-              SizedBox(
-                width: width,
-                height: large ? null : 161,
-                child: Panel(
-                  padding: large ? 20 : 12,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        m.amount,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -.5,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        m.label,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Center(
-                        child: KayleoRing(
-                          key: m.key,
-                          progress: m.progress,
-                          size: 50,
-                          stroke: 5,
-                          highlight: false,
-                          color: m.color,
-                          track: context.kayleoSurfaces.soft,
-                          semanticLabel:
-                              '${m.label}: ${m.amount} of ${m.targetLabel}',
-                          child: m.reached
-                              ? Padding(
-                                  padding: const EdgeInsets.all(9),
-                                  child: Icon(
-                                    Icons.check_rounded,
-                                    size: 20,
-                                    color: m.color,
-                                  ),
-                                )
-                              : Container(
-                                  margin: const EdgeInsets.all(13),
-                                  decoration: BoxDecoration(
-                                    color: m.color.withValues(alpha: .08),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(m.icon, color: m.color, size: 18),
+    // Show extra health stats when we have richer data from the health app
+    final hasExtraStats =
+        activity.basalCalories > 0 ||
+        activity.floorsClimbed > 0 ||
+        activity.heartRateAvg > 0;
+
+    return Column(
+      children: [
+        LayoutBuilder(
+          builder: (context, c) {
+            final width = large ? c.maxWidth : (c.maxWidth - 20) / 3;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final m in metrics)
+                  SizedBox(
+                    width: width,
+                    child: _DashboardMetricCard(
+                      key: Key('${m.key.value}-card'),
+                      amount: m.amount,
+                      label: m.label,
+                      isEstimated: m.isEstimated,
+                      ring: KayleoRing(
+                        key: m.key,
+                        progress: m.progress,
+                        size: 50,
+                        stroke: 5,
+                        highlight: false,
+                        color: m.color,
+                        track: context.kayleoSurfaces.soft,
+                        semanticLabel:
+                            '${m.label}: ${m.amount} of ${m.targetLabel}',
+                        child: m.reached
+                            ? Padding(
+                                padding: const EdgeInsets.all(9),
+                                child: Icon(
+                                  Icons.check_rounded,
+                                  size: 20,
+                                  color: m.color,
                                 ),
-                        ),
+                              )
+                            : Container(
+                                margin: const EdgeInsets.all(13),
+                                decoration: BoxDecoration(
+                                  color: m.color.withValues(alpha: .08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(m.icon, color: m.color, size: 18),
+                              ),
                       ),
-                      const SizedBox(height: 8),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-          ],
-        );
-      },
+              ],
+            );
+          },
+        ),
+        // Extra health stats row (heart rate, floors, total burn)
+        if (hasExtraStats) ...[
+          const SizedBox(height: 10),
+          Panel(
+            padding: 14,
+            child: Row(
+              children: [
+                if (activity.totalCaloriesBurned > 0)
+                  Expanded(
+                    child: _ExtraStatChip(
+                      icon: Icons.whatshot_rounded,
+                      color: const Color(0xFFFF5722),
+                      label: 'Total burn',
+                      value: '${number(activity.totalCaloriesBurned)} kcal',
+                    ),
+                  ),
+                if (activity.heartRateAvg > 0)
+                  Expanded(
+                    child: _ExtraStatChip(
+                      icon: Icons.favorite_rounded,
+                      color: const Color(0xFFE91E63),
+                      label: 'Avg HR',
+                      value: '${activity.heartRateAvg} bpm',
+                    ),
+                  ),
+                if (activity.floorsClimbed > 0)
+                  Expanded(
+                    child: _ExtraStatChip(
+                      icon: Icons.stairs_rounded,
+                      color: const Color(0xFF9C27B0),
+                      label: 'Floors',
+                      value: '${activity.floorsClimbed}',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
+}
+
+/// Shared sizing keeps both carousel pages aligned, including estimated data.
+class _DashboardMetricCard extends StatelessWidget {
+  const _DashboardMetricCard({
+    super.key,
+    required this.amount,
+    required this.label,
+    required this.ring,
+    this.isEstimated = false,
+    this.onTap,
+  });
+
+  final String amount, label;
+  final Widget ring;
+  final bool isEstimated;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final panel = Panel(
+      padding: MediaQuery.textScalerOf(context).scale(1) > 1.3 ? 20 : 12,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            amount,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.5,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+          ),
+          Visibility(
+            visible: isEstimated,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'from steps',
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w500,
+                  color: context.kayleoMuted,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Center(child: ring),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+    if (onTap == null) return panel;
+    return InkWell(
+      borderRadius: BorderRadius.circular(KayleoRadius.large),
+      onTap: onTap,
+      child: panel,
+    );
+  }
+}
+
+class _ExtraStatChip extends StatelessWidget {
+  const _ExtraStatChip({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, color: color, size: 20),
+      const SizedBox(height: 6),
+      Text(
+        value,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.3,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w500,
+          color: context.kayleoMuted,
+        ),
+      ),
+    ],
+  );
 }
 
 class _ActivityMetricItem {
@@ -1191,9 +1373,10 @@ class _ActivityMetricItem {
     required this.color,
     required this.icon,
     required this.reached,
+    this.isEstimated = false,
   });
 
-  final Key key;
+  final ValueKey<String> key;
   final String label;
   final String amount;
   final String targetLabel;
@@ -1201,6 +1384,9 @@ class _ActivityMetricItem {
   final Color color;
   final IconData icon;
   final bool reached;
+
+  /// Whether this metric was estimated from step count rather than coming directly from HealthKit / Health Connect.
+  final bool isEstimated;
 }
 
 Future<void> showStepGoalDialog(BuildContext context, AppState state) async {

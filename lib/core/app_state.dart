@@ -59,11 +59,11 @@ class AppState extends ChangeNotifier {
 
   Map<String, bool> preferences = {
     'Meal reminders': true,
-    'Hydration reminders': false,
+    'Hydration reminders': true,
     'Weekly review': true,
     'Quiet hours': true,
     'Milestone celebrations': true,
-    'Smart nudges': false,
+    'Smart nudges': true,
     'Device notifications': false,
     'Keep meal photos': true,
     'Improve recognition': false,
@@ -259,6 +259,16 @@ class AppState extends ChangeNotifier {
     activeCaloriesTarget = (j['activeCaloriesTarget'] as num?)?.toInt() ?? 400;
     motionKmTarget = (j['motionKmTarget'] as num?)?.toDouble() ?? 5.0;
     preferences.addAll(Map<String, bool>.from(j['preferences'] ?? {}));
+    // Keep the complete reminder suite enabled by default for every account.
+    for (final key in [
+      'Meal reminders',
+      'Hydration reminders',
+      'Weekly review',
+      'Smart nudges',
+      'Milestone celebrations',
+    ]) {
+      preferences[key] = true;
+    }
   }
 
   /// Validate the entire candidate before replacing the live diary.
@@ -670,11 +680,11 @@ class AppState extends ChangeNotifier {
     showConsumedCalories = false;
     preferences = {
       'Meal reminders': true,
-      'Hydration reminders': false,
+      'Hydration reminders': true,
       'Weekly review': true,
       'Quiet hours': true,
       'Milestone celebrations': true,
-      'Smart nudges': false,
+      'Smart nudges': true,
       'Device notifications': false,
       'Keep meal photos': true,
       'Improve recognition': false,

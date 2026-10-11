@@ -122,17 +122,32 @@ void main() {
         ),
       );
       expect(find.text('Calories over'), findsOneWidget);
+      expect(find.text('Protein left'), findsOneWidget);
+      expect(find.text('Carbs left'), findsOneWidget);
+      expect(find.text('Fats left'), findsOneWidget);
       expect(find.text('Mon'), findsNothing);
       await snapshot(t, 'kayleo-calorie-over');
       await t.tap(find.byKey(const Key('today-calorie-ring')));
       await t.pumpAndSettle();
       expect(find.text('Calories consumed'), findsOneWidget);
+      expect(find.text('Protein consumed'), findsOneWidget);
+      expect(find.text('Carbs consumed'), findsOneWidget);
+      expect(find.text('Fats consumed'), findsOneWidget);
       final restored = await AppState.load();
       expect(restored.showConsumedCalories, isTrue);
       restored.dispose();
       await t.tap(find.byKey(const Key('calorie-display-toggle')));
       await t.pumpAndSettle();
       expect(find.text('Calories over'), findsOneWidget);
+      expect(find.text('Protein left'), findsOneWidget);
+      expect(find.text('Carbs left'), findsOneWidget);
+      expect(find.text('Fats left'), findsOneWidget);
+      await t.tap(find.byKey(const Key('today-protein-card')));
+      await t.pumpAndSettle();
+      expect(find.text('Calories consumed'), findsOneWidget);
+      expect(find.text('Protein consumed'), findsOneWidget);
+      expect(find.text('Carbs consumed'), findsOneWidget);
+      expect(find.text('Fats consumed'), findsOneWidget);
     },
   );
 

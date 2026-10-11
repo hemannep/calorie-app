@@ -87,7 +87,7 @@ Open http://127.0.0.1:8765. A preview server is running there at handoff. It is 
 6. In **Saved meals**, review and log a usual. With suitable history, text or voice can also use **same breakfast as yesterday**.
 7. Add water, record weight and movement, and explore **Progress** and the weekly review. The charts and review use your actual local records.
 8. Visit **You / Settings** to adjust your profile, targets, units, reminder preferences, photo retention, privacy, export, or reset. Mobile users also find Saved meals and Community here.
-9. Explore the **Community preview**, join local sample groups, cheer a post, leave a local comment, or share a saved-meal preview. Nothing is posted to a server.
+9. Open **Community** to discover 18 live circles, join group chat, share meal cards, reply and cheer, view streaks, or follow the weekly challenge. In **Friends**, share your unique code/QR to connect, chat privately, and optionally compare seven-day nutrition and activity summaries. Leave circles and remove friends at any time. A Firebase account and a real diary are required; sample diaries stay local.
 
 ## Working features
 
@@ -97,10 +97,10 @@ Open http://127.0.0.1:8765. A preview server is running there at handoff. It is 
 - Live in-app camera with capture, retake, lens switching, and photo selection; device speech input with useful fallbacks, local text parsing, sample barcode lookup, food search, manual label nutrition.
 - Shared meal review workflow with targeted clarification, deterministic per-100-g calculations, editable foods, portions, meal name, date/time, notes, and calculation assumptions.
 - Create, edit, repeat, delete, and undo deletion of meals; save reusable templates.
-- Local persistence of profile, diary, water, weight, activity, preferences, community interactions, and premium-preview state.
+- Local persistence of profile, diary, water, weight, activity, preferences, and premium-preview state; Firebase persistence and live listeners for community conversations and friendships.
 - Daily calorie/macronutrient totals with separate protein, carbs, and fats progress bars; date-aware diary and filters; 7/30-day calorie and macro charts with individual targets; weight trend, logging streaks, habit badges, and rule-based weekly reviews.
 - In-app reminders, privacy controls, data/photo deletion, JSON export through native sharing or browser download, quiet-hour preferences.
-- Opt-in community UI and a premium-plan preview; no billing and no authentication.
+- Live Firebase communities, streak leaderboards, weekly habit challenges, meal-card sharing, replies, cheers, reports, and invite-only friends with QR scanning, private chat, optional progress sharing, and removable connections. Premium remains a billing-free preview.
 - Bundled food photography and Manrope font, accessible Flutter semantics, native permission descriptions, and responsive navigation.
 
 ## Prototype boundaries
@@ -109,7 +109,7 @@ Open http://127.0.0.1:8765. A preview server is running there at handoff. It is 
 
 Speech recognition uses the device/browser provider and may require connectivity. The sample plate’s camera button opens a live camera in the same meal panel on Android, iOS, and web. Capture a photo, retake it, or use it in your meal log. The main photo action starts the camera directly. The camera stops when you capture, close, leave the panel, or background the app. Web camera access requires HTTPS or localhost; native desktop builds offer photo selection and a browser/phone fallback. Device camera/microphone permissions are requested only when their controls are used. Actual hardware permission flows need testing on physical devices.
 
-Live barcode scanning/database lookup, cloud sync, production AI, subscriptions, scheduled/background notifications, wearable integrations, and a live social network require later integrations. No API key, server, payment, or account is needed to use this prototype.
+Live barcode scanning/database lookup, cloud sync, production AI, subscriptions, scheduled/background notifications, wearable integrations and social push notifications require later integrations. No API key, server, payment, or account is needed to use this prototype.
 
 Local storage uses SharedPreferences (browser localStorage on web), which is appropriate for this small prototype. It is not encrypted, transactional production health storage. Use an encrypted database with migrations, an authenticated sync service, and explicit data-retention policies before production. Photos are limited to 2 MB per upload to keep local storage manageable. Browsers may clear their storage.
 
@@ -144,3 +144,8 @@ Photo sources and the Manrope license are recorded in `docs/ASSETS.md`.
 
 The Kayleo rebrand, compatibility decisions, design tokens, store metadata, and remaining integration work are recorded in [docs/KAYLEO_REFACTOR.md](docs/KAYLEO_REFACTOR.md).
 # calorie-app
+
+
+## Live communities and friends
+
+The live social implementation and verification are described in [docs/COMMUNITY.md](docs/COMMUNITY.md). It uses the existing Firebase project and authentication. Group discovery is bundled, so no invented posts or member counts are shown. The deployed Firestore rules must match this checkout for social access to work.

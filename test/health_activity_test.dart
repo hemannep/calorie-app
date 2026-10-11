@@ -150,18 +150,18 @@ void main() {
       expect(find.text('7,200'), findsOneWidget);
       expect(find.textContaining('7,200 / 10,000 steps'), findsOneWidget);
 
-      // 3 down rings are visible: Active Time, Activity Calorie, Motion
+      // 3 down rings are visible: Active Time, Calories Burned, Distance
       expect(find.byKey(const Key('today-active-time-ring')), findsOneWidget);
       expect(find.text('35m'), findsOneWidget);
       expect(find.text('Active time'), findsOneWidget);
 
       expect(find.byKey(const Key('today-activity-calorie-ring')), findsOneWidget);
       expect(find.text('360'), findsOneWidget);
-      expect(find.text('Activity cal'), findsOneWidget);
+      expect(find.text('Calories burned'), findsOneWidget);
 
       expect(find.byKey(const Key('today-motion-ring')), findsOneWidget);
-      expect(find.text('4.8km'), findsOneWidget);
-      expect(find.text('Motion'), findsOneWidget);
+      expect(find.text('4.8 km'), findsOneWidget);
+      expect(find.text('Distance'), findsOneWidget);
 
       // 3. Click the step ring / card to open the Goal dialog
       await tester.tap(find.byKey(const Key('step-goal-trigger')));
@@ -284,7 +284,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify "Not connected" badge and Connect button are prominently displayed
-      expect(find.text('Not connected'), findsOneWidget);
+      expect(find.textContaining('Not connected'), findsOneWidget);
       expect(find.byKey(const Key('connect-health-button')), findsOneWidget);
       expect(
         find.textContaining('Connect ${HealthService.instance.platformHealthAppName}'),

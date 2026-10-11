@@ -2,387 +2,285 @@ import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
 import '../core/ui.dart';
-import '../data/models.dart';
-
-const _groups = [
-  (
-    'regional',
-    'A taste of home',
-    'Momo, dal bhat, and everyday regional favorites.',
-    Icons.ramen_dining_rounded,
-  ),
-  (
-    'protein',
-    'Protein, with care',
-    'Simple recipes and satisfying everyday meals.',
-    Icons.restaurant_outlined,
-  ),
-  (
-    'walking',
-    'Daily movement',
-    'Walks, fresh air, and celebrating showing up.',
-    Icons.directions_walk_rounded,
-  ),
-];
-const _samplePosts = <Map<String, dynamic>>[
-  {
-    'id': 'sample-1',
-    'author': 'Maya',
-    'group': 'A taste of home',
-    'title': 'My usual dal bhat, with more greens.',
-    'body': 'An extra scoop of dal, seasonal greens, and all the flavors I grew up with. Good food doesn’t have to be complicated.',
-    'image': 'salad',
-    'likes': 24,
-  },
-  {
-    'id': 'sample-2',
-    'author': 'Sam',
-    'group': 'Protein, with care',
-    'title': 'The lunch bowl I keep coming back to.',
-    'body': 'Grilled chicken, crunchy vegetables, and lemon dressing. Saved it as a usual so tomorrow’s lunch takes one tap to log.',
-    'image': 'bowl',
-    'likes': 18,
-  },
-  {
-    'id': 'sample-3',
-    'author': 'Riya',
-    'group': 'Daily movement',
-    'title': 'Ten minutes outside made my afternoon.',
-    'body': 'A walk after lunch gave me a welcome break. Fresh air was enough for today.',
-    'image': '',
-    'likes': 31,
-  },
-];
+import '../data/community_models.dart';
+import '../services/community_service.dart';
+import 'community_friends.dart';
+import 'community_room.dart';
+import 'community_widgets.dart';
 
 class CommunityScreen extends StatefulWidget {
-  const CommunityScreen({super.key, required this.state});
+  const CommunityScreen({super.key, required this.state, this.service});
   final AppState state;
+  final CommunityService? service;
   @override
   State<CommunityScreen> createState() => _CommunityScreenState();
 }
 
 class _CommunityScreenState extends State<CommunityScreen> {
-  bool myGroups = false;
+  CommunityService get service => widget.service ?? CommunityService.instance;
+  String tab = 'Discover', category = 'All', search = '';
+  final Set<String> _busy = {};
   @override
-  Widget build(BuildContext context) {
-    final state = widget.state;
-    final posts = [
-      ...state.communityPosts.reversed,
-      ..._samplePosts,
-    ].where((p) => !state.hiddenPosts.contains(p['id'])).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PageTitle(
-          'Good things, shared',
-          'Better, together.',
-          'Recipes and familiar foods in a local community preview.',
-          trailing: Tag(
-            'LOCAL COMMUNITY PREVIEW',
-            icon: Icons.people_outline_rounded,
-          ),
-        ),
-        if (!state.community)
-          Panel(
-            color: forest,
-            border: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                IconBox(
-                  Icons.people_outline_rounded,
-                  color: KayleoColors.forest,
-                  foreground: lime,
-                  size: 54,
-                ),
-                const SizedBox(height: KayleoSpacing.xl),
-                Text(
-                  'Find your people.',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 30,
-                    letterSpacing: -1,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Explore a preview of communities built around habits and the food you love. Your diary, weight, and calorie targets stay private.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: .7),
-                    fontSize: 13,
-                    height: 1.9,
-                  ),
-                ),
-                const SizedBox(height: KayleoSpacing.xl),
-                FilledButton.icon(
-                  onPressed: () {
-                    state.community = true;
-                    state.persist();
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: lime,
-                    foregroundColor: forest,
-                  ),
-                  icon: Icon(Icons.arrow_forward_rounded, size: 18),
-                  label: Text('Explore preview'),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Sample people and posts. Interactions stay on this device.',
-                  style: TextStyle(color: Colors.white60, fontSize: 12),
-                ),
-              ],
-            ),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: service,
+    builder: (context, _) {
+      final groups = communityGroups
+          .where(
+            (g) =>
+                (tab != 'My circles' || service.joined.contains(g.id)) &&
+                (category == 'All' || g.category == category) &&
+                ('${g.name} ${g.description}'.toLowerCase().contains(
+                  search.toLowerCase(),
+                )),
           )
-        else ...[
+          .toList();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: Text(
-                        'Discover',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: !myGroups ? forest : context.kayleoText,
-                        ),
-                      ),
-                      selected: !myGroups,
-                      selectedColor: lime,
-                      checkmarkColor: forest,
-                      onSelected: (_) => setState(() => myGroups = false),
-                    ),
-                    ChoiceChip(
-                      label: Text(
-                        'My groups',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: myGroups ? forest : context.kayleoText,
-                        ),
-                      ),
-                      selected: myGroups,
-                      selectedColor: lime,
-                      checkmarkColor: forest,
-                      onSelected: (_) => setState(() => myGroups = true),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: () => shareMeal(context),
-                tooltip: 'Share a meal in the local preview',
-                icon: Icon(Icons.add_rounded, color: context.kayleoPrimary),
-              ),
-            ],
-          ),
-          const SizedBox(height: KayleoSpacing.card),
-          LayoutBuilder(
-            builder: (context, c) => Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                for (final group in _groups)
-                  if (!myGroups || state.joined.contains(group.$1))
-                    SizedBox(
-                      width: c.maxWidth > 850
-                          ? (c.maxWidth - 32) / 3
-                          : c.maxWidth,
-                      child: Panel(
-                        padding: 20,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            IconBox(group.$4, size: 42),
-                            const SizedBox(height: KayleoSpacing.page),
-                            Text(
-                              group.$2,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: KayleoSpacing.sm),
-                            Text(
-                              group.$3,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.kayleoMuted,
-                                height: 1.8,
-                              ),
-                            ),
-                            const SizedBox(height: KayleoSpacing.page),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  if (state.joined.contains(group.$1)) {
-                                    state.joined.remove(group.$1);
-                                  } else {
-                                    state.joined.add(group.$1);
-                                  }
-                                  state.persist();
-                                },
-                                child: Text(
-                                  state.joined.contains(group.$1)
-                                      ? 'Joined · tap to leave'
-                                      : 'Join preview group',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-              ],
-            ),
-          ),
-          if (myGroups && !_groups.any((g) => state.joined.contains(g.$1)))
-            EmptyState(
-              icon: Icons.people_outline_rounded,
-              title: 'Find your people',
-              subtitle: 'Join a preview group from Discover to see it here.',
-            ),
-          const SizedBox(height: 28),
-          LayoutBuilder(
-            builder: (context, c) {
-              final feed = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SectionTitle(
-                    myGroups ? 'From your groups' : 'Meal inspiration',
-                    action: 'Share a meal',
-                    onAction: () => shareMeal(context),
-                  ),
-                  for (final post in posts)
-                    if (!myGroups ||
-                        _groups.any(
-                          (g) =>
-                              state.joined.contains(g.$1) &&
-                              g.$2 == post['group'],
-                        )) ...[
-                      _post(post),
-                      const SizedBox(height: KayleoSpacing.page),
-                    ],
-                ],
-              );
-              final challenge = Panel(
-                color: context.kayleoSurfaces.soft,
-                border: false,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconBox(Icons.wb_sunny_outlined, color: lime, size: 45),
-                    const SizedBox(height: 18),
-                    Tag('A GENTLE CHALLENGE', color: Colors.white),
-                    const SizedBox(height: KayleoSpacing.lg),
                     Text(
-                      '7 days of\nshowing up.',
+                      'YOUR PEOPLE. YOUR PACE.',
                       style: TextStyle(
-                        fontSize: 25,
+                        fontSize: 10,
+                        letterSpacing: 2,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: -.7,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: KayleoSpacing.md),
-                    Text(
-                      'Log one meal each day and build a steady habit at your pace.',
-                      style: TextStyle(
                         color: context.kayleoMuted,
-                        fontSize: 12,
-                        height: 1.8,
                       ),
                     ),
-                    const SizedBox(height: KayleoSpacing.card),
-                    if (state.joined.contains('challenge')) ...[
-                      LinearProgressIndicator(
-                        value: _challengeDays(state) / 7,
-                        color: context.kayleoPrimary,
-                        backgroundColor: context.kayleoSurfaces.card,
-                        minHeight: 6,
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      const SizedBox(height: KayleoSpacing.md),
-                      Text(
-                        '${_challengeDays(state)} / 7 days logged this week',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: context.kayleoPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: KayleoSpacing.lg),
-                    ],
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () {
-                          if (state.joined.contains('challenge')) {
-                            state.joined.remove('challenge');
-                          } else {
-                            state.joined.add('challenge');
-                          }
-                          state.persist();
-                        },
-                        child: Text(
-                          state.joined.contains('challenge')
-                              ? 'Leave challenge'
-                              : 'Join the challenge',
-                          style: TextStyle(fontSize: 12),
-                        ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Better, together.',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1.2,
                       ),
                     ),
                   ],
                 ),
-              );
-              return c.maxWidth > 850
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 7, child: feed),
-                        const SizedBox(width: KayleoSpacing.xl),
-                        Expanded(flex: 4, child: challenge),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        challenge,
-                        const SizedBox(height: KayleoSpacing.xl),
-                        feed,
-                      ],
-                    );
-            },
+              ),
+              IconBox(Icons.people_alt_outlined, size: 48),
+            ],
           ),
-          const SizedBox(height: KayleoSpacing.lg),
-          TextButton(
-            onPressed: () {
-              state.community = false;
-              state.persist();
-            },
-            child: Text(
-              'Leave community preview',
-              style: TextStyle(color: context.kayleoMuted, fontSize: 12),
+          const SizedBox(height: 22),
+          Panel(
+            color: forest,
+            border: false,
+            padding: 18,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: lime.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: lime,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Good habits grow with good company.',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          height: 1.25,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -.25,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Share, support, and celebrate progress.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          height: 1.45,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.people_alt_outlined,
+                    color: Colors.white70,
+                    size: 17,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: 18),
+          if (!service.available)
+            Panel(
+              padding: 16,
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lock_outline_rounded, size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Browse the circles below. Sign in with a real account and use your own diary to join, chat, and connect with friends. Sample diaries stay private.',
+                      style: TextStyle(fontSize: 12, height: 1.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (service.available && !service.ready && service.error == null)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: LinearProgressIndicator(),
+            ),
+          if (service.error != null)
+            SocialSyncError(message: service.error, retry: service.retry),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final name in ['Discover', 'My circles', 'Friends'])
+                ChoiceChip(
+                  label: Text(
+                    name == 'My circles' && service.joined.isNotEmpty
+                        ? '$name · ${service.joined.length}'
+                        : name,
+                  ),
+                  selected: tab == name,
+                  onSelected: (_) => setState(() {
+                    tab = name;
+                    category = 'All';
+                    search = '';
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          if (tab == 'Friends')
+            FriendsPanel(state: widget.state, service: service)
+          else ...[
+            TextField(
+              key: ValueKey(tab),
+              onChanged: (value) => setState(() => search = value),
+              decoration: const InputDecoration(
+                hintText: 'Find a community',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final value in [
+                    'All',
+                    'Goals',
+                    'Food styles',
+                    'Movement',
+                    'Habits',
+                    'Calorie circles',
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(
+                          value,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        selected: category == value,
+                        onSelected: (_) => setState(() => category = value),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tab == 'My circles' ? 'Your circles' : 'Find your people',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${groups.length} circles',
+                  style: TextStyle(fontSize: 12, color: context.kayleoMuted),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (groups.isEmpty)
+              SocialEmpty(
+                Icons.search_off_rounded,
+                tab == 'My circles'
+                    ? 'Your circle starts here'
+                    : 'No circles found',
+                'Try another search or explore Discover to join a community.',
+              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 1000
+                    ? 3
+                    : constraints.maxWidth >= 650
+                    ? 2
+                    : 1;
+                final width =
+                    (constraints.maxWidth - (columns - 1) * 14) / columns;
+                return Wrap(
+                  spacing: 14,
+                  runSpacing: 14,
+                  children: [
+                    for (final group in groups)
+                      SizedBox(width: width, child: _group(group)),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Circles are for support and meal inspiration. Calorie circles don’t change your personal targets. Your diary stays private unless you choose to share.',
+              style: TextStyle(
+                color: context.kayleoMuted,
+                fontSize: 12,
+                height: 1.7,
+              ),
+            ),
+          ],
         ],
-      ],
-    );
-  }
+      );
+    },
+  );
 
-  int _challengeDays(AppState state) => List.generate(
-    7,
-    (i) => DateTime.now().subtract(Duration(days: i)),
-  ).where((d) => state.mealsFor(d).isNotEmpty).length;
-  Widget _post(Map<String, dynamic> post) {
-    final state = widget.state;
-    final id = post['id'] as String;
-    final author = post['author'] as String;
+  Widget _group(CommunityGroup group) {
+    final joined = service.joined.contains(group.id);
+    final busy = _busy.contains(group.id);
     return Panel(
       padding: 20,
       child: Column(
@@ -390,321 +288,92 @@ class _CommunityScreenState extends State<CommunityScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 19,
-                backgroundColor: context.kayleoSurfaces.soft,
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: group.color.withValues(alpha: .15),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(group.icon, color: group.color, size: 26),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Text(
-                  author.isEmpty ? 'K' : author.characters.first,
+                  group.category.toUpperCase(),
+                  textAlign: TextAlign.end,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 9,
+                    letterSpacing: 1,
                     fontWeight: FontWeight.w800,
-                    color: context.kayleoPrimary,
+                    color: context.kayleoMuted,
                   ),
                 ),
               ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      author,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      post['group'],
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.kayleoMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'Post options',
-                onSelected: (v) async {
-                  final ok = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text(
-                        v == 'report'
-                            ? 'Hide and flag this sample post?'
-                            : 'Hide this post?',
-                      ),
-                      content: Text(
-                        v == 'report'
-                            ? 'It will be hidden locally. No report is sent to a moderator in this preview.'
-                            : 'You won’t see this post in the local preview.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text('Cancel'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text('Hide'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (ok == true) {
-                    state.hiddenPosts.add(id);
-                    await state.persist();
-                  }
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'hide', child: Text('Hide post')),
-                  PopupMenuItem(value: 'report', child: Text('Report preview')),
-                ],
-              ),
             ],
           ),
-          const SizedBox(height: KayleoSpacing.md),
-          Tag(id.startsWith('sample') ? 'SAMPLE POST' : 'ON THIS DEVICE'),
-          const SizedBox(height: KayleoSpacing.page),
+          const SizedBox(height: 18),
           Text(
-            post['title'],
-            style: TextStyle(
+            group.name,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               letterSpacing: -.4,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
-            post['body'],
+            group.description,
             style: TextStyle(
               fontSize: 12,
               color: context.kayleoMuted,
-              height: 1.8,
+              height: 1.7,
             ),
           ),
-          if ((post['image'] as String).isNotEmpty) ...[
-            const SizedBox(height: 18),
-            FoodPhoto(
-              image: post['image'],
-              height: 220,
-              width: double.infinity,
-            ),
-          ],
-          const SizedBox(height: KayleoSpacing.lg),
-          Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: [
-              TextButton.icon(
-                onPressed: () {
-                  if (state.liked.contains(id)) {
-                    state.liked.remove(id);
-                  } else {
-                    state.liked.add(id);
-                  }
-                  state.persist();
-                },
-                icon: Icon(
-                  state.liked.contains(id)
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  size: 17,
-                  color: state.liked.contains(id)
-                      ? orange
-                      : context.kayleoPrimary,
-                ),
-                label: Text(
-                  '${(post['likes'] as int) + (state.liked.contains(id) ? 1 : 0)} cheers',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () =>
-                    openSheet(context, CommentsSheet(state: state, postId: id)),
-                icon: Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                label: Text(
-                  '${state.comments[id]?.length ?? 0} comments',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> shareMeal(BuildContext context) async {
-    if (widget.state.templates.isEmpty) {
-      toast(context, 'Save a meal as a usual first, then share it here.');
-      return;
-    }
-    var selected = widget.state.templates.first;
-    final note = TextEditingController();
-    final ok = await showManagedDialog<bool>(
-      controllers: [note],
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Share a meal'),
-        scrollable: true,
-        content: SizedBox(
-          width: 340,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: selected.id,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Saved meal'),
-                items: widget.state.templates
-                    .map(
-                      (m) => DropdownMenuItem(
-                        value: m.id,
-                        child: Text(
-                          m.name,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => selected = widget.state.templates.firstWhere(
-                  (m) => m.id == v,
-                ),
-              ),
-              const SizedBox(height: KayleoSpacing.lg),
-              TextField(
-                controller: note,
-                maxLines: 3,
-                maxLength: 500,
-                decoration: const InputDecoration(
-                  labelText: 'What makes it a favorite?',
-                ),
-              ),
-              const SizedBox(height: KayleoSpacing.md),
-              Text(
-                'Your post is stored on this device only. No weight, calorie targets, or uploaded photos are included.',
-                style: TextStyle(fontSize: 12, color: context.kayleoMuted),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Save preview post'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
-      widget.state.communityPosts.add({
-        'id': newId(),
-        'author': widget.state.profile.name,
-        'group': 'A taste of home',
-        'title': selected.name,
-        'body': note.text.trim().isEmpty
-            ? 'One of my familiar favorites.'
-            : note.text.trim(),
-        'image': selected.image,
-        'likes': 0,
-      });
-      await widget.state.persist();
-    }
-  }
-}
-
-class CommentsSheet extends StatefulWidget {
-  const CommentsSheet({super.key, required this.state, required this.postId});
-  final AppState state;
-  final String postId;
-  @override
-  State<CommentsSheet> createState() => _CommentsSheetState();
-}
-
-class _CommentsSheetState extends State<CommentsSheet> {
-  final input = TextEditingController();
-  @override
-  void dispose() {
-    input.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.state,
-    builder: (context, _) => SheetFrame(
-      title: 'Comments',
-      subtitle: 'Preview comments stay on this device.',
-      footer: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: input,
-              maxLength: 500,
-              decoration: const InputDecoration(
-                hintText: 'A kind word or a recipe idea…',
-                counterText: '',
-              ),
-            ),
-          ),
-          const SizedBox(width: KayleoSpacing.md),
-          IconButton.filled(
-            onPressed: () async {
-              if (input.text.trim().isEmpty) {
-                return;
-              }
-              widget.state.comments
-                  .putIfAbsent(widget.postId, () => [])
-                  .add(input.text.trim());
-              input.clear();
-              await widget.state.persist();
-            },
-            tooltip: 'Save comment locally',
-            icon: Icon(Icons.arrow_upward_rounded),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          if ((widget.state.comments[widget.postId] ?? []).isEmpty)
-            EmptyState(
-              icon: Icons.chat_bubble_outline_rounded,
-              title: 'Start with a kind word',
-              subtitle: 'Share encouragement or a recipe idea.',
-            ),
-          for (final comment
-              in widget.state.comments[widget.postId] ?? <String>[])
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Panel(
-                padding: 16,
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.state.profile.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(comment, style: TextStyle(fontSize: 12)),
-                    ],
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: joined
+                ? FilledButton.icon(
+                    onPressed: () => _open(group),
+                    icon: const Icon(Icons.forum_outlined, size: 16),
+                    label: const Text('Open circle'),
+                  )
+                : OutlinedButton.icon(
+                    onPressed: !service.ready || busy
+                        ? null
+                        : () async {
+                            setState(() => _busy.add(group.id));
+                            final success = await socialAction(
+                              context,
+                              () => service.join(group),
+                            );
+                            if (mounted) {
+                              setState(() => _busy.remove(group.id));
+                              if (success) _open(group);
+                            }
+                          },
+                    icon: busy
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.add_rounded, size: 18),
+                    label: Text(busy ? 'Joining…' : 'Join circle'),
                   ),
-                ),
-              ),
-            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  void _open(CommunityGroup group) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => CommunityRoomScreen(
+        state: widget.state,
+        service: service,
+        group: group,
       ),
     ),
   );

@@ -9,6 +9,9 @@ import '../core/ui.dart';
 import '../features/portion_editor.dart';
 import '../data/models.dart';
 import '../features/meal_camera.dart';
+import '../features/logging.dart';
+import '../features/capture_mode_bar.dart';
+import 'food_lookup_screen.dart';
 import '../services/food_ai_service.dart';
 
 class FoodCameraScreen extends StatefulWidget {
@@ -17,10 +20,14 @@ class FoodCameraScreen extends StatefulWidget {
     required this.state,
     this.service,
     this.initialPhoto,
+    this.initialMode = 'Photo',
+    this.initialDate,
   });
   final AppState state;
   final FoodAIService? service;
   final Uint8List? initialPhoto;
+  final String initialMode;
+  final DateTime? initialDate;
   @override
   State<FoodCameraScreen> createState() => _FoodCameraScreenState();
 }
@@ -34,6 +41,13 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
   );
   Uint8List? photo;
   bool busy = false, picking = false, processing = false;
+  bool handingOffCamera = false;
+  late String activeMode = widget.initialMode;
+  String? handoffTarget;
+  Completer<void>? cameraRelease;
+  final draft = TextEditingController();
+  double slideDirection = 1;
+  double swipeDistance = 0;
   int generation = 0;
   @override
   void initState() {
@@ -49,12 +63,76 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
   void dispose() {
     generation++;
     pulse.dispose();
+    draft.dispose();
     if (widget.service == null) unawaited(service.dispose().catchError((_) {}));
     super.dispose();
   }
 
   bool current(int token) => mounted && generation == token;
-  void manual() => Navigator.of(context).pop('manual');
+  void manual() {
+    setState(() => busy = false);
+    selectMode('Text');
+  }
+
+  void selectMode(String next) => unawaited(_selectMode(next));
+
+  Future<void> _selectMode(String next) async {
+    if (next == activeMode || busy || picking || handingOffCamera) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final direction =
+        captureModes.indexOf(next) > captureModes.indexOf(activeMode)
+        ? 1.0
+        : -1.0;
+    final releasingCamera = activeMode == 'Photo' || activeMode == 'Barcode';
+    if (releasingCamera) {
+      final released = cameraRelease = Completer<void>();
+      setState(() {
+        slideDirection = direction;
+        handoffTarget = next;
+        handingOffCamera = true;
+      });
+      try {
+        await released.future.timeout(const Duration(seconds: 2));
+      } on TimeoutException {
+        // Some platform camera implementations do not acknowledge disposal.
+        // Continue after the guard period instead of trapping the user.
+      }
+      if (!mounted || cameraRelease != released) return;
+      // CameraX can report disposal before Samsung's camera HAL has completely
+      // released the lens. Give camera-to-camera switches a short settling
+      // window so the next preview does not inherit an abandoned surface.
+      if (next == 'Photo' || next == 'Barcode') {
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+      }
+      if (!mounted || cameraRelease != released) return;
+      cameraRelease = null;
+      setState(() {
+        activeMode = next;
+        handoffTarget = null;
+        handingOffCamera = false;
+      });
+      return;
+    }
+    setState(() {
+      slideDirection = direction;
+      activeMode = next;
+    });
+  }
+
+  void cameraReleased() {
+    final release = cameraRelease;
+    if (release != null && !release.isCompleted) release.complete();
+  }
+
+  void swipeMode(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() < 120 && swipeDistance.abs() < 48) return;
+    final direction = velocity.abs() >= 120 ? velocity : swipeDistance;
+    final index = (captureModes.indexOf(activeMode) + (direction < 0 ? 1 : -1))
+        .clamp(0, 3);
+    selectMode(captureModes[index]);
+  }
+
   Future<void> gallery() async {
     if (busy || picking) return;
     setState(() => picking = true);
@@ -223,89 +301,214 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
     }
   }
 
+  Widget _modeContent(double dockExtent) {
+    if (handingOffCamera) {
+      return const ColoredBox(
+        key: Key('camera-handoff'),
+        color: KayleoColors.camera,
+        child: Center(
+          child: CircularProgressIndicator(color: lime, strokeWidth: 2),
+        ),
+      );
+    }
+    if (activeMode == 'Text' || activeMode == 'Voice') {
+      return LoggingFlow(
+        key: ValueKey(activeMode),
+        state: widget.state,
+        initialMode: activeMode,
+        initialDate: widget.initialDate,
+        captureSurface: true,
+        draftController: draft,
+      );
+    }
+    if (activeMode == 'Barcode') {
+      return FoodLookupScreen(
+        state: widget.state,
+        barcode: true,
+        embedded: true,
+        bottomInset: dockExtent,
+        onCameraReleased: cameraReleased,
+      );
+    }
+    return MealCamera(
+      immersive: true,
+      showModeBar: false,
+      bottomInset: (dockExtent - MediaQuery.paddingOf(context).bottom).clamp(
+        0,
+        double.infinity,
+      ),
+      onClose: () => Navigator.pop(context),
+      onPhoto: scan,
+      onChoosePhoto: gallery,
+      onSelectMode: selectMode,
+      onBarcode: () => selectMode('Barcode'),
+      onReleased: cameraReleased,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.black,
-    body: picking
-        ? const Center(child: CircularProgressIndicator(color: lime))
-        : busy
-        ? Stack(
-            fit: StackFit.expand,
-            children: [
-              if (photo != null)
-                Image.memory(
-                  photo!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox(),
-                ),
-              const ColoredBox(color: Color(0xB5000000)),
-              SafeArea(
-                child: Column(
-                  children: [
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: IconButton(
-                        tooltip: 'Close scanner',
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Colors.white),
-                      ),
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: SystemUiOverlayStyle.light.copyWith(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: forest,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+    child: Theme(
+      data: kayleoTheme(brightness: Brightness.dark),
+      child: Scaffold(
+        backgroundColor: forest,
+        resizeToAvoidBottomInset: false,
+        body: picking
+            ? const Center(child: CircularProgressIndicator(color: lime))
+            : busy
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (photo != null)
+                    Image.memory(
+                      photo!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const SizedBox(),
                     ),
-                    Expanded(
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ScaleTransition(
-                              scale: MediaQuery.disableAnimationsOf(context)
-                                  ? const AlwaysStoppedAnimation(1)
-                                  : Tween(begin: .90, end: 1.05).animate(pulse),
-                              child: SizedBox(
-                                width: 100,
-                                height: 100,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 3,
-                                  color: lime,
-                                  value: processing ? null : 1,
+                  const ColoredBox(color: Color(0xB5000000)),
+                  SafeArea(
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: IconButton(
+                            tooltip: 'Close scanner',
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, color: Colors.white),
+                          ),
+                        ),
+                        Expanded(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ScaleTransition(
+                                  scale: MediaQuery.disableAnimationsOf(context)
+                                      ? const AlwaysStoppedAnimation(1)
+                                      : Tween(
+                                          begin: .90,
+                                          end: 1.05,
+                                        ).animate(pulse),
+                                  child: SizedBox(
+                                    width: 100,
+                                    height: 100,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      color: lime,
+                                      value: processing ? null : 1,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 28),
+                                Text(
+                                  processing
+                                      ? 'Looking at your meal…'
+                                      : 'Review your meal',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Recognition stays on your device.',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 28),
-                            Text(
-                              processing
-                                  ? 'Looking at your meal…'
-                                  : 'Review your meal',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Recognition stays on your device.',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Stack(
+                children: [
+                  const Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF102A22), forest],
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onHorizontalDragStart: (_) => swipeDistance = 0,
+                      onHorizontalDragUpdate: (details) =>
+                          swipeDistance += details.delta.dx,
+                      onHorizontalDragEnd: swipeMode,
+                      child: TweenAnimationBuilder<double>(
+                        key: ValueKey(activeMode),
+                        tween: Tween(begin: 0, end: 1),
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        child: Builder(
+                          builder: (context) {
+                            final media = MediaQuery.of(context);
+                            final dockExtent =
+                                captureBarHeight(context) +
+                                28 +
+                                media.viewPadding.bottom;
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom:
+                                    activeMode == 'Photo' ||
+                                        activeMode == 'Barcode'
+                                    ? 0
+                                    : dockExtent,
+                              ),
+                              child: MediaQuery(
+                                data: media.copyWith(
+                                  viewInsets: media.viewInsets.copyWith(
+                                    bottom:
+                                        (media.viewInsets.bottom - dockExtent)
+                                            .clamp(0, double.infinity),
+                                  ),
+                                ),
+                                child: _modeContent(dockExtent),
+                              ),
+                            );
+                          },
+                        ),
+                        builder: (context, value, child) => Opacity(
+                          opacity: value,
+                          child: Transform.translate(
+                            offset: Offset(
+                              slideDirection * 20 * (1 - value),
+                              0,
+                            ),
+                            child: child,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: MediaQuery.viewPaddingOf(context).bottom + 12,
+                    child: CaptureModeBar(
+                      selected: handoffTarget ?? activeMode,
+                      onSelect: selectMode,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          )
-        : MealCamera(
-            immersive: true,
-            onClose: () => Navigator.pop(context),
-            onPhoto: scan,
-            onChoosePhoto: gallery,
-            onSelectMode: (mode) {
-              if (mode != 'Camera') {
-                Navigator.pop(context, mode == 'Voice' ? 'voice' : 'manual');
-              }
-            },
-            onBarcode: () => Navigator.pop(context, 'barcode'),
-          ),
+      ),
+    ),
   );
 }
 

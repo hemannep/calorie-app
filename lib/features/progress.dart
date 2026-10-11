@@ -9,11 +9,14 @@ import 'milestones.dart';
 import '../core/nutrition_view.dart';
 import '../core/ui.dart';
 import '../data/models.dart';
+import '../data/food_database.dart';
 import 'settings.dart';
+import 'logging.dart';
 
 class ProgressScreen extends StatefulWidget {
-  const ProgressScreen({super.key, required this.state});
+  const ProgressScreen({super.key, required this.state, this.onOpenDiary});
   final AppState state;
+  final VoidCallback? onOpenDiary;
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
 }
@@ -21,34 +24,8 @@ class ProgressScreen extends StatefulWidget {
 class _ProgressScreenState extends State<ProgressScreen> {
   int range = 7;
   NutritionMetric metric = NutritionMetric.calories;
-  String section = 'Calories';
   final nutritionKey = GlobalKey();
   final weightKey = GlobalKey();
-  final habitsKey = GlobalKey();
-
-  void selectSection(String next) {
-    setState(() {
-      section = next;
-      if (next == 'Calories') metric = NutritionMetric.calories;
-      if (next == 'Macros') metric = NutritionMetric.protein;
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final target = switch (next) {
-        'Weight' => weightKey.currentContext,
-        'Habits' => habitsKey.currentContext,
-        _ => nutritionKey.currentContext,
-      };
-      if (target != null) {
-        Scrollable.ensureVisible(
-          target,
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 220),
-        );
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,47 +49,60 @@ class _ProgressScreenState extends State<ProgressScreen> {
             )
             .toList()
           ..sort((a, b) => a.date.compareTo(b.date));
+    final todayMeals = state.mealsFor(DateTime.now());
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Progress', style: Theme.of(context).textTheme.headlineMedium),
+        Row(
+          children: [
+            Expanded(child: Text('Progress', style: Theme.of(context).textTheme.headlineMedium)),
+            OutlinedButton.icon(
+              onPressed: widget.onOpenDiary,
+              icon: const Icon(Icons.calendar_month_rounded, size: 17),
+              label: const Text('Full diary'),
+            ),
+          ],
+        ),
         const SizedBox(height: 22),
         AchievementOverview(state: state),
         const SizedBox(height: 24),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
+        _BmiCard(profile: state.profile),
+        const SizedBox(height: 24),
+        Panel(
+          border: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final tab in ['Calories', 'Macros', 'Weight', 'Habits'])
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: TextButton(
-                    onPressed: () => selectSection(tab),
-                    style: TextButton.styleFrom(
-                      backgroundColor: section == tab
-                          ? Theme.of(context).extension<KayleoSurfaces>()!.soft
-                          : Colors.transparent,
-                      foregroundColor: section == tab
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                    ),
-                    child: Text(
-                      tab,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Today’s diary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                   ),
-                ),
+                  TextButton.icon(
+                    onPressed: () => showLogger(context, state),
+                    icon: const Icon(Icons.add_rounded, size: 17),
+                    label: const Text('Log meal'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (todayMeals.isEmpty)
+                Text('No meals logged today yet.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))
+              else
+                ...todayMeals.take(4).map((meal) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: Icon(Icons.restaurant_rounded, color: Theme.of(context).colorScheme.primary),
+                  title: Text(meal.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text('${meal.category} · ${DateFormat('h:mm a').format(meal.time)}'),
+                  trailing: Text('${number(mealNutrition(meal).calories)} kcal', style: const TextStyle(fontWeight: FontWeight.w700)),
+                )),
+              if (todayMeals.length > 4)
+                Text('+ ${todayMeals.length - 4} more meals', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 24),
         Wrap(
           alignment: WrapAlignment.end,
           runSpacing: 8,
@@ -182,9 +172,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       showCheckmark: false,
                       onSelected: (_) => setState(() {
                         metric = nutrient;
-                        section = nutrient == NutritionMetric.calories
-                            ? 'Calories'
-                            : 'Macros';
                       }),
                     ),
                 ],
@@ -394,55 +381,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
           },
         ),
         const SizedBox(height: KayleoSpacing.xl),
-        Panel(
-          key: habitsKey,
-          border: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionTitle(
-                'Movement',
-                action: 'Log movement',
-                onAction: () => logActivityDialog(context, state),
-              ),
-              Row(
-                children: [
-                  IconBox(
-                    Icons.directions_walk_rounded,
-                    color: Theme.of(context).extension<KayleoSurfaces>()!.soft,
-                    size: 50,
-                  ),
-                  const SizedBox(width: KayleoSpacing.lg),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${state.activityMinutes[dateKey(DateTime.now())] ?? 0} minutes today',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          'Activity you’ve logged today.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: KayleoSpacing.xl),
       ],
     );
   }
@@ -513,6 +451,36 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ),
     ),
   );
+}
+
+class _BmiCard extends StatelessWidget {
+  const _BmiCard({required this.profile});
+  final BodyProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final bmi = profile.bmi;
+    final position = ((bmi - 15) / 25).clamp(0.03, 0.97).toDouble();
+    final label = profile.bmiCategory;
+    final color = bmi < 18.5 ? Colors.lightBlue : bmi < 25 ? Colors.green : bmi < 30 ? Colors.amber : Colors.redAccent;
+    return Panel(
+      border: false,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('BMI snapshot', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        Text('A simple context for your current weight and height.', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 16),
+        Row(children: [Text(bmi.toStringAsFixed(1), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900)), const SizedBox(width: 12), Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: color.withValues(alpha: .16), borderRadius: BorderRadius.circular(20)), child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w800))) ]),
+        const SizedBox(height: 14),
+        LayoutBuilder(builder: (context, c) => Stack(clipBehavior: Clip.none, children: [
+          ClipRRect(borderRadius: BorderRadius.circular(8), child: Row(children: [Expanded(flex: 14, child: Container(height: 10, color: Colors.lightBlue)), Expanded(flex: 65, child: Container(height: 10, color: Colors.green)), Expanded(flex: 25, child: Container(height: 10, color: Colors.amber)), Expanded(flex: 30, child: Container(height: 10, color: Colors.redAccent))])),
+          Positioned(left: c.maxWidth * position - 2, top: -5, child: Container(width: 4, height: 20, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)))),
+        ])),
+        const SizedBox(height: 8),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [Text('18.5', style: TextStyle(fontSize: 10)), Text('25', style: TextStyle(fontSize: 10)), Text('30', style: TextStyle(fontSize: 10)), Text('40+', style: TextStyle(fontSize: 10))]),
+      ]),
+    );
+  }
 }
 
 class _WeeklyReviewEntry extends StatelessWidget {

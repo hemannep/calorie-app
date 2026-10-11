@@ -236,15 +236,16 @@ void main() {
           await _tapVisible(tester, find.text(action));
           expect(find.byType(sheetType), findsOneWidget);
           if (action == 'Notifications') {
+            final before = state.preferences['Hydration reminders']!;
             await _tapVisible(tester, find.text('Hydration reminders'));
-            expect(state.preferences['Hydration reminders'], isTrue);
+            expect(state.preferences['Hydration reminders'], !before);
             expect(
               tester
                   .widget<SwitchListTile>(
                     find.widgetWithText(SwitchListTile, 'Hydration reminders'),
                   )
                   .value,
-              isTrue,
+              !before,
             );
           }
           if (action == 'Diet preferences') {
@@ -292,38 +293,19 @@ void main() {
           _screenShell(state, (_) => CommunityScreen(state: state)),
         );
 
-        await _tapVisible(tester, find.text('Explore preview'));
-        expect(state.community, isTrue);
+        expect(find.text('Better, together.'), findsOneWidget);
         expect(find.text('Discover'), findsOneWidget);
-        await _tapVisible(tester, find.text('Join preview group').first);
-        expect(state.joined, contains('regional'));
-        expect(find.text('Joined · tap to leave'), findsOneWidget);
-        await _tapVisible(tester, find.text('My groups'));
-        expect(
-          find.text('My usual dal bhat, with more greens.'),
-          findsOneWidget,
-        );
-        expect(
-          find.text('The lunch bowl I keep coming back to.'),
-          findsNothing,
-        );
+        await _tapVisible(tester, find.text('My circles'));
+        expect(find.text('Your circle starts here'), findsOneWidget);
         await _tapVisible(tester, find.text('Discover'));
-
-        await _tapVisible(tester, find.text('Join the challenge'));
-        expect(state.joined, contains('challenge'));
-        expect(find.text('Leave challenge'), findsOneWidget);
-        await _tapVisible(tester, find.text('24 cheers'));
-        expect(state.liked, contains('sample-1'));
-        expect(find.text('25 cheers'), findsOneWidget);
-
-        await _tapVisible(tester, find.text('Leave community preview'));
-        expect(state.community, isFalse);
-        expect(find.text('Explore preview'), findsOneWidget);
-        final restored = await AppState.load();
-        expect(restored.community, isFalse);
-        expect(restored.liked, contains('sample-1'));
-        expect(restored.joined, containsAll(['regional', 'challenge']));
-        restored.dispose();
+        await tester.enterText(find.byType(TextField).first, '2,000');
+        await tester.pumpAndSettle();
+        expect(find.text('2,000 calorie community'), findsOneWidget);
+        expect(find.text('Keto kitchen'), findsNothing);
+        await _tapVisible(tester, find.text('Friends'));
+        expect(find.text('Grow together'), findsOneWidget);
+        expect(state.joined, isEmpty);
+        expect(state.communityPosts, isEmpty);
       },
     );
   }
