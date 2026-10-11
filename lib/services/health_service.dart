@@ -118,6 +118,8 @@ class HealthService {
   final Health _health;
   static const _platformChannel = MethodChannel('kayleo/health');
   bool _configured = false;
+  final Map<String, Future<HealthActivityData>> _inFlight = {};
+  final Map<String, (DateTime, HealthActivityData)> _cache = {};
 
   @visibleForTesting
   HealthActivityData? mockActivityData;
@@ -261,6 +263,7 @@ class HealthService {
         permissions: permissions,
       );
       if (ok) {
+        _cache.clear();
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(healthConnectedPrefKey, true);
       }
@@ -282,6 +285,7 @@ class HealthService {
   Future<HealthActivityData> fetchActivityData(
     DateTime date, {
     AppState? state,
+    bool forceRefresh = false,
   }) async {
     if (mockActivityData != null) {
       return mockActivityData!;
@@ -315,6 +319,46 @@ class HealthService {
       );
     }
 
+    final key =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final isSameDay =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+
+    if (!forceRefresh) {
+      final cached = _cache[key];
+      if (cached != null) {
+        final ttl = isSameDay
+            ? const Duration(seconds: 15)
+            : const Duration(minutes: 5);
+        if (now.difference(cached.$1) < ttl) {
+          return cached.$2;
+        }
+      }
+      final existing = _inFlight[key];
+      if (existing != null) {
+        return existing;
+      }
+    }
+
+    final future = _fetchActivityDataInternal(date, now, isSameDay);
+    _inFlight[key] = future;
+    try {
+      final result = await future;
+      _cache[key] = (DateTime.now(), result);
+      return result;
+    } finally {
+      if (identical(_inFlight[key], future)) {
+        _inFlight.remove(key);
+      }
+    }
+  }
+
+  Future<HealthActivityData> _fetchActivityDataInternal(
+    DateTime date,
+    DateTime now,
+    bool isSameDay,
+  ) async {
     await _ensureConfigured();
 
     final prefs = await SharedPreferences.getInstance();
@@ -338,10 +382,13 @@ class HealthService {
       }
     }
 
-    final now = DateTime.now();
-    final isSameDay =
-        date.year == now.year && date.month == now.month && date.day == now.day;
     final startTime = DateTime(date.year, date.month, date.day, 0, 0, 0);
+    if (startTime.isAfter(now)) {
+      return const HealthActivityData(
+        isAuthorized: true,
+        isAvailable: true,
+      );
+    }
     final endTime = isSameDay
         ? now
         : DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
@@ -375,8 +422,10 @@ class HealthService {
         debugPrint('HealthService getTotalStepsInInterval error: $e');
       }
 
-      // 2. Fetch data points for all health types
-      final types = dataTypes;
+      // 2. Fetch data points for remaining health types (skip raw STEPS if aggregate succeeded)
+      final types = totalSteps > 0
+          ? dataTypes.where((t) => t != HealthDataType.STEPS).toList()
+          : dataTypes;
       if (types.isNotEmpty) {
         try {
           final dataPoints = await _health.getHealthDataFromTypes(

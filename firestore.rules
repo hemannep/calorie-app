@@ -35,8 +35,7 @@ service cloud.firestore {
     function validProfile(data) {
       return data.keys().hasOnly(['name', 'inviteCode', 'joined', 'shareNutrition', 'shareActivity'])
         && validName(data.name) && data.inviteCode.matches('^K-[A-F0-9]{24}$')
-        && data.joined is list && data.joined.size() <= 18
-        && data.joined.hasOnly(['getting-started', 'fitness', 'weight-loss', 'muscle-gain', 'maintain', 'keto', 'vegan', 'vegetarian', 'pescatarian', 'fasting', 'meal-prep', 'walking', 'cal-1500', 'cal-1800', 'cal-2000', 'cal-2200', 'cal-2500', 'cal-3000'])
+        && data.joined is list && data.joined.size() <= 40
         && data.shareNutrition is bool && data.shareActivity is bool;
     }
     match /socialUsers/{uid} {
@@ -109,9 +108,57 @@ service cloud.firestore {
         && (data.replyTo == null || (data.replyTo is string && data.replyTo.size() <= 128));
     }
     function validCheer(data) { return data.keys().hasOnly(['createdAt']) && data.createdAt == request.time; }
+    function customGroup(group) {
+      return group.matches('^c-[a-f0-9]{24}$')
+        && existsAfter(/databases/$(database)/documents/communities/$(group));
+    }
+    function customAccess(group, uid) {
+      return existsAfter(/databases/$(database)/documents/communityAccess/$(group)/users/$(uid));
+    }
+    match /communities/{group} {
+      allow get: if member(group);
+      allow list: if false;
+      allow create: if signedIn() && group.matches('^c-[a-f0-9]{24}$')
+        && request.resource.data.keys().hasOnly(['name', 'description', 'ownerId', 'inviteCode', 'createdAt'])
+        && validName(request.resource.data.name)
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 180
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.inviteCode.matches('^C-[A-F0-9]{24}$')
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/communityInvites/$(request.resource.data.inviteCode)).data.groupId == group
+        && customAccess(group, request.auth.uid);
+      allow update, delete: if false;
+    }
+    match /communityInvites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && code.matches('^C-[A-F0-9]{24}$')
+        && request.resource.data.keys().hasOnly(['groupId', 'name', 'description', 'ownerId'])
+        && request.resource.data.groupId.matches('^c-[a-f0-9]{24}$')
+        && validName(request.resource.data.name)
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 180
+        && request.resource.data.ownerId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/communities/$(request.resource.data.groupId)).data.inviteCode == code;
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+    match /communityAccess/{group}/users/{uid} {
+      allow read: if self(uid);
+      allow create: if self(uid)
+        && request.resource.data.keys().hasOnly(['inviteCode'])
+        && request.resource.data.inviteCode.matches('^C-[A-F0-9]{24}$')
+        && getAfter(/databases/$(database)/documents/communityInvites/$(request.resource.data.inviteCode)).data.groupId == group
+        && getAfter(/databases/$(database)/documents/communities/$(group)).data.inviteCode == request.resource.data.inviteCode;
+      allow delete: if self(uid)
+        && !existsAfter(/databases/$(database)/documents/communities/$(group)/members/$(uid));
+      allow update: if false;
+    }
     match /communities/{group}/members/{uid} {
-      allow read: if signedIn() && knownGroup(group);
-      allow create, update: if self(uid) && knownGroup(group)
+      allow read: if signedIn() && (knownGroup(group) || member(group));
+      allow create, update: if self(uid) && (knownGroup(group) || (customGroup(group) && customAccess(group, uid)))
         && request.resource.data.keys().hasOnly(['name', 'streak', 'updatedAt'])
         && validName(request.resource.data.name) && validStreak(request.resource.data.streak)
         && request.resource.data.updatedAt == request.time

@@ -25,18 +25,40 @@ class FriendsPanel extends StatefulWidget {
 
 class _FriendsPanelState extends State<FriendsPanel> {
   bool busy = false;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _friendsStream;
+  String? _friendsUid;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _getFriendsStream() {
+    final uid = widget.service.uid;
+    if (_friendsStream == null || _friendsUid != uid) {
+      _friendsUid = uid;
+      _friendsStream = widget.service.friends().asBroadcastStream();
+    }
+    return _friendsStream!;
+  }
+
+  @override
+  void didUpdateWidget(FriendsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.service != widget.service) {
+      _friendsStream = null;
+      _friendsUid = null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = widget.service;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (service.ready) ...[_friendsSection(onlyWhenHasFriends: true)],
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: forest,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,25 +66,25 @@ class _FriendsPanelState extends State<FriendsPanel> {
               Row(
                 children: [
                   Container(
-                    width: 46,
-                    height: 46,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
                       color: lime.withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(11),
                     ),
                     child: const Icon(
                       Icons.person_add_alt_1_rounded,
                       color: lime,
-                      size: 23,
+                      size: 18,
                     ),
                   ),
-                  const SizedBox(width: 13),
+                  const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
                       'Grow together',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 21,
+                        fontSize: 17,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -.4,
                       ),
@@ -70,8 +92,8 @@ class _FriendsPanelState extends State<FriendsPanel> {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 6,
+                      horizontal: 7,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: .09),
@@ -96,16 +118,16 @@ class _FriendsPanelState extends State<FriendsPanel> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               const Text(
                 'Connect with someone you trust, chat privately, and keep each other moving forward.',
                 style: TextStyle(
                   color: Colors.white70,
-                  fontSize: 12,
-                  height: 1.6,
+                  fontSize: 10,
+                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
@@ -121,7 +143,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                                   FriendInviteDialog(service: service),
                             )
                           : null,
-                      icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+                      icon: const Icon(Icons.qr_code_2_rounded, size: 16),
                       label: const Text('My invite'),
                     ),
                   ),
@@ -135,7 +157,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                         ),
                       ),
                       onPressed: service.ready && !busy ? _connect : null,
-                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
                       label: Text(busy ? 'Connecting…' : 'Add friend'),
                     ),
                   ),
@@ -144,38 +166,38 @@ class _FriendsPanelState extends State<FriendsPanel> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         Panel(
-          padding: 18,
+          padding: 13,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Row(
                 children: [
-                  Icon(Icons.visibility_outlined, size: 20),
-                  SizedBox(width: 9),
+                  Icon(Icons.visibility_outlined, size: 17),
+                  SizedBox(width: 7),
                   Expanded(
                     child: Text(
                       'Shared with friends',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                        fontSize: 14,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 2),
               Text(
                 'You decide what appears in your shared 7-day view.',
                 style: TextStyle(color: context.kayleoMuted, fontSize: 11),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
+                visualDensity: const VisualDensity(vertical: -4),
                 title: const Text('Nutrition summaries'),
-                subtitle: const Text('Calories and macros for the last 7 days'),
                 value: service.sharesNutrition,
                 onChanged: service.ready
                     ? (value) => socialAction(
@@ -187,10 +209,8 @@ class _FriendsPanelState extends State<FriendsPanel> {
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
+                visualDensity: const VisualDensity(vertical: -4),
                 title: const Text('Activity summaries'),
-                subtitle: const Text(
-                  'Logged movement minutes for the last 7 days',
-                ),
                 value: service.sharesActivity,
                 onChanged: service.ready
                     ? (value) => socialAction(
@@ -199,70 +219,13 @@ class _FriendsPanelState extends State<FriendsPanel> {
                       )
                     : null,
               ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.kayleoSurfaces.soft,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.shield_outlined,
-                      size: 17,
-                      color: context.kayleoPrimary,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        'Weight, diary notes, and meal photos always stay private.',
-                        style: TextStyle(
-                          color: context.kayleoMuted,
-                          fontSize: 10,
-                          height: 1.55,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              Text(
+                'Only summaries are shared. Weight and diary details stay private.',
+                style: TextStyle(color: context.kayleoMuted, fontSize: 9),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Your friends',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-            ),
-            if (service.ready)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: context.kayleoSurfaces.soft,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Text(
-                  'ACCOUNTABILITY',
-                  style: TextStyle(
-                    color: context.kayleoMuted,
-                    fontSize: 8,
-                    letterSpacing: .8,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
         if (!service.ready)
           const SocialEmpty(
             Icons.people_outline_rounded,
@@ -270,36 +233,53 @@ class _FriendsPanelState extends State<FriendsPanel> {
             'Sign in and connect to create your friend code.',
           )
         else
-          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: service.friends(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return SocialSyncError(
-                  message: socialError(snapshot.error!),
-                  retry: service.retry,
-                );
-              }
-              if (!snapshot.hasData) {
-                return const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.data!.docs.isEmpty) {
-                return const SocialEmpty(
-                  Icons.waving_hand_outlined,
-                  'Every journey needs a little company',
-                  'Share an invite to chat privately and follow each other’s progress.',
-                );
-              }
-              return Column(
-                children: [for (final doc in snapshot.data!.docs) _friend(doc)],
-              );
-            },
-          ),
+          _friendsSection(onlyWhenHasFriends: false),
       ],
     );
   }
+
+  Widget _friendsSection({required bool onlyWhenHasFriends}) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _getFriendsStream(),
+        builder: (context, snapshot) {
+          final hasFriends = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+          if (hasFriends != onlyWhenHasFriends) return const SizedBox.shrink();
+          if (snapshot.hasError) {
+            return SocialSyncError(
+              message: socialError(snapshot.error!),
+              retry: () {
+                setState(() => _friendsStream = null);
+                widget.service.retry();
+              },
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your friends',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              if (hasFriends)
+                for (final doc in snapshot.data!.docs) _friend(doc)
+              else
+                const SocialEmpty(
+                  Icons.waving_hand_outlined,
+                  'Every journey needs a little company',
+                  'Share an invite to chat privately and follow each other’s progress.',
+                ),
+              const SizedBox(height: 12),
+            ],
+          );
+        },
+      );
 
   Widget _friend(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final service = widget.service;
@@ -308,50 +288,61 @@ class _FriendsPanelState extends State<FriendsPanel> {
       (id) => id != service.uid,
     );
     final name = (data['names'] as Map)[peer] as String;
+    void openRoom() => Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => FriendRoomScreen(
+          state: widget.state,
+          service: service,
+          pair: doc.id,
+          peer: peer,
+          name: name,
+        ),
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Panel(
-        padding: 16,
-        child: Row(
-          children: [
-            SocialAvatar(name),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Chat & progress',
-                    style: TextStyle(color: context.kayleoMuted, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: 'Open chat with $name',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => FriendRoomScreen(
-                    state: widget.state,
-                    service: service,
-                    pair: doc.id,
-                    peer: peer,
-                    name: name,
+        padding: 0,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(KayleoRadius.large),
+          onTap: openRoom,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                SocialAvatar(name),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Chat & progress',
+                        style: TextStyle(
+                          color: context.kayleoMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              icon: const Icon(Icons.arrow_forward_rounded),
+                IconButton(
+                  tooltip: 'Open chat with $name',
+                  onPressed: openRoom,
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -522,6 +513,14 @@ class FriendInviteDialog extends StatelessWidget {
                           data: FriendInvite.qr(service.inviteCode),
                           size: 190,
                           backgroundColor: Colors.white,
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: Colors.black,
+                          ),
+                          eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
                     const SizedBox(height: 14),
@@ -633,8 +632,248 @@ class FriendInviteDialog extends StatelessWidget {
   }
 }
 
+class CommunityInviteDialog extends StatelessWidget {
+  const CommunityInviteDialog({super.key, required this.group});
+  final CommunityGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = group.inviteCode!;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  IconBox(Icons.groups_2_outlined, size: 40),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          group.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Text(
+                          'Private community invite',
+                          style: TextStyle(fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close community invite',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: forest,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: QrImageView(
+                        data: CommunityInvite.qr(code),
+                        size: 185,
+                        backgroundColor: Colors.white,
+                        dataModuleStyle: const QrDataModuleStyle(
+                          color: Colors.black,
+                        ),
+                        eyeStyle: const QrEyeStyle(color: Colors.black),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Scan to join this community',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: context.kayleoSurfaces.soft,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        code,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .7,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Copy community code',
+                      onPressed: () => socialAction(
+                        context,
+                        () => Clipboard.setData(ClipboardData(text: code)),
+                        success: 'Community code copied',
+                      ),
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => socialAction(context, () async {
+                    await SharePlus.instance.share(
+                      ShareParams(
+                        text:
+                            'Join my ${group.name} community on Kayleo with this private code: $code',
+                        sharePositionOrigin: _dialogShareOrigin(context),
+                      ),
+                    );
+                  }),
+                  icon: const Icon(Icons.ios_share_rounded, size: 17),
+                  label: const Text('Share community invite'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Only people with this code or QR can join.',
+                style: TextStyle(color: context.kayleoMuted, fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CommunityJoinDialog extends StatefulWidget {
+  const CommunityJoinDialog({super.key, required this.service});
+  final CommunityService service;
+
+  @override
+  State<CommunityJoinDialog> createState() => _CommunityJoinDialogState();
+}
+
+class _CommunityJoinDialogState extends State<CommunityJoinDialog> {
+  final code = TextEditingController();
+  bool busy = false;
+
+  @override
+  void dispose() {
+    code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Join a private community'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Enter its private code or scan the creator’s QR.',
+          style: TextStyle(fontSize: 12),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: code,
+          autocorrect: false,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(
+            labelText: 'Community invite code',
+            hintText: 'C-…',
+          ),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: busy
+              ? null
+              : () async {
+                  final value = await Navigator.push<String>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FriendQRScanner(community: true),
+                    ),
+                  );
+                  if (value != null) {
+                    code.text = value;
+                  }
+                },
+          icon: const Icon(Icons.qr_code_scanner_rounded),
+          label: const Text('Scan community QR'),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: busy ? null : () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: busy
+            ? null
+            : () async {
+                setState(() => busy = true);
+                CommunityGroup? group;
+                final success = await socialAction(context, () async {
+                  group = await widget.service.joinCommunity(code.text);
+                }, success: 'Community joined');
+                if (!mounted) return;
+                setState(() => busy = false);
+                if (success) Navigator.pop(this.context, group);
+              },
+        child: Text(busy ? 'Joining…' : 'Join'),
+      ),
+    ],
+  );
+}
+
+Rect _dialogShareOrigin(BuildContext context) {
+  final box = context.findRenderObject() as RenderBox;
+  return box.localToGlobal(Offset.zero) & box.size;
+}
+
 class FriendQRScanner extends StatefulWidget {
-  const FriendQRScanner({super.key});
+  const FriendQRScanner({super.key, this.community = false});
+  final bool community;
   @override
   State<FriendQRScanner> createState() => _FriendQRScannerState();
 }
@@ -695,13 +934,17 @@ class _FriendQRScannerState extends State<FriendQRScanner>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Scan friend QR')),
+    appBar: AppBar(
+      title: Text(widget.community ? 'Scan community QR' : 'Scan friend QR'),
+    ),
     body: Column(
       children: [
-        const Padding(
-          padding: EdgeInsets.all(20),
+        Padding(
+          padding: const EdgeInsets.all(20),
           child: Text(
-            'Scan your friend’s Kayleo QR to connect both accounts.',
+            widget.community
+                ? 'Scan a private Kayleo community QR to join.'
+                : 'Scan your friend’s Kayleo QR to connect both accounts.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -723,14 +966,18 @@ class _FriendQRScannerState extends State<FriendQRScanner>
                     if (finished) return;
                     for (final barcode in capture.barcodes) {
                       try {
-                        final code = FriendInvite.parse(barcode.rawValue ?? '');
+                        final code = widget.community
+                            ? CommunityInvite.parse(barcode.rawValue ?? '')
+                            : FriendInvite.parse(barcode.rawValue ?? '');
                         finished = true;
                         controller.stop();
                         Navigator.pop(context, code);
                         return;
                       } on FormatException {
                         setState(
-                          () => error = 'That isn’t a Kayleo friend QR. Try your friend’s invite QR.',
+                          () => error = widget.community
+                              ? 'That isn’t a Kayleo community QR.'
+                              : 'That isn’t a Kayleo friend QR. Try your friend’s invite QR.',
                         );
                       }
                     }
@@ -754,7 +1001,7 @@ class _FriendQRScannerState extends State<FriendQRScanner>
   );
 }
 
-class FriendRoomScreen extends StatelessWidget {
+class FriendRoomScreen extends StatefulWidget {
   const FriendRoomScreen({
     super.key,
     required this.state,
@@ -767,79 +1014,106 @@ class FriendRoomScreen extends StatelessWidget {
   final CommunityService service;
   final String pair, peer, name;
   @override
+  State<FriendRoomScreen> createState() => _FriendRoomScreenState();
+}
+
+class _FriendRoomScreenState extends State<FriendRoomScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(
+    length: 2,
+    vsync: this,
+  );
+  late Stream<DocumentSnapshot<Map<String, dynamic>>> _friendshipStream =
+      widget.service.friendship(widget.pair);
+
+  @override
+  void didUpdateWidget(FriendRoomScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.service != widget.service || oldWidget.pair != widget.pair) {
+      _friendshipStream = widget.service.friendship(widget.pair);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) =>
       StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: service.friendship(pair),
+        stream: _friendshipStream,
         builder: (context, snapshot) {
           final connected = snapshot.hasData && snapshot.data!.exists;
-          return DefaultTabController(
-            length: 2,
-            child: Scaffold(
-              appBar: AppBar(
-                title: Text(name),
-                actions: [
-                  if (connected)
-                    PopupMenuButton<String>(
-                      tooltip: 'Friend options',
-                      onSelected: (_) async {
-                        if (await socialConfirm(
-                              context,
-                              'Remove $name?',
-                              'Your private chat and shared progress will no longer be accessible. Connecting again requires an invite code or QR.',
-                              'Remove friend',
-                            ) &&
-                            context.mounted) {
-                          final ok = await socialAction(
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(widget.name),
+              actions: [
+                if (connected)
+                  PopupMenuButton<String>(
+                    tooltip: 'Friend options',
+                    onSelected: (_) async {
+                      if (await socialConfirm(
                             context,
-                            () => service.unfriend(pair, peer),
-                          );
-                          if (ok && context.mounted) Navigator.pop(context);
-                        }
-                      },
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(
-                          value: 'remove',
-                          child: Text('Remove friend'),
-                        ),
+                            'Remove ${widget.name}?',
+                            'Your private chat and shared progress will no longer be accessible. Connecting again requires an invite code or QR.',
+                            'Remove friend',
+                          ) &&
+                          context.mounted) {
+                        final ok = await socialAction(
+                          context,
+                          () =>
+                              widget.service.unfriend(widget.pair, widget.peer),
+                        );
+                        if (ok && context.mounted) Navigator.pop(context);
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'remove',
+                        child: Text('Remove friend'),
+                      ),
+                    ],
+                  ),
+              ],
+              bottom: connected
+                  ? TabBar(
+                      controller: _tabController,
+                      tabs: const [
+                        Tab(text: 'Chat'),
+                        Tab(text: 'Together'),
                       ],
-                    ),
-                ],
-                bottom: connected
-                    ? const TabBar(
-                        tabs: [
-                          Tab(text: 'Chat'),
-                          Tab(text: 'Together'),
-                        ],
-                      )
-                    : null,
-              ),
-              body: snapshot.hasError
-                  ? const SocialSyncError()
-                  : !snapshot.hasData
-                  ? const Center(child: CircularProgressIndicator())
-                  : !connected
-                  ? const SocialEmpty(
-                      Icons.person_remove_outlined,
-                      'This connection has ended',
-                      'Shared progress and chat are no longer available.',
                     )
-                  : TabBarView(
-                      children: [
-                        CommunityConversation(
-                          state: state,
-                          service: service,
-                          room: pair,
-                          isGroup: false,
-                        ),
-                        FriendProgressPanel(
-                          state: state,
-                          service: service,
-                          peer: peer,
-                          name: name,
-                        ),
-                      ],
-                    ),
+                  : null,
             ),
+            body: snapshot.hasError
+                ? const SocialSyncError()
+                : !snapshot.hasData
+                ? const Center(child: CircularProgressIndicator())
+                : !connected
+                ? const SocialEmpty(
+                    Icons.person_remove_outlined,
+                    'This connection has ended',
+                    'Shared progress and chat are no longer available.',
+                  )
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      CommunityConversation(
+                        state: widget.state,
+                        service: widget.service,
+                        room: widget.pair,
+                        isGroup: false,
+                      ),
+                      FriendProgressPanel(
+                        state: widget.state,
+                        service: widget.service,
+                        peer: widget.peer,
+                        name: widget.name,
+                      ),
+                    ],
+                  ),
           );
         },
       );

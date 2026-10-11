@@ -7,11 +7,27 @@ class CommunityGroup {
     this.description,
     this.category,
     this.icon,
-    this.color,
-  );
+    this.color, {
+    this.inviteCode,
+    this.ownerId,
+  });
   final String id, name, description, category;
   final IconData icon;
   final Color color;
+  final String? inviteCode, ownerId;
+  bool get isCustom => inviteCode != null;
+
+  factory CommunityGroup.custom(String id, Map<String, dynamic> data) =>
+      CommunityGroup(
+        id,
+        data['name'] as String,
+        data['description'] as String,
+        'Private circle',
+        Icons.groups_2_outlined,
+        const Color(0xFF699B79),
+        inviteCode: data['inviteCode'] as String,
+        ownerId: data['ownerId'] as String,
+      );
 }
 
 const communityGroups = <CommunityGroup>[
@@ -184,4 +200,28 @@ class FriendInvite {
 
   static String qr(String code) => 'kayleo://friend/${parse(code)}';
   static String pairId(String a, String b) => ([a, b]..sort()).join('_');
+}
+
+class CommunityInvite {
+  static final pattern = RegExp(r'^C-[A-F0-9]{24}$');
+
+  static String parse(String raw) {
+    var value = raw.trim();
+    final uri = Uri.tryParse(value);
+    if (uri != null &&
+        uri.scheme == 'kayleo' &&
+        uri.host == 'community' &&
+        uri.pathSegments.length == 1) {
+      value = uri.pathSegments.single;
+    }
+    value = value.toUpperCase();
+    if (!pattern.hasMatch(value)) {
+      throw const FormatException(
+        'Enter a complete community invite code or scan its QR.',
+      );
+    }
+    return value;
+  }
+
+  static String qr(String code) => 'kayleo://community/${parse(code)}';
 }

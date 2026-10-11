@@ -19,6 +19,27 @@ class DiaryScreen extends StatefulWidget {
 class _DiaryScreenState extends State<DiaryScreen> {
   DateTime date = DateTime.now();
   String search = '', category = 'All meals';
+
+  void _shiftWeek(int deltaDays) {
+    final now = DateTime.now();
+    final today = DateUtils.dateOnly(now);
+    final weekEnd = DateUtils.dateOnly(
+      date.subtract(Duration(days: date.weekday - 7)),
+    );
+    if (deltaDays > 0 && !weekEnd.isBefore(today)) return;
+    final next = date.add(Duration(days: deltaDays));
+    final firstDate = DateTime(2020);
+    setState(() {
+      if (DateUtils.dateOnly(next).isAfter(today)) {
+        date = now;
+      } else if (next.isBefore(firstDate)) {
+        date = firstDate;
+      } else {
+        date = next;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
@@ -34,6 +55,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
       7,
       (i) => date.subtract(Duration(days: date.weekday - 1 - i)),
     );
+    final today = DateUtils.dateOnly(DateTime.now());
+    final canGoNextWeek = DateUtils.dateOnly(days.last).isBefore(today);
     final n = state.totalsFor(date);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,9 +88,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
               Row(
                 children: [
                   IconButton.filledTonal(
-                    onPressed: () => setState(
-                      () => date = date.subtract(const Duration(days: 7)),
-                    ),
+                    onPressed: () => _shiftWeek(-7),
                     tooltip: 'Previous week',
                     icon: Icon(Icons.chevron_left_rounded),
                   ),
@@ -75,13 +96,21 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     child: Center(
                       child: OutlinedButton.icon(
                         onPressed: () async {
+                          final currentNow = DateTime.now();
+                          final firstDate = DateTime(2020);
+                          final lastDate = currentNow.add(
+                            const Duration(days: 1),
+                          );
+                          final initialDate = date.isBefore(firstDate)
+                              ? firstDate
+                              : date.isAfter(lastDate)
+                              ? currentNow
+                              : date;
                           final d = await showDatePicker(
                             context: context,
-                            initialDate: date,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime.now().add(
-                              const Duration(days: 1),
-                            ),
+                            initialDate: initialDate,
+                            firstDate: firstDate,
+                            lastDate: lastDate,
                           );
                           if (d != null) {
                             setState(() => date = d);
@@ -99,11 +128,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     ),
                   ),
                   IconButton.filledTonal(
-                    onPressed: days.last.isBefore(DateTime.now())
-                        ? () => setState(
-                            () => date = date.add(const Duration(days: 7)),
-                          )
-                        : null,
+                    onPressed: canGoNextWeek ? () => _shiftWeek(7) : null,
                     tooltip: 'Next week',
                     icon: Icon(Icons.chevron_right_rounded),
                   ),
@@ -122,9 +147,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 onHorizontalDragEnd: (details) {
                   final velocity = details.primaryVelocity ?? 0;
                   if (velocity.abs() < 80) return;
-                  setState(() {
-                    date = date.add(Duration(days: velocity < 0 ? 7 : -7));
-                  });
+                  _shiftWeek(velocity < 0 ? 7 : -7);
                 },
                 child: Row(
                   children: days
@@ -133,7 +156,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 3),
                           child: InkWell(
-                            onTap: d.isAfter(DateTime.now())
+                            onTap: DateUtils.dateOnly(d).isAfter(today)
                                 ? null
                                 : () => setState(() => date = d),
                             borderRadius: BorderRadius.circular(14),

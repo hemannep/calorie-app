@@ -16,6 +16,7 @@ class HomeWidgetService {
   void Function(String action)? onAction;
   String? _pendingAction;
   bool _initialized = false;
+  String? _lastSignature;
 
   Future<void> initialize() async {
     if (kIsWeb || _initialized) return;
@@ -50,6 +51,7 @@ class HomeWidgetService {
     if (!identical(_state, next)) {
       _state?.removeListener(_publish);
       _state = next;
+      _lastSignature = null;
       next?.addListener(_publish);
     }
     _publish();
@@ -103,6 +105,9 @@ class HomeWidgetService {
             : '0',
       ).join(),
     };
+    final signature = snapshot.entries.map((e) => '${e.key}:${e.value}').join('|');
+    if (signature == _lastSignature) return;
+    _lastSignature = signature;
     unawaited(
       channel.invokeMethod<void>('update', snapshot).catchError((Object _) {}),
     );

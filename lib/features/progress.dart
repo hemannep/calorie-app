@@ -55,7 +55,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
       children: [
         Row(
           children: [
-            Expanded(child: Text('Progress', style: Theme.of(context).textTheme.headlineMedium)),
+            Expanded(
+              child: Text(
+                'Progress',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ),
             OutlinedButton.icon(
               onPressed: widget.onOpenDiary,
               icon: const Icon(Icons.calendar_month_rounded, size: 17),
@@ -76,7 +81,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Text('Today’s diary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                    child: Text(
+                      'Today’s diary',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: () => showLogger(context, state),
@@ -87,18 +98,44 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
               const SizedBox(height: 8),
               if (todayMeals.isEmpty)
-                Text('No meals logged today yet.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))
+                Text(
+                  'No meals logged today yet.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                )
               else
-                ...todayMeals.take(4).map((meal) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  leading: Icon(Icons.restaurant_rounded, color: Theme.of(context).colorScheme.primary),
-                  title: Text(meal.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text('${meal.category} · ${DateFormat('h:mm a').format(meal.time)}'),
-                  trailing: Text('${number(mealNutrition(meal).calories)} kcal', style: const TextStyle(fontWeight: FontWeight.w700)),
-                )),
+                ...todayMeals
+                    .take(4)
+                    .map(
+                      (meal) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        leading: Icon(
+                          Icons.restaurant_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(
+                          meal.name,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          '${meal.category} · ${DateFormat('h:mm a').format(meal.time)}',
+                        ),
+                        trailing: Text(
+                          '${number(mealNutrition(meal).calories)} kcal',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
               if (todayMeals.length > 4)
-                Text('+ ${todayMeals.length - 4} more meals', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text(
+                  '+ ${todayMeals.length - 4} more meals',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
             ],
           ),
         ),
@@ -462,23 +499,112 @@ class _BmiCard extends StatelessWidget {
     final bmi = profile.bmi;
     final position = ((bmi - 15) / 25).clamp(0.03, 0.97).toDouble();
     final label = profile.bmiCategory;
-    final color = bmi < 18.5 ? Colors.lightBlue : bmi < 25 ? Colors.green : bmi < 30 ? Colors.amber : Colors.redAccent;
+    final color = bmi < 18.5
+        ? Colors.lightBlue
+        : bmi < 25
+        ? Colors.green
+        : bmi < 30
+        ? Colors.amber
+        : Colors.redAccent;
     return Panel(
       border: false,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('BMI snapshot', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
-        Text('A simple context for your current weight and height.', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 16),
-        Row(children: [Text(bmi.toStringAsFixed(1), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900)), const SizedBox(width: 12), Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: color.withValues(alpha: .16), borderRadius: BorderRadius.circular(20)), child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w800))) ]),
-        const SizedBox(height: 14),
-        LayoutBuilder(builder: (context, c) => Stack(clipBehavior: Clip.none, children: [
-          ClipRRect(borderRadius: BorderRadius.circular(8), child: Row(children: [Expanded(flex: 14, child: Container(height: 10, color: Colors.lightBlue)), Expanded(flex: 65, child: Container(height: 10, color: Colors.green)), Expanded(flex: 25, child: Container(height: 10, color: Colors.amber)), Expanded(flex: 30, child: Container(height: 10, color: Colors.redAccent))])),
-          Positioned(left: c.maxWidth * position - 2, top: -5, child: Container(width: 4, height: 20, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)))),
-        ])),
-        const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [Text('18.5', style: TextStyle(fontSize: 10)), Text('25', style: TextStyle(fontSize: 10)), Text('30', style: TextStyle(fontSize: 10)), Text('40+', style: TextStyle(fontSize: 10))]),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'BMI snapshot',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'A simple context for your current weight and height.',
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                bmi.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(color: color, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, c) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 14,
+                        child: Container(height: 10, color: Colors.lightBlue),
+                      ),
+                      Expanded(
+                        flex: 65,
+                        child: Container(height: 10, color: Colors.green),
+                      ),
+                      Expanded(
+                        flex: 25,
+                        child: Container(height: 10, color: Colors.amber),
+                      ),
+                      Expanded(
+                        flex: 30,
+                        child: Container(height: 10, color: Colors.redAccent),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  left: c.maxWidth * position - 2,
+                  top: -5,
+                  child: Container(
+                    width: 4,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text('18.5', style: TextStyle(fontSize: 10)),
+              Text('25', style: TextStyle(fontSize: 10)),
+              Text('30', style: TextStyle(fontSize: 10)),
+              Text('40+', style: TextStyle(fontSize: 10)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

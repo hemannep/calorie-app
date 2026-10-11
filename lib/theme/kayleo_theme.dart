@@ -5,7 +5,13 @@ import 'kayleo_radius.dart';
 import 'kayleo_spacing.dart';
 import 'kayleo_typography.dart';
 
-ThemeData kayleoTheme({Brightness brightness = Brightness.light}) {
+final ThemeData _kayleoLightTheme = _buildKayleoTheme(Brightness.light);
+final ThemeData _kayleoDarkTheme = _buildKayleoTheme(Brightness.dark);
+
+ThemeData kayleoTheme({Brightness brightness = Brightness.light}) =>
+    brightness == Brightness.dark ? _kayleoDarkTheme : _kayleoLightTheme;
+
+ThemeData _buildKayleoTheme(Brightness brightness) {
   final dark = brightness == Brightness.dark;
   final surfaces = dark ? KayleoSurfaces.dark : KayleoSurfaces.light;
   final text = dark ? KayleoColors.darkText : KayleoColors.ink;

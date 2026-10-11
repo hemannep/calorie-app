@@ -50,9 +50,9 @@ class CommunityService extends ChangeNotifier {
     unawaited(_initialize(state, generation));
   }
 
-  String _code() {
+  String _code([String prefix = 'K']) {
     final random = Random.secure();
-    return 'K-${List.generate(12, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0')).join().toUpperCase()}';
+    return '$prefix-${List.generate(12, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0')).join().toUpperCase()}';
   }
 
   Future<void> _initialize(AppState state, int generation) async {
@@ -256,7 +256,138 @@ class CommunityService extends ChangeNotifier {
           .collection('members')
           .doc(uid!),
     );
+    if (group.isCustom) {
+      batch.delete(
+        db
+            .collection('communityAccess')
+            .doc(group.id)
+            .collection('users')
+            .doc(uid!),
+      );
+    }
     await batch.commit();
+  }
+
+  Future<List<CommunityGroup>> customGroups() async {
+    if (!available || !ready) return const [];
+    final customIds = joined
+        .where((id) => !communityGroups.any((group) => group.id == id))
+        .toList();
+    if (customIds.isEmpty) return const [];
+    final snapshots = await Future.wait(
+      customIds.map((id) => db.collection('communities').doc(id).get()),
+    );
+    return [
+      for (final snapshot in snapshots)
+        if (snapshot.exists)
+          CommunityGroup.custom(snapshot.id, snapshot.data()!),
+    ];
+  }
+
+  Future<CommunityGroup> createCommunity(
+    String rawName,
+    String rawDescription,
+  ) async {
+    _require();
+    final name = rawName.trim();
+    final description = rawDescription.trim();
+    if (name.isEmpty || name.length > 60) {
+      throw const FormatException('Use a community name of 1–60 characters.');
+    }
+    if (description.isEmpty || description.length > 180) {
+      throw const FormatException(
+        'Use a short description of 1–180 characters.',
+      );
+    }
+    if (joined.length >= 40) {
+      throw const FormatException(
+        'Leave a circle before creating another one.',
+      );
+    }
+    final groupId = 'c-${_code('').replaceAll('-', '').toLowerCase()}';
+    final code = _code('C');
+    final groupData = {
+      'name': name,
+      'description': description,
+      'ownerId': uid!,
+      'inviteCode': code,
+    };
+    final group = CommunityGroup.custom(groupId, groupData);
+    final batch = db.batch();
+    batch.set(db.collection('communities').doc(groupId), {
+      ...groupData,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    batch.set(db.collection('communityInvites').doc(code), {
+      'groupId': groupId,
+      'name': name,
+      'description': description,
+      'ownerId': uid!,
+    });
+    batch.update(db.collection('socialUsers').doc(uid!), {
+      'joined': FieldValue.arrayUnion([groupId]),
+    });
+    batch.set(
+      db.collection('communities').doc(groupId).collection('members').doc(uid!),
+      {
+        'name': _name(_state!),
+        'streak': _state!.streak,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    batch.set(
+      db
+          .collection('communityAccess')
+          .doc(groupId)
+          .collection('users')
+          .doc(uid!),
+      {'inviteCode': code},
+    );
+    await batch.commit();
+    return group;
+  }
+
+  Future<CommunityGroup> joinCommunity(String rawInvite) async {
+    _require();
+    final code = CommunityInvite.parse(rawInvite);
+    if (joined.length >= 40) {
+      throw const FormatException('Leave a circle before joining another one.');
+    }
+    return db.runTransaction((tx) async {
+      final invitation = await tx.get(
+        db.collection('communityInvites').doc(code),
+      );
+      if (!invitation.exists) {
+        throw const FormatException(
+          'This community invite is invalid or no longer available.',
+        );
+      }
+      final groupId = invitation.data()!['groupId'] as String;
+      if (joined.contains(groupId)) {
+        throw const FormatException('You already belong to this community.');
+      }
+      final groupRef = db.collection('communities').doc(groupId);
+      tx.update(db.collection('socialUsers').doc(uid!), {
+        'joined': FieldValue.arrayUnion([groupId]),
+      });
+      tx.set(
+        db
+            .collection('communityAccess')
+            .doc(groupId)
+            .collection('users')
+            .doc(uid!),
+        {'inviteCode': code},
+      );
+      tx.set(groupRef.collection('members').doc(uid!), {
+        'name': _name(_state!),
+        'streak': _state!.streak,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return CommunityGroup.custom(groupId, {
+        ...invitation.data()!,
+        'inviteCode': code,
+      });
+    });
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> leaderboard(String group) => db

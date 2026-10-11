@@ -296,7 +296,8 @@ void main() {
         expect(find.text('Better, together.'), findsOneWidget);
         expect(find.text('Discover'), findsOneWidget);
         await _tapVisible(tester, find.text('My circles'));
-        expect(find.text('Your circle starts here'), findsOneWidget);
+        expect(find.text('Create community'), findsOneWidget);
+        expect(find.text('Your first circle starts here'), findsOneWidget);
         await _tapVisible(tester, find.text('Discover'));
         await tester.enterText(find.byType(TextField).first, '2,000');
         await tester.pumpAndSettle();

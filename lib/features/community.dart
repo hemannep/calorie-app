@@ -20,6 +20,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   CommunityService get service => widget.service ?? CommunityService.instance;
   String tab = 'Discover', category = 'All', search = '';
   final Set<String> _busy = {};
+  Future<List<CommunityGroup>>? _customGroups;
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: service,
@@ -27,7 +28,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
       final groups = communityGroups
           .where(
             (g) =>
-                (tab != 'My circles' || service.joined.contains(g.id)) &&
+                (tab == 'Discover'
+                    ? !service.joined.contains(g.id)
+                    : service.joined.contains(g.id)) &&
                 (category == 'All' || g.category == category) &&
                 ('${g.name} ${g.description}'.toLowerCase().contains(
                   search.toLowerCase(),
@@ -67,71 +70,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
               IconBox(Icons.people_alt_outlined, size: 48),
             ],
           ),
-          const SizedBox(height: 22),
-          Panel(
-            color: forest,
-            border: false,
-            padding: 18,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: lime.withValues(alpha: .14),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: lime,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Good habits grow with good company.',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          height: 1.25,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -.25,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Share, support, and celebrate progress.',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          height: 1.45,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.people_alt_outlined,
-                    color: Colors.white70,
-                    size: 17,
-                  ),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 18),
           if (!service.available)
             Panel(
@@ -158,39 +96,67 @@ class _CommunityScreenState extends State<CommunityScreen> {
           if (service.error != null)
             SocialSyncError(message: service.error, retry: service.retry),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
               for (final name in ['Discover', 'My circles', 'Friends'])
-                ChoiceChip(
-                  label: Text(
-                    name == 'My circles' && service.joined.isNotEmpty
-                        ? '$name · ${service.joined.length}'
-                        : name,
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    avatar: Icon(
+                      name == 'Discover'
+                          ? Icons.explore_outlined
+                          : name == 'My circles'
+                          ? Icons.groups_2_outlined
+                          : Icons.people_outline_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      name == 'My circles' && service.joined.isNotEmpty
+                          ? '$name · ${service.joined.length}'
+                          : name,
+                    ),
+                    selected: tab == name,
+                    onSelected: (_) => setState(() {
+                      tab = name;
+                      category = 'All';
+                      search = '';
+                      if (name == 'My circles') {
+                        _customGroups = service.customGroups();
+                      }
+                    }),
                   ),
-                  selected: tab == name,
-                  onSelected: (_) => setState(() {
-                    tab = name;
-                    category = 'All';
-                    search = '';
-                  }),
                 ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 22),
           if (tab == 'Friends')
             FriendsPanel(state: widget.state, service: service)
           else ...[
-            TextField(
-              key: ValueKey(tab),
-              onChanged: (value) => setState(() => search = value),
-              decoration: const InputDecoration(
-                hintText: 'Find a community',
-                prefixIcon: Icon(Icons.search_rounded),
+            if (tab == 'My circles') ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: service.ready ? _createCommunity : null,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Create community'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: service.ready ? _joinPrivateCommunity : null,
+                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 17),
+                      label: const Text('Join private'),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 14),
+              const SizedBox(height: 16),
+            ],
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -217,7 +183,16 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            TextField(
+              key: ValueKey(tab),
+              onChanged: (value) => setState(() => search = value),
+              decoration: const InputDecoration(
+                hintText: 'Find a community',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+            ),
+            const SizedBox(height: 18),
             Row(
               children: [
                 Expanded(
@@ -237,13 +212,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
             ),
             const SizedBox(height: 14),
             if (groups.isEmpty)
-              SocialEmpty(
-                Icons.search_off_rounded,
-                tab == 'My circles'
-                    ? 'Your circle starts here'
-                    : 'No circles found',
-                'Try another search or explore Discover to join a community.',
-              ),
+              if (tab != 'My circles')
+                const SocialEmpty(
+                  Icons.search_off_rounded,
+                  'You found them all',
+                  'Every matching circle is already in My circles.',
+                ),
             LayoutBuilder(
               builder: (context, constraints) {
                 final columns = constraints.maxWidth >= 1000
@@ -263,6 +237,42 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 );
               },
             ),
+            if (tab == 'My circles')
+              FutureBuilder<List<CommunityGroup>>(
+                future: _customGroups ??= service.customGroups(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.all(18),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return SocialSyncError(
+                      message: socialError(snapshot.error!),
+                      retry: () => setState(
+                        () => _customGroups = service.customGroups(),
+                      ),
+                    );
+                  }
+                  final custom = snapshot.data ?? const [];
+                  if (groups.isEmpty && custom.isEmpty) {
+                    return const SocialEmpty(
+                      Icons.groups_2_outlined,
+                      'Your first circle starts here',
+                      'Join a public circle or create a private community for your people.',
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final group in custom) ...[
+                        const SizedBox(height: 12),
+                        _group(group),
+                      ],
+                    ],
+                  );
+                },
+              ),
             const SizedBox(height: 20),
             Text(
               'Circles are for support and meal inspiration. Calorie circles don’t change your personal targets. Your diary stays private unless you choose to share.',
@@ -282,90 +292,186 @@ class _CommunityScreenState extends State<CommunityScreen> {
     final joined = service.joined.contains(group.id);
     final busy = _busy.contains(group.id);
     return Panel(
-      padding: 20,
+      padding: 14,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: group.color.withValues(alpha: .15),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(group.icon, color: group.color, size: 26),
+                child: Icon(group.icon, color: group.color, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  group.category.toUpperCase(),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    fontSize: 9,
-                    letterSpacing: 1,
-                    fontWeight: FontWeight.w800,
-                    color: context.kayleoMuted,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      group.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.25,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      group.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: context.kayleoMuted,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          Text(
-            group.name,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -.4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            group.description,
-            style: TextStyle(
-              fontSize: 12,
-              color: context.kayleoMuted,
-              height: 1.7,
-            ),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: joined
-                ? FilledButton.icon(
-                    onPressed: () => _open(group),
-                    icon: const Icon(Icons.forum_outlined, size: 16),
-                    label: const Text('Open circle'),
-                  )
-                : OutlinedButton.icon(
-                    onPressed: !service.ready || busy
-                        ? null
-                        : () async {
-                            setState(() => _busy.add(group.id));
-                            final success = await socialAction(
-                              context,
-                              () => service.join(group),
-                            );
-                            if (mounted) {
-                              setState(() => _busy.remove(group.id));
-                              if (success) _open(group);
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                group.category.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 8,
+                  letterSpacing: .8,
+                  fontWeight: FontWeight.w800,
+                  color: context.kayleoMuted,
+                ),
+              ),
+              const Spacer(),
+              if (joined)
+                FilledButton.icon(
+                  onPressed: () => _open(group),
+                  icon: const Icon(Icons.forum_outlined, size: 14),
+                  label: const Text('Open'),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed: !service.ready || busy
+                      ? null
+                      : () async {
+                          setState(() => _busy.add(group.id));
+                          final success = await socialAction(
+                            context,
+                            () => service.join(group),
+                          );
+                          if (mounted) {
+                            setState(() => _busy.remove(group.id));
+                            if (success) {
+                              setState(() {});
                             }
-                          },
-                    icon: busy
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.add_rounded, size: 18),
-                    label: Text(busy ? 'Joining…' : 'Join circle'),
+                          }
+                        },
+                  icon: busy
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_rounded, size: 16),
+                  label: Text(busy ? 'Joining…' : 'Join'),
+                ),
+              if (group.isCustom) ...[
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => CommunityInviteDialog(group: group),
                   ),
+                  icon: const Icon(Icons.ios_share_rounded, size: 14),
+                  label: const Text('Invite'),
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _createCommunity() async {
+    final name = TextEditingController();
+    final description = TextEditingController();
+    final create = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create a private community'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Only people with your code or QR can join.',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: name,
+              maxLength: 60,
+              decoration: const InputDecoration(labelText: 'Community name'),
+            ),
+            TextField(
+              controller: description,
+              maxLength: 180,
+              minLines: 2,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'What is this community for?',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+    if (create != true || !mounted) {
+      name.dispose();
+      description.dispose();
+      return;
+    }
+    CommunityGroup? group;
+    await socialAction(context, () async {
+      group = await service.createCommunity(name.text, description.text);
+    }, success: 'Your private community is ready');
+    name.dispose();
+    description.dispose();
+    if (!mounted || group == null) return;
+    setState(() => _customGroups = service.customGroups());
+    await showDialog<void>(
+      context: context,
+      builder: (_) => CommunityInviteDialog(group: group!),
+    );
+  }
+
+  Future<void> _joinPrivateCommunity() async {
+    final group = await showDialog<CommunityGroup>(
+      context: context,
+      builder: (_) => CommunityJoinDialog(service: service),
+    );
+    if (!mounted || group == null) return;
+    setState(() => _customGroups = service.customGroups());
+    _open(group);
   }
 
   void _open(CommunityGroup group) => Navigator.of(context).push(

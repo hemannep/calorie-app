@@ -1733,11 +1733,19 @@ class _LoggingFlowState extends State<LoggingFlow> {
           children: [
             TextButton.icon(
               onPressed: () async {
+                final now = DateTime.now();
+                final firstDate = DateTime(2020);
+                final lastDate = now.add(const Duration(days: 1));
+                final initialDate = m.time.isBefore(firstDate)
+                    ? firstDate
+                    : m.time.isAfter(lastDate)
+                    ? now
+                    : m.time;
                 final d = await showDatePicker(
                   context: context,
-                  initialDate: m.time,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now().add(const Duration(days: 1)),
+                  initialDate: initialDate,
+                  firstDate: firstDate,
+                  lastDate: lastDate,
                 );
                 if (d != null && mounted) {
                   setState(

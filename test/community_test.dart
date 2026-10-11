@@ -60,6 +60,8 @@ class TestCommunityService extends CommunityService {
   String? get uid => 'test-me';
   @override
   bool get available => true;
+  @override
+  Future<List<CommunityGroup>> customGroups() async => const [];
   String? removedPeer;
   @override
   Future<void> unfriend(String pair, String peer) async {
@@ -130,8 +132,14 @@ class TestCommunityService extends CommunityService {
     required bool group,
   }) => Stream.value(_Query([]));
   @override
-  Stream<QuerySnapshot<Map<String, dynamic>>> friends() =>
-      Stream.value(_Query([]));
+  Stream<QuerySnapshot<Map<String, dynamic>>> friends() => Stream.value(
+    _Query([
+      _Doc('test-me_test-peer', {
+        'members': ['test-me', 'test-peer'],
+        'names': {'test-me': 'You', 'test-peer': 'Maya'},
+      }),
+    ]),
+  );
   @override
   Stream<QuerySnapshot<Map<String, dynamic>>> conversation(
     String room, {
@@ -271,7 +279,19 @@ void main() {
         await t.ensureVisible(find.text('Friends'));
         await t.tap(find.text('Friends'));
         await t.pumpAndSettle();
+        expect(find.text('Your friends'), findsOneWidget);
+        expect(find.text('Maya'), findsOneWidget);
+        expect(
+          t.getTopLeft(find.text('Your friends')).dy,
+          lessThan(t.getTopLeft(find.text('Grow together')).dy),
+        );
         expect(find.text('Shared with friends'), findsOneWidget);
+        await snapshot(t, 'community-friends-${brightness.name}');
+        await t.tap(find.text('Maya'));
+        await t.pumpAndSettle();
+        expect(find.byType(FriendRoomScreen), findsOneWidget);
+        Navigator.of(t.element(find.byType(FriendRoomScreen))).pop();
+        await t.pumpAndSettle();
         await t.ensureVisible(find.text('My invite'));
         await t.tap(find.text('My invite'));
         await t.pumpAndSettle();

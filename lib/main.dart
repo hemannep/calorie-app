@@ -192,7 +192,10 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
   }
 
   Widget _application() {
-    if (state?.onboarded == true && !_notificationPromptQueued) {
+    if (widget.state == null &&
+        NotificationService.instance.supported &&
+        state?.onboarded == true &&
+        !_notificationPromptQueued) {
       _notificationPromptQueued = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAskForNotifications());
     }

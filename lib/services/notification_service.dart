@@ -353,7 +353,6 @@ class NotificationService extends ChangeNotifier {
         }
         if (refreshZone) {
           await driver.refreshTimezone();
-          _signature = null;
         }
         await _sync();
         error = null;
@@ -382,28 +381,36 @@ class NotificationService extends ChangeNotifier {
     final signature =
         '${state.recordKey}|$enabled|${state.preferences}|${tz.local.name}|${state.milestoneUnlocks.keys.join(',')}';
     if (signature != _signature) {
-      for (var id = 10; id <= 15; id++) {
-        await driver.cancel(id);
-      }
-      for (var id = 200; id < 214; id++) {
-        await driver.cancel(id);
-      }
-      for (var i = 0; i < milestones.length; i++) {
-        if (!enabled ||
-            state.preferences['Milestone celebrations'] != true ||
-            !state.milestoneUnlocks.containsKey(milestones[i].id)) {
-          await driver.cancel(1000 + i);
+      final now = clock();
+      final desired = enabled
+          ? [
+              ...reminderPlan(state.preferences, now),
+              ...smartNudgePlan(
+                state.preferences,
+                now,
+                seed: state.recordKey,
+              ),
+            ]
+          : const <ReminderRequest>[];
+      final desiredIds = {for (final r in desired) r.id};
+      if (!enabled) {
+        if (_signature != null) {
+          await driver.cancelAll();
         }
-      }
-      if (enabled) {
-        for (final request in reminderPlan(state.preferences, clock())) {
-          await driver.schedule(request);
+      } else {
+        for (var id = 10; id <= 15; id++) {
+          if (!desiredIds.contains(id)) await driver.cancel(id);
         }
-        for (final request in smartNudgePlan(
-          state.preferences,
-          clock(),
-          seed: state.recordKey,
-        )) {
+        for (var id = 200; id < 214; id++) {
+          if (!desiredIds.contains(id)) await driver.cancel(id);
+        }
+        for (var i = 0; i < milestones.length; i++) {
+          if (state.preferences['Milestone celebrations'] != true &&
+              state.milestoneUnlocks.containsKey(milestones[i].id)) {
+            await driver.cancel(1000 + i);
+          }
+        }
+        for (final request in desired) {
           await driver.schedule(request);
         }
       }

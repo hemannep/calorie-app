@@ -10,7 +10,7 @@ import '../data/food_database.dart';
 import '../services/community_service.dart';
 import 'community_widgets.dart';
 
-class CommunityRoomScreen extends StatelessWidget {
+class CommunityRoomScreen extends StatefulWidget {
   const CommunityRoomScreen({
     super.key,
     required this.state,
@@ -21,75 +21,93 @@ class CommunityRoomScreen extends StatelessWidget {
   final CommunityService service;
   final CommunityGroup group;
   @override
+  State<CommunityRoomScreen> createState() => _CommunityRoomScreenState();
+}
+
+class _CommunityRoomScreenState extends State<CommunityRoomScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(
+    length: 3,
+    vsync: this,
+  );
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: service,
+    listenable: widget.service,
     builder: (context, _) {
-      final joined = service.joined.contains(group.id) && service.available;
-      return DefaultTabController(
-        length: 3,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(group.name),
-            actions: [
-              if (joined)
-                PopupMenuButton<String>(
-                  tooltip: 'Circle options',
-                  onSelected: (_) async {
-                    if (await socialConfirm(
-                          context,
-                          'Leave this circle?',
-                          'You can join again at any time. Your previous messages remain in the conversation.',
-                          'Leave circle',
-                        ) &&
-                        context.mounted) {
-                      final ok = await socialAction(
+      final joined =
+          widget.service.joined.contains(widget.group.id) &&
+          widget.service.available;
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.group.name),
+          actions: [
+            if (joined)
+              PopupMenuButton<String>(
+                tooltip: 'Circle options',
+                onSelected: (_) async {
+                  if (await socialConfirm(
                         context,
-                        () => service.leave(group),
-                      );
-                      if (ok && context.mounted) Navigator.pop(context);
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'leave',
-                      child: Text('Leave circle'),
-                    ),
+                        'Leave this circle?',
+                        'You can join again at any time. Your previous messages remain in the conversation.',
+                        'Leave circle',
+                      ) &&
+                      context.mounted) {
+                    final ok = await socialAction(
+                      context,
+                      () => widget.service.leave(widget.group),
+                    );
+                    if (ok && context.mounted) Navigator.pop(context);
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'leave',
+                    child: Text('Leave circle'),
+                  ),
+                ],
+              ),
+          ],
+          bottom: joined
+              ? TabBar(
+                  controller: _tabController,
+                  tabs: const [
+                    Tab(text: 'Chat'),
+                    Tab(text: 'Streaks'),
+                    Tab(text: 'Challenge'),
                   ],
-                ),
-            ],
-            bottom: joined
-                ? const TabBar(
-                    tabs: [
-                      Tab(text: 'Chat'),
-                      Tab(text: 'Streaks'),
-                      Tab(text: 'Challenge'),
-                    ],
-                  )
-                : null,
-          ),
-          body: !joined
-              ? const SocialEmpty(
-                  Icons.people_outline_rounded,
-                  'You’ve left this circle',
-                  'Join again from Discover to see the conversation.',
                 )
-              : TabBarView(
-                  children: [
-                    CommunityConversation(
-                      state: state,
-                      service: service,
-                      room: group.id,
-                      isGroup: true,
-                    ),
-                    CommunityLeaderboard(
-                      state: state,
-                      service: service,
-                      group: group,
-                    ),
-                    _Challenge(state: state, group: group),
-                  ],
-                ),
+              : null,
         ),
+        body: !joined
+            ? const SocialEmpty(
+                Icons.people_outline_rounded,
+                'You’ve left this circle',
+                'Join again from Discover to see the conversation.',
+              )
+            : TabBarView(
+                controller: _tabController,
+                children: [
+                  CommunityConversation(
+                    state: widget.state,
+                    service: widget.service,
+                    room: widget.group.id,
+                    isGroup: true,
+                  ),
+                  CommunityLeaderboard(
+                    state: widget.state,
+                    service: widget.service,
+                    group: widget.group,
+                  ),
+                  _Challenge(state: widget.state, group: widget.group),
+                ],
+              ),
       );
     },
   );

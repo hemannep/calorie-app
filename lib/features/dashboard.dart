@@ -762,7 +762,8 @@ class _MacroProgress extends StatelessWidget {
 }
 
 class DashboardRingsSection extends StatefulWidget {
-  const DashboardRingsSection({super.key,
+  const DashboardRingsSection({
+    super.key,
     required this.state,
     required this.date,
     required this.activity,
@@ -787,6 +788,16 @@ class _DashboardRingsSectionState extends State<DashboardRingsSection> {
   int _currentPage = 0;
   final _pageKeys = [GlobalKey(), GlobalKey()];
   final _pageHeights = <int, double>{};
+  bool _measureQueued = false;
+
+  void _scheduleMeasure() {
+    if (_measureQueued) return;
+    _measureQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measureQueued = false;
+      _measurePages();
+    });
+  }
 
   void _measurePages() {
     if (!mounted) return;
@@ -818,74 +829,72 @@ class _DashboardRingsSectionState extends State<DashboardRingsSection> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _measurePages());
+    _scheduleMeasure();
     final pageHeight = _pageHeights[_currentPage] ?? 325.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedSize(
+        AnimatedContainer(
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
-          child: SizedBox(
-            height: pageHeight,
-            child: PageView(
-              key: const Key('today-rings-pageview'),
-              controller: _pageController,
-              clipBehavior: Clip.hardEdge,
-              pageSnapping: true,
-              physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
-              onPageChanged: (idx) => setState(() => _currentPage = idx),
-              children: [
-                // Page 0: Nutrition overview
-                OverflowBox(
-                  minHeight: 0,
-                  maxHeight: double.infinity,
-                  alignment: Alignment.topCenter,
-                  child: Column(
-                    key: _pageKeys[0],
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _CalorieSummary(state: widget.state, date: widget.date),
-                      const SizedBox(height: 12),
-                      _MacroProgress(
-                        state: widget.state,
-                        date: widget.date,
-                        compact: true,
-                      ),
-                    ],
-                  ),
+          height: pageHeight,
+          child: PageView(
+            key: const Key('today-rings-pageview'),
+            controller: _pageController,
+            clipBehavior: Clip.hardEdge,
+            pageSnapping: true,
+            physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+            onPageChanged: (idx) => setState(() => _currentPage = idx),
+            children: [
+              // Page 0: Nutrition overview
+              OverflowBox(
+                minHeight: 0,
+                maxHeight: double.infinity,
+                alignment: Alignment.topCenter,
+                child: Column(
+                  key: _pageKeys[0],
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _CalorieSummary(state: widget.state, date: widget.date),
+                    const SizedBox(height: 12),
+                    _MacroProgress(
+                      state: widget.state,
+                      date: widget.date,
+                      compact: true,
+                    ),
+                  ],
                 ),
-                // Page 1: Health & Activity overview
-                OverflowBox(
-                  minHeight: 0,
-                  maxHeight: double.infinity,
-                  alignment: Alignment.topCenter,
-                  child: Column(
-                    key: _pageKeys[1],
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _StepSummary(
-                        state: widget.state,
-                        date: widget.date,
-                        activity: widget.activity,
-                        onTap: widget.onSetStepGoal,
-                        onConnectHealth: widget.onConnectHealth,
-                        onSelectHealthSource: widget.onSelectHealthSource,
-                      ),
-                      const SizedBox(height: 12),
-                      _ActivityProgress(
-                        state: widget.state,
-                        activity: widget.activity,
-                      ),
-                    ],
-                  ),
+              ),
+              // Page 1: Health & Activity overview
+              OverflowBox(
+                minHeight: 0,
+                maxHeight: double.infinity,
+                alignment: Alignment.topCenter,
+                child: Column(
+                  key: _pageKeys[1],
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _StepSummary(
+                      state: widget.state,
+                      date: widget.date,
+                      activity: widget.activity,
+                      onTap: widget.onSetStepGoal,
+                      onConnectHealth: widget.onConnectHealth,
+                      onSelectHealthSource: widget.onSelectHealthSource,
+                    ),
+                    const SizedBox(height: 12),
+                    _ActivityProgress(
+                      state: widget.state,
+                      activity: widget.activity,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
