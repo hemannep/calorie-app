@@ -21,6 +21,15 @@ abstract interface class AccountAuthRepository implements AuthRepository {
   Future<void> resetPassword(String email);
 }
 
+/// Capabilities for password accounts that must verify their email address.
+abstract interface class EmailVerificationRepository {
+  bool get requiresEmailVerification;
+  String? get verificationEmail;
+  Future<void> resendEmailVerification();
+  Future<bool> refreshEmailVerification();
+  Future<AppState?> activateVerifiedUser();
+}
+
 abstract interface class AppleAuthRepository {
   Future<AppState?> signInWithApple();
 }

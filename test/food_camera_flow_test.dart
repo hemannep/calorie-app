@@ -197,7 +197,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2));
     await tester.pumpAndSettle();
     expect(find.byType(SplashScreen), findsNothing);
-    expect(find.text('Welcome to your day.'), findsOneWidget);
+    expect(find.text('Welcome back.'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 }

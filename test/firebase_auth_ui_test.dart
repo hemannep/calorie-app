@@ -7,6 +7,7 @@ import 'package:calorie_app/features/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeAccountAuth implements AccountAuthRepository, AppleAuthRepository {
   final apple = Completer<AppState?>();
@@ -41,6 +42,41 @@ class FakeAccountAuth implements AccountAuthRepository, AppleAuthRepository {
       throw StateError('Duplicate email');
   @override
   Future<void> signOut() async {}
+}
+
+class FakeVerificationAuth
+    implements AuthRepository, EmailVerificationRepository {
+  FakeVerificationAuth(this.state);
+  final AppState state;
+  bool pending = true, verified = false;
+  int resendCalls = 0;
+
+  @override
+  bool get requiresEmailVerification => pending;
+  @override
+  String? get verificationEmail => 'new@example.test';
+  @override
+  Future<void> resendEmailVerification() async {
+    resendCalls++;
+  }
+
+  @override
+  Future<bool> refreshEmailVerification() async {
+    if (verified) pending = false;
+    return verified;
+  }
+
+  @override
+  Future<AppState?> activateVerifiedUser() async => verified ? state : null;
+  @override
+  Future<AppState?> restore() async => null;
+  @override
+  Future<AppState> signIn(String email, String password) async => state;
+  @override
+  Future<AppState> register(String name, String email, String password) async =>
+      state;
+  @override
+  Future<void> signOut() async => pending = false;
 }
 
 void main() {
@@ -143,7 +179,7 @@ void main() {
             .onPressed,
         isNotNull,
       );
-      expect(find.text('Welcome to your day.'), findsOneWidget);
+      expect(find.text('Welcome back.'), findsOneWidget);
     },
   );
   testWidgets(
@@ -160,16 +196,99 @@ void main() {
       await tester.tap(find.text('Forgot password?'));
       await tester.pumpAndSettle();
       expect(repo.resetEmail, null);
-      expect(find.text('Enter your email address first.'), findsOneWidget);
+      expect(find.text('Reset your password.'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('send-reset-email')));
+      await tester.pumpAndSettle();
+      expect(find.text('Enter a valid email'), findsOneWidget);
       await tester.enterText(
-        find.byType(TextFormField).first,
+        find.byKey(const Key('reset-email')),
         'owner@example.test',
       );
-      await tester.ensureVisible(find.text('Forgot password?'));
-      await tester.tap(find.text('Forgot password?'));
+      await tester.tap(find.byKey(const Key('send-reset-email')));
       await tester.pumpAndSettle();
       expect(repo.resetEmail, 'owner@example.test');
       expect(find.textContaining('If an account exists'), findsOneWidget);
+      expect(find.text('Check your email.'), findsOneWidget);
     },
   );
+
+  testWidgets('registration mode is usable on a compact phone', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: kayleoTheme(),
+        home: AuthScreen(
+          repository: FakeAccountAuth(),
+          onAuthenticated: (_) {},
+        ),
+      ),
+    );
+    await tester.tap(find.text('Create account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Create your space.'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Your name'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextFormField, 'Confirm password'),
+      findsOneWidget,
+    );
+    expect(find.text('Create my account'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('login and registration switch with horizontal swipes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: kayleoTheme(),
+        home: AuthScreen(
+          repository: FakeAccountAuth(),
+          onAuthenticated: (_) {},
+        ),
+      ),
+    );
+    await tester.dragFrom(const Offset(400, 300), const Offset(-280, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Create your space.'), findsOneWidget);
+    await tester.dragFrom(const Offset(400, 300), const Offset(280, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome back.'), findsOneWidget);
+  });
+
+  testWidgets('pending email verification supports resend and refresh', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = await AppState.load();
+    final repo = FakeVerificationAuth(state);
+    AppState? authenticated;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: kayleoTheme(),
+        home: AuthScreen(
+          repository: repo,
+          onAuthenticated: (value) => authenticated = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Verify your email.'), findsOneWidget);
+    expect(find.text('new@example.test'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('verification-resend')));
+    await tester.tap(find.byKey(const Key('verification-resend')));
+    await tester.pumpAndSettle();
+    expect(repo.resendCalls, 1);
+    repo.verified = true;
+    await tester.ensureVisible(find.byKey(const Key('verification-refresh')));
+    await tester.tap(find.byKey(const Key('verification-refresh')));
+    await tester.pumpAndSettle();
+    expect(authenticated, same(state));
+    await tester.pumpWidget(const SizedBox());
+    state.dispose();
+  });
 }

@@ -7,7 +7,10 @@ import 'auth_repository.dart';
 
 /// Firebase owns credentials and sessions; the local diary is isolated by UID.
 class FirebaseAuthRepository
-    implements AccountAuthRepository, AppleAuthRepository {
+    implements
+        AccountAuthRepository,
+        AppleAuthRepository,
+        EmailVerificationRepository {
   FirebaseAuthRepository({this._auth});
   static final instance = FirebaseAuthRepository();
   final FirebaseAuth? _auth;
@@ -30,7 +33,7 @@ class FirebaseAuthRepository
   @override
   Future<AppState?> restore() async {
     final user = await auth.authStateChanges().first;
-    return user == null ? null : _activate(user);
+    return user == null || requiresEmailVerification ? null : _activate(user);
   }
 
   @override
@@ -53,6 +56,46 @@ class FirebaseAuthRepository
     );
     final user = result.user!;
     await user.updateDisplayName(name.trim());
+    try {
+      await user.sendEmailVerification();
+    } on FirebaseAuthException {
+      // The account exists even if initial delivery fails. The verification
+      // screen provides a safe, explicit retry without creating a duplicate.
+    }
+    return _activate(user);
+  }
+
+  bool _isPasswordUser(User user) =>
+      user.providerData.any((provider) => provider.providerId == 'password');
+
+  @override
+  bool get requiresEmailVerification {
+    final user = auth.currentUser;
+    return user != null && _isPasswordUser(user) && !user.emailVerified;
+  }
+
+  @override
+  String? get verificationEmail => auth.currentUser?.email;
+
+  @override
+  Future<void> resendEmailVerification() async {
+    final user = auth.currentUser;
+    if (user == null || !_isPasswordUser(user) || user.emailVerified) return;
+    await user.sendEmailVerification();
+  }
+
+  @override
+  Future<bool> refreshEmailVerification() async {
+    final user = auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return auth.currentUser?.emailVerified ?? false;
+  }
+
+  @override
+  Future<AppState?> activateVerifiedUser() async {
+    final user = auth.currentUser;
+    if (user == null || requiresEmailVerification) return null;
     return _activate(user);
   }
 

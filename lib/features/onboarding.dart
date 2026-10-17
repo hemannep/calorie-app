@@ -106,172 +106,220 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 850;
     return Scaffold(
-      body: SafeArea(
-        child: Row(
-          children: [
-            if (wide) Expanded(child: _illustration(true)),
-            Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(wide ? 60 : KayleoSpacing.xl),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!wide) ...[
-                          Row(
-                            children: [
-                              if (step < 3)
-                                SizedBox(
-                                  width: 48,
-                                  child: step > 0
-                                      ? IconButton(
-                                          onPressed: saving ? null : previous,
-                                          tooltip: 'Previous step',
-                                          icon: Icon(Icons.arrow_back_rounded),
-                                        )
-                                      : null,
-                                ),
-                              Expanded(
-                                child: Align(
-                                  alignment: step < 3
-                                      ? Alignment.center
-                                      : Alignment.centerLeft,
-                                  child: const Brand(size: 30),
-                                ),
-                              ),
-                              if (step < 3) const SizedBox(width: 48),
-                            ],
-                          ),
-                          const SizedBox(height: KayleoSpacing.lg),
-                          if (step < 3)
-                            ExcludeSemantics(
-                              child: SizedBox(
-                                height: 252,
-                                child: _illustration(false),
-                              ),
-                            ),
-                          const SizedBox(height: KayleoSpacing.xl),
-                        ],
-                        if (step >= 3 || wide)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  step < 3 ? 'MEET KAYLEO' : 'MAKE IT YOURS',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    letterSpacing: 1.2,
-                                    fontWeight: FontWeight.w800,
-                                    color: context.kayleoPrimary,
-                                  ),
-                                ),
-                              ),
-                              if (step > 0 && step != 6)
-                                IconButton(
-                                  onPressed: saving ? null : previous,
-                                  tooltip: 'Previous step',
-                                  icon: Icon(
-                                    Icons.arrow_back_rounded,
-                                    size: 20,
-                                  ),
-                                ),
-                              Semantics(
-                                label: 'Step ${step + 1} of 8',
-                                excludeSemantics: true,
-                                child: Text(
-                                  '${step + 1} / 8',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: context.kayleoMuted,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        if (step >= 3 || wide)
-                          const SizedBox(height: KayleoSpacing.card),
-                        _content(),
-                        const SizedBox(height: KayleoSpacing.xxl),
-                        if (step != 6)
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              key: const Key('onboarding-continue'),
-                              onPressed: saving ? null : next,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: lime,
-                                foregroundColor: forest,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: _OnboardingBackdrop()),
+          SafeArea(
+            child: Row(
+              children: [
+                if (wide) Expanded(child: _illustration(true)),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.all(wide ? 60 : KayleoSpacing.xl),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (!wide) ...[
+                              Row(
                                 children: [
-                                  Flexible(
-                                    child: Text(
-                                      saving
-                                          ? 'Preparing your space…'
-                                          : step == 7
-                                          ? 'Let’s start your day'
-                                          : step == 0
-                                          ? 'Get started'
-                                          : 'Continue',
-                                      textAlign: TextAlign.center,
+                                  if (step < 3)
+                                    SizedBox(
+                                      width: 48,
+                                      child: step > 0
+                                          ? IconButton(
+                                              onPressed: saving
+                                                  ? null
+                                                  : previous,
+                                              tooltip: 'Previous step',
+                                              icon: Icon(
+                                                Icons.arrow_back_rounded,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                  Expanded(
+                                    child: Align(
+                                      alignment: step < 3
+                                          ? Alignment.center
+                                          : Alignment.centerLeft,
+                                      child: const Brand(size: 30),
                                     ),
                                   ),
-                                  const SizedBox(width: KayleoSpacing.md),
-                                  Icon(Icons.arrow_forward_rounded, size: 18),
+                                  if (step < 3) const SizedBox(width: 48),
                                 ],
                               ),
-                            ),
-                          ),
-                        const SizedBox(height: KayleoSpacing.md),
-                        if (step < 3)
-                          Center(
-                            child: TextButton(
-                              key: const Key('explore-demo'),
-                              onPressed: saving
-                                  ? null
-                                  : () => complete(demo: true),
-                              child: Text(
-                                'Explore with sample data',
-                                style: TextStyle(
-                                  color: context.kayleoMuted,
-                                  fontSize: 12,
+                              const SizedBox(height: KayleoSpacing.lg),
+                              if (step < 3)
+                                ExcludeSemantics(
+                                  child: SizedBox(
+                                    height: 252,
+                                    child: _illustration(false),
+                                  ),
+                                ),
+                              const SizedBox(height: KayleoSpacing.xl),
+                            ],
+                            if (step >= 3 || wide) ...[
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      step < 3
+                                          ? 'MEET KAYLEO'
+                                          : 'MAKE IT YOURS',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        letterSpacing: 1.2,
+                                        fontWeight: FontWeight.w800,
+                                        color: context.kayleoPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  if (step > 0 && step != 6)
+                                    IconButton(
+                                      onPressed: saving ? null : previous,
+                                      tooltip: 'Previous step',
+                                      icon: Icon(
+                                        Icons.arrow_back_rounded,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  Semantics(
+                                    label: 'Step ${step + 1} of 8',
+                                    excludeSemantics: true,
+                                    child: Text(
+                                      '${step + 1} / 8',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: context.kayleoMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: KayleoSpacing.md),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(99),
+                                child: LinearProgressIndicator(
+                                  value: (step + 1) / 8,
+                                  minHeight: 4,
+                                  backgroundColor:
+                                      context.kayleoSurfaces.border,
+                                  color: context.kayleoPrimary,
                                 ),
                               ),
-                            ),
-                          ),
-                        const SizedBox(height: KayleoSpacing.card),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.lock_outline_rounded,
-                              color: context.kayleoMuted,
-                              size: 13,
-                            ),
-                            const SizedBox(width: 7),
-                            Flexible(
-                              child: Text(
-                                'Your plan is always yours to adjust.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: context.kayleoMuted,
-                                ),
-                                textAlign: TextAlign.center,
+                              const SizedBox(height: KayleoSpacing.card),
+                            ],
+                            AnimatedSwitcher(
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 240),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(.025, .015),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
+                                  ),
+                              child: KeyedSubtree(
+                                key: ValueKey(step),
+                                child: _content(),
                               ),
+                            ),
+                            const SizedBox(height: KayleoSpacing.xxl),
+                            if (step != 6)
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  key: const Key('onboarding-continue'),
+                                  onPressed: saving ? null : next,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: lime,
+                                    foregroundColor: forest,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          saving
+                                              ? 'Preparing your space…'
+                                              : step == 7
+                                              ? 'Let’s start your day'
+                                              : step == 0
+                                              ? 'Get started'
+                                              : 'Continue',
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                      const SizedBox(width: KayleoSpacing.md),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 18,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: KayleoSpacing.md),
+                            if (step < 3)
+                              Center(
+                                child: TextButton(
+                                  key: const Key('explore-demo'),
+                                  onPressed: saving
+                                      ? null
+                                      : () => complete(demo: true),
+                                  child: Text(
+                                    'Explore with sample data',
+                                    style: TextStyle(
+                                      color: context.kayleoMuted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: KayleoSpacing.card),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.lock_outline_rounded,
+                                  color: context.kayleoMuted,
+                                  size: 13,
+                                ),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    'Your plan is always yours to adjust.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: context.kayleoMuted,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -989,7 +1037,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           child: Row(
             children: [
-              Icon(icon, color: context.kayleoPrimary, size: 23),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? context.kayleoPrimary
+                      : context.kayleoSurfaces.soft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  icon,
+                  color: selected
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : context.kayleoPrimary,
+                  size: 21,
+                ),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -1041,5 +1105,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ? '$min–$max'
           : null;
     },
+  );
+}
+
+class _OnboardingBackdrop extends StatelessWidget {
+  const _OnboardingBackdrop();
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topRight,
+        end: Alignment.bottomLeft,
+        colors: [
+          context.kayleoBackground,
+          context.kayleoSurfaces.soft.withValues(alpha: .18),
+          context.kayleoBackground,
+        ],
+      ),
+    ),
   );
 }
