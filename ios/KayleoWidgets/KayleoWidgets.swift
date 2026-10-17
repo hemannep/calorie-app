@@ -3,39 +3,67 @@ import WidgetKit
 import AppIntents
 import UIKit
 
-private let ink = Color.primary
-private let lime = Color(red: 0.086, green: 0.243, blue: 0.176)
-private let actionFill = Color(red: 0.722, green: 0.890, blue: 0.420)
-private let cream = Color.primary
-private let muted = Color.secondary
-private let proteinColor = Color(red: 0.941, green: 0.471, blue: 0.580)
-private let carbColor = Color(red: 0.945, green: 0.725, blue: 0.388)
-private let fatColor = Color(red: 0.604, green: 0.490, blue: 0.867)
-private let cardGradient = LinearGradient(
-    colors: [Color(red: 0.988, green: 0.980, blue: 0.957), Color.white],
-    startPoint: .topLeading,
-    endPoint: .bottomTrailing
-)
+private func rgb(_ hex: UInt32) -> UIColor {
+    UIColor(red: CGFloat((hex >> 16) & 255) / 255,
+            green: CGFloat((hex >> 8) & 255) / 255,
+            blue: CGFloat(hex & 255) / 255, alpha: 1)
+}
 
-private extension View {
-    @ViewBuilder func kayleoBackground() -> some View {
-        if #available(iOS 17.0, *) {
-            self.containerBackground(Color(uiColor: .systemBackground), for: .widget)
-        } else {
-            self.background(Color(uiColor: .systemBackground))
-        }
+// Resolve concrete colors from the app preference, not UIKit's host traits.
+// WidgetKit can render the background separately from the content.
+private struct WidgetPalette {
+    var dark = false
+    func color(_ light: UInt32, _ darkValue: UInt32) -> Color {
+        Color(uiColor: rgb(dark ? darkValue : light))
+    }
+    var text: Color { color(0x163E2D, 0xF5F7F1) }
+    var muted: Color { color(0x626E64, 0xB5C1B7) }
+    var background: Color { color(0xFCFAF4, 0x1D1B24) }
+    var border: Color { color(0xE2E6DC, 0x302D38) }
+    var tile: Color { color(0xE4EBDD, 0x292630) }
+    var track: Color { color(0xE4EBDD, 0x403C49) }
+    var accent: Color { color(0x163E2D, 0xB8E36B) }
+    var protein: Color { color(0xB23858, 0xF07894) }
+    var carbs: Color { color(0x8A5B12, 0xF1B963) }
+    var fat: Color { color(0x7250AD, 0x9A7DDD) }
+}
+
+private struct WidgetPaletteKey: EnvironmentKey {
+    static let defaultValue = WidgetPalette()
+}
+private extension EnvironmentValues {
+    var widgetPalette: WidgetPalette {
+        get { self[WidgetPaletteKey.self] }
+        set { self[WidgetPaletteKey.self] = newValue }
     }
 }
 
-@ViewBuilder
-private func widgetTheme<Content: View>(_ content: Content, appearance: String) -> some View {
-    if appearance == "dark" {
-        content.environment(\.colorScheme, .dark)
-    } else if appearance == "light" {
-        content.environment(\.colorScheme, .light)
-    } else {
+private let ink = Color(uiColor: rgb(0x163E2D))
+private let actionFill = Color(uiColor: rgb(0xB8E36B))
+private let carbColor = Color(uiColor: rgb(0xF1B963))
+
+private struct ThemedWidget<Content: View>: View {
+    let content: Content
+    let appearance: String
+    @Environment(\.colorScheme) private var systemScheme
+
+    var body: some View {
+        let dark = appearance == "dark" || (appearance == "system" && systemScheme == .dark)
+        let palette = WidgetPalette(dark: dark)
         content
+            .environment(\.widgetPalette, palette)
+            .environment(\.colorScheme, dark ? .dark : .light)
+            .containerBackground(for: .widget) {
+                ContainerRelativeShape().fill(palette.background)
+                    .overlay {
+                        ContainerRelativeShape().strokeBorder(palette.border, lineWidth: 1)
+                    }
+            }
     }
+}
+
+private func widgetTheme<Content: View>(_ content: Content, appearance: String) -> some View {
+    ThemedWidget(content: content, appearance: appearance)
 }
 
 private struct KayleoEntry: TimelineEntry {
@@ -120,14 +148,15 @@ private struct KayleoProvider: TimelineProvider {
 private func url(_ action: String) -> URL { URL(string: "kayleo://widget/\(action)")! }
 
 private struct BrandHeader: View {
+    @Environment(\.widgetPalette) private var palette
     let title: String
     var body: some View {
         HStack(spacing: 4) {
-            Text("Kayleo").foregroundColor(lime)
+            Text("Kayleo").foregroundColor(palette.text)
             Spacer(minLength: 1)
-            Text(title).foregroundColor(muted)
+            Text(title).font(.system(size: 8, weight: .bold)).foregroundColor(palette.muted)
         }
-        .font(.system(size: 9, weight: .heavy, design: .rounded))
+        .font(.system(size: 10, weight: .bold))
         .tracking(0)
         .lineLimit(1)
     }
@@ -145,19 +174,19 @@ struct ToggleWidgetCalories: AppIntent {
 }
 
 private struct Ring: View {
+    @Environment(\.widgetPalette) private var palette
     let value: Int
     let target: Int
     let color: Color
     var lineWidth: CGFloat = 8
     var segmented = false
     private var ratio: CGFloat { CGFloat(value) / CGFloat(max(1, target)) }
-    private let track = Color(red: 0.894, green: 0.922, blue: 0.867)
     var body: some View {
         ZStack {
             ZStack {
-                Circle().stroke(track, lineWidth: lineWidth)
+                Circle().stroke(palette.track, lineWidth: lineWidth)
                 if segmented {
-                    segment(0, 0.3, ink)
+                    segment(0, 0.3, palette.accent)
                     segment(0.3, 0.7, Color(red: 0.420, green: 0.624, blue: 0.322))
                     segment(0.7, 1, actionFill)
                 } else {
@@ -167,7 +196,7 @@ private struct Ring: View {
                 }
             }.padding(segmented && ratio > 1 ? lineWidth + 3 : 0)
             if segmented && ratio > 1 {
-                Circle().stroke(track, lineWidth: lineWidth)
+                Circle().stroke(palette.track, lineWidth: lineWidth)
                 Circle().trim(from: 0, to: min(1, ratio - 1))
                     .stroke(carbColor, lineWidth: lineWidth).rotationEffect(.degrees(-90))
             }
@@ -182,23 +211,24 @@ private struct Ring: View {
 }
 
 private struct CaloriesView: View {
+    @Environment(\.widgetPalette) private var palette
     let entry: KayleoEntry
     var body: some View {
       GeometryReader { geometry in
-        let ringSize = max(68, min(100, geometry.size.height - 72))
+        let ringSize = max(40, min(geometry.size.width - 20, geometry.size.height - 70))
         VStack(spacing: 3) {
             BrandHeader(title: "Calories")
             Spacer(minLength: 0)
             Button(intent: ToggleWidgetCalories()) {
               ZStack {
-                Ring(value: entry.calories, target: entry.calorieTarget, color: lime, segmented: true)
+                Ring(value: entry.calories, target: entry.calorieTarget, color: palette.text, segmented: true)
                 VStack(spacing: 0) {
                     Text(entry.calorieLabel)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .bold))
                         .minimumScaleFactor(0.6).lineLimit(1)
                     Text(entry.targetLabel)
                         .font(.system(size: 8, weight: .medium))
-                        .foregroundColor(muted).minimumScaleFactor(0.5).lineLimit(1)
+                        .foregroundColor(palette.muted).minimumScaleFactor(0.5).lineLimit(1)
                 }
                 .frame(width: min(78, ringSize - (entry.calories > entry.calorieTarget ? 32 : 16)))
             }
@@ -213,26 +243,27 @@ private struct CaloriesView: View {
                     .foregroundColor(ink)
             }
         }
-        .padding(11).frame(maxWidth: .infinity, maxHeight: .infinity)
-        .kayleoBackground().foregroundColor(cream)
-        .widgetURL(url("photo"))
+        .padding(10).frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundColor(palette.text)
+        .widgetURL(url("today"))
       }
     }
 }
 
 private struct BarcodeView: View {
+    @Environment(\.widgetPalette) private var palette
     var body: some View {
         VStack(spacing: 3) {
             BrandHeader(title: "Barcode")
             Spacer(minLength: 0)
             Image(systemName: "barcode.viewfinder")
-                .font(.system(size: 34, weight: .light))
-                .foregroundColor(lime)
-                .frame(width: 65, height: 65)
-                .background(Color(red: 0.894, green: 0.922, blue: 0.867), in: RoundedRectangle(cornerRadius: 17))
+                .resizable().scaledToFit().padding(10)
+                .foregroundColor(palette.text)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(palette.tile, in: RoundedRectangle(cornerRadius: 17))
             Text("Food labels, faster")
                 .font(.system(size: 9, weight: .medium))
-                .foregroundColor(muted).lineLimit(1)
+                .foregroundColor(palette.muted).lineLimit(1)
             Spacer(minLength: 0)
             Text("Scan barcode")
                 .font(.system(size: 10, weight: .bold))
@@ -240,55 +271,98 @@ private struct BarcodeView: View {
                 .background(actionFill, in: RoundedRectangle(cornerRadius: 12))
                 .foregroundColor(ink)
         }
-        .padding(11).frame(maxWidth: .infinity, maxHeight: .infinity)
-        .kayleoBackground().foregroundColor(cream)
+        .padding(10).frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundColor(palette.text)
         .widgetURL(url("barcode"))
     }
 }
 
 private struct StreakView: View {
+    @Environment(\.widgetPalette) private var palette
     let entry: KayleoEntry
+
     var body: some View {
-        VStack(spacing: 1) {
-            BrandHeader(title: "Streak")
-            Spacer(minLength: 0)
-            ZStack {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 57, weight: .regular))
-                    .foregroundStyle(LinearGradient(colors: [.orange, Color(red: 1, green: 0.72, blue: 0.42)], startPoint: .top, endPoint: .bottom))
-                Text("\(entry.streak)")
-                    .font(.system(size: 23, weight: .heavy, design: .rounded))
-                    .foregroundColor(Color(red: 0.20, green: 0.15, blue: 0.10))
-                    .offset(y: 10)
-            }
-            .frame(height: 65)
-            Spacer(minLength: 0)
-            Text("day streak")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .tracking(0.6)
-            Text(entry.ready ? (entry.loggedToday ? "Logged today · well done" : (entry.streak == 0 ? "Log a meal to start" : "Log today to continue")) : "Open Kayleo to begin")
-                .font(.system(size: 8, weight: .medium))
-                .foregroundColor(muted).lineLimit(1)
-            HStack(spacing: 0) {
-                ForEach(0..<7, id: \.self) { index in
-                    let done = Array(entry.weekLogged).indices.contains(index) && Array(entry.weekLogged)[index] == "1"
-                    Text(["M", "T", "W", "T", "F", "S", "S"][index])
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundColor(done ? .white : muted)
-                        .frame(width: 15, height: 15)
-                        .background(done ? Color.orange.opacity(0.75) : Color(red: 0.894, green: 0.922, blue: 0.867), in: Circle())
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.top, 5)
+        Image(uiImage: streakArtwork(entry.streak, dark: palette.dark))
+            .resizable().scaledToFit()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            .accessibilityLabel("Kayleo: \(entry.streak) day meal logging streak. Tap to view progress.")
+            .widgetURL(url("streak"))
+    }
+}
+
+// Uses the same 600 × 600 drawing coordinates and colors as Android.
+private func streakArtwork(_ streak: Int, dark: Bool) -> UIImage {
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    return UIGraphicsImageRenderer(size: CGSize(width: 600, height: 600), format: format).image { renderer in
+        let context = renderer.cgContext
+        let background = rgb(dark ? 0x1D1B24 : 0xFCFAF4)
+        func fillFlame(_ path: UIBezierPath, top: UInt32, bottom: UInt32) {
+            context.saveGState()
+            path.addClip()
+            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                      colors: [rgb(top).cgColor, rgb(bottom).cgColor] as CFArray,
+                                      locations: [0, 1])!
+            context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 80),
+                                       end: CGPoint(x: 0, y: 440), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+            context.restoreGState()
         }
-        .padding(11).frame(maxWidth: .infinity, maxHeight: .infinity)
-        .kayleoBackground().foregroundColor(cream)
-        .widgetURL(url("streak"))
+        let flame0 = UIBezierPath()
+        flame0.move(to: CGPoint(x: 284, y: 84))
+        flame0.addCurve(to: CGPoint(x: 370, y: 215), controlPoint1: CGPoint(x: 350, y: 108), controlPoint2: CGPoint(x: 380, y: 166))
+        flame0.addCurve(to: CGPoint(x: 400, y: 156), controlPoint1: CGPoint(x: 398, y: 198), controlPoint2: CGPoint(x: 403, y: 173))
+        flame0.addCurve(to: CGPoint(x: 429, y: 361), controlPoint1: CGPoint(x: 461, y: 219), controlPoint2: CGPoint(x: 469, y: 302))
+        flame0.addCurve(to: CGPoint(x: 293, y: 422), controlPoint1: CGPoint(x: 401, y: 407), controlPoint2: CGPoint(x: 347, y: 432))
+        flame0.addCurve(to: CGPoint(x: 174, y: 296), controlPoint1: CGPoint(x: 217, y: 418), controlPoint2: CGPoint(x: 168, y: 363))
+        flame0.addCurve(to: CGPoint(x: 224, y: 190), controlPoint1: CGPoint(x: 178, y: 250), controlPoint2: CGPoint(x: 201, y: 218))
+        flame0.addCurve(to: CGPoint(x: 246, y: 244), controlPoint1: CGPoint(x: 217, y: 229), controlPoint2: CGPoint(x: 235, y: 237))
+        flame0.addCurve(to: CGPoint(x: 284, y: 84), controlPoint1: CGPoint(x: 276, y: 193), controlPoint2: CGPoint(x: 301, y: 143))
+        flame0.close()
+        fillFlame(flame0, top: 0xFFB530, bottom: 0xEF8044)
+        let flame1 = UIBezierPath()
+        flame1.move(to: CGPoint(x: 305, y: 225))
+        flame1.addCurve(to: CGPoint(x: 331, y: 292), controlPoint1: CGPoint(x: 332, y: 253), controlPoint2: CGPoint(x: 337, y: 273))
+        flame1.addCurve(to: CGPoint(x: 359, y: 258), controlPoint1: CGPoint(x: 350, y: 282), controlPoint2: CGPoint(x: 359, y: 270))
+        flame1.addCurve(to: CGPoint(x: 354, y: 377), controlPoint1: CGPoint(x: 392, y: 301), controlPoint2: CGPoint(x: 385, y: 355))
+        flame1.addCurve(to: CGPoint(x: 253, y: 363), controlPoint1: CGPoint(x: 322, y: 398), controlPoint2: CGPoint(x: 276, y: 394))
+        flame1.addCurve(to: CGPoint(x: 274, y: 272), controlPoint1: CGPoint(x: 225, y: 326), controlPoint2: CGPoint(x: 252, y: 290))
+        flame1.addCurve(to: CGPoint(x: 287, y: 310), controlPoint1: CGPoint(x: 271, y: 294), controlPoint2: CGPoint(x: 278, y: 305))
+        flame1.addCurve(to: CGPoint(x: 305, y: 225), controlPoint1: CGPoint(x: 303, y: 281), controlPoint2: CGPoint(x: 312, y: 257))
+        flame1.close()
+        fillFlame(flame1, top: 0xFFEEA4, bottom: 0xFFCC6F)
+        rgb(0xFFD696).setFill()
+        let stars: [(CGFloat, CGFloat, CGFloat)] = [(124, 161, 26), (466, 117, 32), (119, 289, 12)]
+        for (x, y, radius) in stars {
+            let star = UIBezierPath()
+            let points: [(CGFloat, CGFloat)] = [(0, -1), (0.3, -0.3), (1, 0), (0.3, 0.3), (0, 1), (-0.3, 0.3), (-1, 0), (-0.3, -0.3)]
+            for (index, point) in points.enumerated() {
+                let position = CGPoint(x: x + point.0 * radius, y: y + point.1 * radius)
+                if index == 0 { star.move(to: position) } else { star.addLine(to: position) }
+            }
+            star.close()
+            star.fill()
+        }
+        let size: CGFloat = streak < 100 ? 204 : 156
+        let baseFont = UIFont.systemFont(ofSize: size, weight: .bold)
+        let font = UIFont(descriptor: baseFont.fontDescriptor.withSymbolicTraits([.traitBold, .traitCondensed]) ?? baseFont.fontDescriptor, size: size)
+        let number = String(streak) as NSString
+        let width = number.size(withAttributes: [.font: font]).width
+        let origin = CGPoint(x: (600 - width) / 2, y: 493 - font.ascender)
+        // Background halo, peach outline, then hollow fill, matching Android.
+        number.draw(at: origin, withAttributes: [.font: font, .strokeColor: background, .strokeWidth: 22 / size * 100])
+        number.draw(at: origin, withAttributes: [.font: font, .strokeColor: rgb(0xEFAB77), .strokeWidth: 10 / size * 100])
+        number.draw(at: origin, withAttributes: [.font: font, .foregroundColor: background])
+        let brand = "Kayleo" as NSString
+        let brandFont = UIFont.systemFont(ofSize: 23, weight: .bold)
+        let brandWidth = brand.size(withAttributes: [.font: brandFont]).width
+        brand.draw(at: CGPoint(x: (600 - brandWidth) / 2, y: 558 - brandFont.ascender),
+                   withAttributes: [.font: brandFont, .foregroundColor: rgb(dark ? 0xDED1C2 : 0x5B4F42)])
     }
 }
 
 private struct MacroRow: View {
+    @Environment(\.widgetPalette) private var palette
     let title: String
     let value: Int
     let target: Int
@@ -301,8 +375,8 @@ private struct MacroRow: View {
                 .frame(width: 26, height: 26)
             VStack(alignment: .leading, spacing: 1) {
                 Text(ready ? "\(abs(target - value))g" : "—")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .tracking(0).foregroundColor(cream)
+                    .font(.system(size: 17, weight: .bold))
+                    .tracking(0).foregroundColor(palette.text)
                 Text("\(title) \(value > target ? "over" : "left")")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundColor(color).lineLimit(1)
@@ -313,59 +387,60 @@ private struct MacroRow: View {
 }
 
 private struct RingsView: View {
+    @Environment(\.widgetPalette) private var palette
     let entry: KayleoEntry
     var body: some View {
       GeometryReader { geometry in
-        VStack(spacing: 5) {
-            BrandHeader(title: "Calories")
+        VStack(spacing: 4) {
+            BrandHeader(title: "TODAY")
             Spacer(minLength: 0)
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 Button(intent: ToggleWidgetCalories()) {
                   ZStack {
-                    Ring(value: entry.calories, target: entry.calorieTarget, color: lime, segmented: true)
+                    Ring(value: entry.calories, target: entry.calorieTarget, color: palette.text, segmented: true)
                     VStack(spacing: 0) {
                         Text(entry.calorieLabel)
-                            .font(.system(size: 27, weight: .bold, design: .rounded))
+                            .font(.system(size: geometry.size.width < 310 ? 22 : 28, weight: .bold))
                             .minimumScaleFactor(0.7).lineLimit(1)
                         Text(entry.targetLabel)
                             .font(.system(size: 8, weight: .medium))
-                            .foregroundColor(muted).lineLimit(1)
+                            .foregroundColor(palette.muted).lineLimit(1)
                     }
-                    .frame(width: 86)
+                    .frame(width: max(60, (geometry.size.width - 34) * 0.44 - 24))
                 }
                 }.buttonStyle(.plain)
-                .frame(width: min(124, geometry.size.width * 0.36), height: min(124, geometry.size.width * 0.36))
+                .frame(width: (geometry.size.width - 34) * 0.44, height: min(geometry.size.height - 42, (geometry.size.width - 34) * 0.44))
 
-                VStack(alignment: .leading, spacing: 13) {
-                    MacroRow(title: "Protein", value: entry.protein, target: entry.proteinTarget, ready: entry.ready, color: proteinColor)
-                    MacroRow(title: "Carbs", value: entry.carbs, target: entry.carbTarget, ready: entry.ready, color: carbColor)
-                    MacroRow(title: "Fat", value: entry.fat, target: entry.fatTarget, ready: entry.ready, color: fatColor)
+                VStack(alignment: .leading, spacing: 0) {
+                    MacroRow(title: "Protein", value: entry.protein, target: entry.proteinTarget, ready: entry.ready, color: palette.protein).frame(maxHeight: .infinity)
+                    MacroRow(title: "Carbs", value: entry.carbs, target: entry.carbTarget, ready: entry.ready, color: palette.carbs).frame(maxHeight: .infinity)
+                    MacroRow(title: "Fat", value: entry.fat, target: entry.fatTarget, ready: entry.ready, color: palette.fat).frame(maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: (geometry.size.width - 34) * 0.35)
 
-                VStack(spacing: 5) {
+                VStack(spacing: 3) {
                     action("Scan food", icon: "camera.fill", route: "photo")
                     action("Barcode", icon: "barcode.viewfinder", route: "barcode")
                     action("Voice", icon: "mic.fill", route: "voice")
                 }
-                .frame(width: 65)
+                .frame(width: (geometry.size.width - 34) * 0.21)
             }
             Spacer(minLength: 0)
         }
-        .padding(11).frame(maxWidth: .infinity, maxHeight: .infinity)
-        .kayleoBackground().foregroundColor(cream)
+        .padding(10).frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundColor(palette.text)
         .widgetURL(url("today"))
       }
     }
 
     private func action(_ title: String, icon: String, route: String) -> some View {
         Link(destination: url(route)) {
-            HStack(spacing: 3) {
-                Image(systemName: icon).font(.system(size: 15, weight: .medium)).foregroundColor(lime)
-                Text(title).font(.system(size: 9, weight: .medium)).foregroundColor(cream)
-            }
-            .frame(maxWidth: .infinity, minHeight: 36)
-            .background(Color(red: 0.894, green: 0.922, blue: 0.867), in: RoundedRectangle(cornerRadius: 12))
+            Image(systemName: icon)
+                .font(.system(size: 25, weight: .medium))
+                .foregroundColor(palette.text)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(palette.tile, in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityLabel(title)
         }
     }
 }

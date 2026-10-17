@@ -65,6 +65,16 @@ void main() {
       expect(week.length, 7);
       expect(week[DateTime.now().weekday - 1], '1');
 
+      // Theme changes must publish even when nutrition data is unchanged.
+      for (final appearance in ['dark', 'light', 'system', 'dark', 'light']) {
+        final before = updates.length;
+        await state.setAppearance(appearance);
+        await Future<void>.delayed(Duration.zero);
+        expect(updates.length, greaterThan(before));
+        expect(updates.last['appearance'], appearance);
+        expect(updates.last['calories'], 420);
+      }
+
       state.markSignedOut();
       await Future<void>.delayed(Duration.zero);
       expect(updates.last['ready'], false);

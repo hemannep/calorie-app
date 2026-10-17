@@ -71,29 +71,12 @@ open class KayleoWidgetProvider : AppWidgetProvider() {
             else -> R.layout.widget_calories
         }
         val views = RemoteViews(context.packageName, layout)
-        applyAppearance(context, views, prefs.getString("appearance", "system") ?: "system")
+        val dark = isDark(context, prefs.getString("appearance", "light") ?: "light")
+        applyAppearance(views, layout, dark)
         when (this) {
             is StreakWidget -> {
-                val systemDark = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-                val appearance = prefs.getString("appearance", "system")
-                val dark = appearance == "dark" || (appearance == "system" && systemDark)
                 views.setImageViewBitmap(R.id.streak_art, streakArtwork(streak, dark))
                 views.setContentDescription(R.id.streak_art, "Kayleo: $streak day meal logging streak. Tap to view progress.")
-                views.setTextViewText(R.id.streak_value, "$streak")
-                views.setTextViewText(R.id.streak_hint, when {
-                    !ready -> "Open Kayleo to begin"
-                    loggedToday -> "Logged today · well done"
-                    streak == 0 -> "Log a meal to start"
-                    else -> "Log today to continue"
-                })
-                val sameWeek = savedDate?.with(DayOfWeek.MONDAY) == LocalDate.now().with(DayOfWeek.MONDAY)
-                val week = if (ready && sameWeek) prefs.getString("weekLogged", "0000000") ?: "0000000" else "0000000"
-                val weekIds = intArrayOf(R.id.week_mon, R.id.week_tue, R.id.week_wed, R.id.week_thu, R.id.week_fri, R.id.week_sat, R.id.week_sun)
-                weekIds.forEachIndexed { index, viewId ->
-                    val done = week.getOrNull(index) == '1'
-                    views.setInt(viewId, "setBackgroundResource", if (done) R.drawable.widget_week_done else R.drawable.widget_week_dot)
-                    views.setTextColor(viewId, if (done) Color.WHITE else Color.rgb(98, 110, 100))
-                }
                 views.setOnClickPendingIntent(R.id.widget_root, action(context, "streak"))
             }
             is BarcodeWidget -> {
@@ -103,11 +86,12 @@ open class KayleoWidgetProvider : AppWidgetProvider() {
             is RingsWidget -> {
                 views.setTextViewText(R.id.rings_calories, if (ready) format(displayed) else "—")
                 views.setTextViewText(R.id.rings_target, if (ready) calorieCaption else "Open Kayleo")
-                views.setImageViewBitmap(R.id.calorie_ring, ring(240, calories, calorieTarget, ACCENT, segmented = true))
+                views.setImageViewBitmap(R.id.calorie_ring, ring(240, calories, calorieTarget, ACCENT, segmented = true, dark = dark))
                 views.setContentDescription(R.id.calorie_ring, "$calories of $calorieTarget calories")
                 val macroKeys = arrayOf("protein", "carbs", "fat")
                 val macroTargetKeys = arrayOf("proteinTarget", "carbTarget", "fatTarget")
-                val macroColors = intArrayOf(Color.rgb(240, 120, 148), Color.rgb(241, 185, 99), Color.rgb(154, 125, 221))
+                val macroColors = if (dark) intArrayOf(Color.rgb(240, 120, 148), Color.rgb(241, 185, 99), Color.rgb(154, 125, 221))
+                    else intArrayOf(Color.rgb(178, 56, 88), Color.rgb(138, 91, 18), Color.rgb(114, 80, 173))
                 val imageIds = intArrayOf(R.id.protein_ring, R.id.carbs_ring, R.id.fat_ring)
                 val labelIds = intArrayOf(R.id.protein_label, R.id.carbs_label, R.id.fat_label)
                 val titles = arrayOf("Protein", "Carbs", "Fat")
@@ -115,8 +99,9 @@ open class KayleoWidgetProvider : AppWidgetProvider() {
                 macroKeys.forEachIndexed { index, key ->
                     val amount = if (current) prefs.getInt(key, 0) else 0
                     val target = if (ready) prefs.getInt(macroTargetKeys[index], 0) else 0
-                    views.setImageViewBitmap(imageIds[index], ring(68, amount, target, macroColors[index]))
+                    views.setImageViewBitmap(imageIds[index], ring(68, amount, target, macroColors[index], dark = dark))
                     views.setTextViewText(textIds[index], if (ready) "${kotlin.math.abs(target - amount)}g" else "—")
+                    views.setTextColor(labelIds[index], macroColors[index])
                     views.setTextViewText(labelIds[index], "${titles[index]} ${if (amount > target) "over" else "left"}")
                     views.setContentDescription(imageIds[index], "$key: $amount of $target grams")
                 }
@@ -128,7 +113,7 @@ open class KayleoWidgetProvider : AppWidgetProvider() {
             else -> {
                 views.setTextViewText(R.id.calorie_value, if (ready) format(displayed) else "—")
                 views.setTextViewText(R.id.calorie_target, if (ready) calorieCaption else "Open Kayleo")
-                views.setImageViewBitmap(R.id.calorie_ring, ring(240, calories, calorieTarget, ACCENT, segmented = true))
+                views.setImageViewBitmap(R.id.calorie_ring, ring(240, calories, calorieTarget, ACCENT, segmented = true, dark = dark))
                 views.setContentDescription(R.id.calorie_ring, "$calories of $calorieTarget calories")
                 views.setOnClickPendingIntent(R.id.widget_root, action(context, "today"))
                 views.setOnClickPendingIntent(R.id.log_food_button, action(context, "photo"))
@@ -199,46 +184,50 @@ open class KayleoWidgetProvider : AppWidgetProvider() {
             return bitmap
         }
 
-        private fun applyAppearance(context: Context, views: RemoteViews, preference: String) {
+        private fun isDark(context: Context, preference: String): Boolean {
             val systemDark = (context.resources.configuration.uiMode and
                 android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
                 android.content.res.Configuration.UI_MODE_NIGHT_YES
-            val dark = preference == "dark" || (preference == "system" && systemDark)
-            val text = if (dark) Color.rgb(245, 247, 241) else Color.rgb(22, 62, 45)
+            return preference == "dark" || (preference == "system" && systemDark)
+        }
+
+        private fun applyAppearance(views: RemoteViews, layout: Int, dark: Boolean) {
+            val text = if (dark) Color.rgb(245, 247, 241) else ACCENT
             val muted = if (dark) Color.rgb(181, 193, 183) else Color.rgb(98, 110, 100)
-            val background = if (dark) R.drawable.widget_card_dark else R.drawable.widget_card
-            val button = if (dark) R.drawable.widget_button_dark else R.drawable.widget_button
             val tile = if (dark) R.drawable.widget_action_tile_dark else R.drawable.widget_action_tile
-            views.setInt(R.id.widget_root, "setBackgroundResource", background)
-            views.setTextColor(R.id.rings_brand, text)
-            views.setTextColor(R.id.rings_day, muted)
-            listOf(R.id.log_food_button, R.id.barcode_button).forEach { id ->
-                runCatching { views.setInt(id, "setBackgroundResource", button) }
+            views.setInt(R.id.widget_root, "setBackgroundResource",
+                if (dark) R.drawable.widget_card_dark else R.drawable.widget_card)
+            // Only enqueue actions for IDs in this layout. RemoteViews applies
+            // them later in the launcher, outside a local try/catch.
+            when (layout) {
+                R.layout.widget_calories -> {
+                    listOf(R.id.calorie_brand, R.id.calorie_value).forEach { views.setTextColor(it, text) }
+                    listOf(R.id.calorie_title, R.id.calorie_target).forEach { views.setTextColor(it, muted) }
+                    // The lime button always needs a dark foreground.
+                    views.setImageViewResource(R.id.calorie_camera_icon, R.drawable.widget_camera_icon)
+                }
+                R.layout.widget_barcode -> {
+                    views.setTextColor(R.id.barcode_brand, text)
+                    listOf(R.id.barcode_title, R.id.barcode_hint).forEach { views.setTextColor(it, muted) }
+                    views.setInt(R.id.barcode_plate, "setBackgroundResource", tile)
+                    views.setImageViewResource(R.id.barcode_icon,
+                        if (dark) R.drawable.widget_barcode_dark_icon else R.drawable.widget_barcode_icon)
+                }
+                R.layout.widget_rings -> {
+                    listOf(R.id.rings_brand, R.id.rings_calories, R.id.protein_value,
+                        R.id.carbs_value, R.id.fat_value).forEach { views.setTextColor(it, text) }
+                    listOf(R.id.rings_day, R.id.rings_target).forEach { views.setTextColor(it, muted) }
+                    listOf(R.id.rings_scan, R.id.rings_barcode, R.id.rings_voice).forEach {
+                        views.setInt(it, "setBackgroundResource", tile)
+                    }
+                    views.setImageViewResource(R.id.rings_camera_icon,
+                        if (dark) R.drawable.widget_camera_dark_icon else R.drawable.widget_camera_light_icon)
+                    views.setImageViewResource(R.id.rings_barcode_icon,
+                        if (dark) R.drawable.widget_barcode_dark_icon else R.drawable.widget_barcode_icon)
+                    views.setImageViewResource(R.id.rings_mic_icon,
+                        if (dark) R.drawable.widget_mic_dark_icon else R.drawable.widget_mic_icon)
+                }
             }
-            listOf(R.id.rings_scan, R.id.rings_barcode, R.id.rings_voice).forEach { id ->
-                runCatching { views.setInt(id, "setBackgroundResource", tile) }
-            }
-            views.setImageViewResource(R.id.rings_camera_icon, if (dark) R.drawable.widget_camera_dark_icon else R.drawable.widget_camera_light_icon)
-            views.setImageViewResource(R.id.rings_barcode_icon, if (dark) R.drawable.widget_barcode_dark_icon else R.drawable.widget_barcode_icon)
-            views.setImageViewResource(R.id.rings_mic_icon, if (dark) R.drawable.widget_mic_dark_icon else R.drawable.widget_mic_icon)
-            if (dark) {
-                runCatching { views.setImageViewResource(R.id.calorie_camera_icon, R.drawable.widget_camera_dark_icon) }
-                runCatching { views.setImageViewResource(R.id.rings_camera_icon, R.drawable.widget_camera_dark_icon) }
-                runCatching { views.setImageViewResource(R.id.rings_barcode_icon, R.drawable.widget_barcode_dark_icon) }
-                runCatching { views.setImageViewResource(R.id.rings_mic_icon, R.drawable.widget_mic_dark_icon) }
-                runCatching { views.setImageViewResource(R.id.barcode_icon, R.drawable.widget_barcode_dark_icon) }
-            }
-            listOf(
-                R.id.calorie_value, R.id.rings_calories, R.id.protein_value,
-                R.id.carbs_value, R.id.fat_value,
-            ).forEach { id -> runCatching { views.setTextColor(id, text) } }
-            listOf(R.id.calorie_target, R.id.rings_target, R.id.streak_hint).forEach { id ->
-                runCatching { views.setTextColor(id, muted) }
-            }
-            runCatching { views.setTextColor(R.id.streak_value, Color.rgb(111, 53, 29)) }
-            runCatching { views.setTextColor(R.id.streak_caption, text) }
-            runCatching { views.setTextColor(R.id.streak_brand, if (dark) Color.rgb(184, 227, 107) else text) }
-            runCatching { views.setTextColor(R.id.streak_title, muted) }
         }
 
         fun refreshAll(context: Context) {
@@ -262,7 +251,7 @@ open class KayleoWidgetProvider : AppWidgetProvider() {
             return PendingIntent.getActivity(context, value.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
 
-        private fun ring(size: Int, amount: Int, target: Int, color: Int, segmented: Boolean = false): Bitmap {
+        private fun ring(size: Int, amount: Int, target: Int, color: Int, segmented: Boolean = false, dark: Boolean = false): Bitmap {
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -274,14 +263,14 @@ open class KayleoWidgetProvider : AppWidgetProvider() {
             val edge = paint.strokeWidth / 2 + 2
             val inset = edge + if (segmented && ratio > 1) paint.strokeWidth + size * 0.03f else 0f
             val bounds = RectF(inset, inset, size - inset, size - inset)
-            val track = Color.rgb(228, 235, 221)
+            val track = if (dark) Color.rgb(64, 60, 73) else Color.rgb(228, 235, 221)
             paint.color = track
             canvas.drawArc(bounds, 0f, 360f, false, paint)
             if (segmented) {
                 paint.strokeCap = Paint.Cap.BUTT
                 val starts = floatArrayOf(0f, .3f, .7f)
                 val ends = floatArrayOf(.3f, .7f, 1f)
-                val colors = intArrayOf(ACCENT, Color.rgb(107, 159, 82), Color.rgb(184, 227, 107))
+                val colors = intArrayOf(if (dark) Color.rgb(184, 227, 107) else ACCENT, Color.rgb(107, 159, 82), Color.rgb(184, 227, 107))
                 starts.indices.forEach { i ->
                     val sweep = (min(ratio, ends[i]) - starts[i]).coerceAtLeast(0f) * 360
                     paint.color = colors[i]

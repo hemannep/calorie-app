@@ -1111,6 +1111,9 @@ class _ActivityProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final platform = Theme.of(context).platform;
+    final isApple =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
 
     // Format active time as hours + minutes when >= 60 min
     final activeTimeLabel = activity.activeMinutes >= 60
@@ -1144,19 +1147,20 @@ class _ActivityProgress extends StatelessWidget {
         reached: activity.activeCalories >= state.activeCaloriesTarget,
         isEstimated: !activity.rawActiveCalories && activity.steps > 0,
       ),
-      _ActivityMetricItem(
-        key: const ValueKey('today-motion-ring'),
-        label: 'Distance',
-        amount: '${activity.motionKm.toStringAsFixed(1)} km',
-        targetLabel: '${state.motionKmTarget.toStringAsFixed(1)} km',
-        progress: state.motionKmTarget > 0
-            ? activity.motionKm / state.motionKmTarget
-            : 0.0,
-        color: const Color(0xFF06B6D4),
-        icon: Icons.directions_walk_rounded,
-        reached: activity.motionKm >= state.motionKmTarget,
-        isEstimated: !activity.rawDistance && activity.steps > 0,
-      ),
+      if (!isApple)
+        _ActivityMetricItem(
+          key: const ValueKey('today-motion-ring'),
+          label: 'Distance',
+          amount: '${activity.motionKm.toStringAsFixed(1)} km',
+          targetLabel: '${state.motionKmTarget.toStringAsFixed(1)} km',
+          progress: state.motionKmTarget > 0
+              ? activity.motionKm / state.motionKmTarget
+              : 0.0,
+          color: const Color(0xFF06B6D4),
+          icon: Icons.directions_walk_rounded,
+          reached: activity.motionKm >= state.motionKmTarget,
+          isEstimated: !activity.rawDistance && activity.steps > 0,
+        ),
     ];
 
     // Show extra health stats when we have richer data from the health app
@@ -1212,12 +1216,30 @@ class _ActivityProgress extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (isApple)
+                  SizedBox(
+                    width: width,
+                    child: _DashboardMetricCard(
+                      key: const Key('today-floors-card'),
+                      amount: '${activity.floorsClimbed}',
+                      label: 'Floors',
+                      ring: const SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: Icon(
+                          Icons.stairs_rounded,
+                          color: Color(0xFF9C27B0),
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             );
           },
         ),
         // Extra health stats row (heart rate, floors, total burn)
-        if (hasExtraStats) ...[
+        if (!isApple && hasExtraStats) ...[
           const SizedBox(height: 10),
           Panel(
             padding: 14,

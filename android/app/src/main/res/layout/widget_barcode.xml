@@ -7,20 +7,20 @@
     android:background="@drawable/widget_card">
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="14dp" android:gravity="center_vertical">
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        <TextView android:id="@+id/barcode_brand" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:text="Kayleo" android:textColor="#163E2D" android:textSize="10sp" android:textStyle="bold" android:singleLine="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        <TextView android:id="@+id/barcode_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="Barcode" android:textColor="#626E64" android:textSize="8sp" android:textStyle="bold" android:singleLine="true" />
     </LinearLayout>
 
-    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+    <FrameLayout android:id="@+id/barcode_plate" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
         android:layout_marginTop="3dp" android:background="@drawable/widget_icon_plate">
         <ImageView android:id="@+id/barcode_icon" android:layout_width="match_parent" android:layout_height="match_parent" android:layout_gravity="center"
             android:padding="10dp"
             android:src="@drawable/widget_barcode_icon" android:contentDescription="Barcode scanner" />
     </FrameLayout>
 
-    <TextView android:layout_width="match_parent" android:layout_height="11dp" android:gravity="center"
+    <TextView android:id="@+id/barcode_hint" android:layout_width="match_parent" android:layout_height="11dp" android:gravity="center"
         android:text="Food labels, faster" android:textColor="#626E64" android:textSize="8sp"
         android:includeFontPadding="false" android:singleLine="true" />
 
