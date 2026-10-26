@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
@@ -47,6 +50,8 @@ class AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 1050;
+    final useIosGlassBar =
+        !wide && !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     final state = widget.state;
     return MilestoneCelebrationHost(
       state: state,
@@ -56,89 +61,316 @@ class AppShellState extends State<AppShell> {
           if (!didPop && selected == 6) navigate(2);
         },
         child: Scaffold(
-        body: SafeArea(
-          child: Row(
-            children: [
-              if (wide) _sidebar(),
-              Expanded(
-                child: Column(
-                  children: [
-                    if (selected != 6 && (wide || ![0, 1, 2, 5].contains(selected))) _topbar(wide),
-                    if (state.storageError != null)
-                      MaterialBanner(
-                        content: Text(
-                          state.storageError!,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => exportData(context, state),
-                            child: const Text('Export backup'),
+          extendBody: useIosGlassBar,
+          body: SafeArea(
+            child: Row(
+              children: [
+                if (wide) _sidebar(),
+                Expanded(
+                  child: Column(
+                    children: [
+                      if (selected != 6 &&
+                          (wide || ![0, 1, 2, 5].contains(selected)))
+                        _topbar(wide),
+                      if (state.storageError != null)
+                        MaterialBanner(
+                          content: Text(
+                            state.storageError!,
+                            style: const TextStyle(fontSize: 12),
                           ),
-                        ],
-                      ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: scroll,
-                        padding: EdgeInsets.fromLTRB(
-                          wide ? 40 : KayleoSpacing.page,
-                          wide ? 34 : 18,
-                          wide ? 40 : KayleoSpacing.page,
-                          40,
+                          actions: [
+                            TextButton(
+                              onPressed: () => exportData(context, state),
+                              child: const Text('Export backup'),
+                            ),
+                          ],
                         ),
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1240),
-                            child: switch (selected) {
-                              0 => DashboardScreen(
-                                state: state,
-                                navigate: navigate,
-                                onReminders: () => openSheet(
-                                  context,
-                                  InboxSheet(state: state),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: scroll,
+                          padding: EdgeInsets.fromLTRB(
+                            wide ? 40 : KayleoSpacing.page,
+                            wide ? 34 : 18,
+                            wide ? 40 : KayleoSpacing.page,
+                            40,
+                          ),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1240),
+                              child: switch (selected) {
+                                0 => DashboardScreen(
+                                  state: state,
+                                  navigate: navigate,
+                                  onReminders: () => openSheet(
+                                    context,
+                                    InboxSheet(state: state),
+                                  ),
                                 ),
-                              ),
-                              1 => CommunityScreen(state: state),
-                              2 => ProgressScreen(
-                                state: state,
-                                onOpenDiary: () => navigate(6),
-                              ),
-                              3 => CaptureScreen(state: state),
-                              4 => SavedMealsScreen(state: state),
-                              6 => DiaryScreen(state: state),
-                              _ => SettingsScreen(
-                                state: state,
-                                navigate: navigate,
-                              ),
-                            },
+                                1 => CommunityScreen(state: state),
+                                2 => ProgressScreen(
+                                  state: state,
+                                  onOpenDiary: () => navigate(6),
+                                ),
+                                3 => CaptureScreen(state: state),
+                                4 => SavedMealsScreen(state: state),
+                                6 => DiaryScreen(state: state),
+                                _ => SettingsScreen(
+                                  state: state,
+                                  navigate: navigate,
+                                ),
+                              },
+                            ),
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
+          floatingActionButton: wide
+              ? null
+              : useIosGlassBar
+              ? null
+              : SizedBox.square(
+                  dimension: 60,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.kayleoPrimary.withValues(alpha: .18),
+                          blurRadius: 18,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: FloatingActionButton(
+                      key: const Key('bottom-camera-button'),
+                      tooltip: 'Scan food',
+                      backgroundColor: context.kayleoPrimary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      elevation: 0,
+                      focusElevation: 0,
+                      hoverElevation: 0,
+                      highlightElevation: 0,
+                      shape: const CircleBorder(),
+                      onPressed: () =>
+                          showLogger(context, widget.state, openCamera: true),
+                      child: const Icon(Icons.camera_alt_outlined, size: 26),
+                    ),
+                  ),
+                ),
+          bottomNavigationBar: wide
+              ? null
+              : useIosGlassBar
+              ? _iosGlassBottomBar()
+              : _bottomBar(),
+        ),
+      ),
+    );
+  }
+
+  Widget _iosGlassBottomBar() {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = context.kayleoText;
+
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: SizedBox(
+        height: 80,
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              top: 12,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(34),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: dark ? .34 : .16),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: dark ? .06 : .34),
+                      blurRadius: 10,
+                      offset: const Offset(0, -3),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        floatingActionButton: wide
-            ? null
-            : FloatingActionButton(
-                key: const Key('bottom-camera-button'),
-                tooltip: 'Scan food',
-                backgroundColor: lime,
-                foregroundColor: forest,
-                elevation: 0,
-                shape: CircleBorder(
-                  side: BorderSide(color: context.kayleoBackground, width: 4),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(34),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                    child: Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: dark
+                              ? [
+                                  const Color(0xFF26382D)
+                                      .withValues(alpha: .78),
+                                  const Color(0xFF101713)
+                                      .withValues(alpha: .52),
+                                ]
+                              : [
+                                  Colors.white.withValues(alpha: .82),
+                                  const Color(0xFFF5FAF2)
+                                      .withValues(alpha: .54),
+                                ],
+                        ),
+                        borderRadius: BorderRadius.circular(34),
+                        border: Border.all(
+                          width: 1.25,
+                          color: Colors.white.withValues(
+                            alpha: dark ? .27 : .88,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _iosGlassItem(
+                            0,
+                            Icons.grid_view_rounded,
+                            'Today',
+                            foreground,
+                          ),
+                          _iosGlassItem(
+                            1,
+                            Icons.people_outline_rounded,
+                            'Community',
+                            foreground,
+                          ),
+                          const Expanded(child: SizedBox()),
+                          _iosGlassItem(
+                            2,
+                            Icons.show_chart_rounded,
+                            'Progress',
+                            foreground,
+                          ),
+                          _iosGlassItem(
+                            5,
+                            Icons.person_outline_rounded,
+                            'You',
+                            foreground,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                onPressed: () =>
-                    showLogger(context, widget.state, openCamera: true),
-                child: const Icon(Icons.camera_alt_rounded, size: 28),
               ),
-        bottomNavigationBar: wide ? null : _bottomBar(),
+            ),
+            Positioned(
+              top: 0,
+              child: Semantics(
+                button: true,
+                label: 'Scan food',
+                child: Tooltip(
+                  message: 'Scan food',
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color.lerp(context.kayleoPrimary, Colors.white, .14)!,
+                          context.kayleoPrimary,
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.kayleoPrimary.withValues(alpha: .34),
+                          blurRadius: 20,
+                          offset: const Offset(0, 7),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: dark ? .34 : .16,
+                          ),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        key: const Key('bottom-camera-button'),
+                        customBorder: const CircleBorder(),
+                        onTap: () =>
+                            showLogger(context, widget.state, openCamera: true),
+                        child: Icon(
+                          Icons.camera_alt_outlined,
+                          size: 26,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _iosGlassItem(
+    int index,
+    IconData icon,
+    String label,
+    Color foreground,
+  ) {
+    final active = selected == index;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: active,
+        label: label,
+        child: Tooltip(
+          message: label,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => navigate(index),
+              customBorder: const CircleBorder(),
+              child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 110),
+                  curve: Curves.easeOut,
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: active
+                        ? context.kayleoSurfaces.soft.withValues(alpha: .72)
+                        : Colors.transparent,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 24,
+                    color: active ? context.kayleoPrimary : foreground,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -163,12 +395,15 @@ class AppShellState extends State<AppShell> {
       if (painter.height > labelHeight) labelHeight = painter.height;
       painter.dispose();
     }
-    final rowHeight = (47 + labelHeight).clamp(64.0, double.infinity);
+    final rowHeight = (41 + labelHeight).clamp(56.0, double.infinity);
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 6,
+      clipBehavior: Clip.antiAlias,
       padding: EdgeInsets.zero,
       color: context.kayleoSurfaces.card,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       height: rowHeight,
       child: Row(
         children: [
@@ -186,7 +421,7 @@ class AppShellState extends State<AppShell> {
     child: InkWell(
       onTap: () => navigate(index),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 7),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -467,7 +702,8 @@ class AppShellState extends State<AppShell> {
         ],
         if (selected != 6)
           IconButton(
-            onPressed: () => openSheet(context, InboxSheet(state: widget.state)),
+            onPressed: () =>
+                openSheet(context, InboxSheet(state: widget.state)),
             tooltip: 'Your reminders',
             icon: Icon(
               Icons.notifications_none_rounded,

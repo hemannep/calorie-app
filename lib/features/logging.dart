@@ -390,8 +390,11 @@ class _LoggingFlowState extends State<LoggingFlow> {
     final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            FoodCameraScreen(state: widget.state, initialPhoto: bytes),
+        builder: (_) => FoodCameraScreen(
+          state: widget.state,
+          service: foodService,
+          initialPhoto: bytes,
+        ),
       ),
     );
     if (!mounted) return;
@@ -438,6 +441,10 @@ class _LoggingFlowState extends State<LoggingFlow> {
         setState(
           () => error = 'Choose an image smaller than 2 MB so it can be saved on this device.',
         );
+        return;
+      }
+      if (foodService.geminiConfigured) {
+        await usePhoto(bytes);
         return;
       }
       setState(() {
@@ -533,6 +540,109 @@ class _LoggingFlowState extends State<LoggingFlow> {
           : sample == 'Rice & curry'
           ? 'rice and chicken curry'
           : '8 chicken momo';
+    }
+    if (mode == 'Photo' &&
+        photo != null &&
+        description.text.trim().isEmpty &&
+        foodService.geminiConfigured) {
+      await speech.stop();
+      if (!mounted) return;
+      setState(() {
+        busy = true;
+        error = null;
+        listening = false;
+      });
+      try {
+        final recognized = await foodService.analyzeMealPhoto(photo!);
+        if (!mounted || generation != analysisGeneration) return;
+        final snap = recognized.toFood(recognized.values);
+        final food = Food(
+          id: snap.id,
+          name: snap.name,
+          aliases: snap.aliases,
+          per100g: snap.per100g,
+          servingGrams: 100,
+          unit: recognized.unit,
+          nutritionBasisUnit: recognized.unit,
+          source: recognized.source,
+          sourceUrl: recognized.sourceUrl,
+          barcode: recognized.barcode,
+        );
+        description.text = recognized.details.isNotEmpty
+            ? '${recognized.name} — ${recognized.details}'
+            : recognized.name;
+        final detectedMealItems = recognized.plateItems.isNotEmpty
+            ? [
+                for (var i = 0; i < recognized.plateItems.length; i++)
+                  () {
+                    final pItem = recognized.plateItems[i];
+                    final g = pItem.grams > 0 ? pItem.grams : 100.0;
+                    final factor = 100.0 / g;
+                    final itemFood = Food(
+                      id: '${recognized.id}:item:$i',
+                      name: pItem.name,
+                      aliases: const [],
+                      per100g: Nutrients(
+                        pItem.calories * factor,
+                        pItem.proteinGrams * factor,
+                        pItem.carbsGrams * factor,
+                        pItem.fatGrams * factor,
+                        pItem.fiberGrams * factor,
+                      ),
+                      servingGrams: g,
+                      unit: 'serving',
+                      nutritionBasisUnit: recognized.unit,
+                      source: recognized.source,
+                    );
+                    return MealItem(
+                      foodId: itemFood.id,
+                      grams: g,
+                      snapshot: itemFood,
+                      portion: {
+                        'quantity': 1.0,
+                        'unit': 'serving',
+                        'share': 1.0,
+                      },
+                    );
+                  }(),
+              ]
+            : [
+                MealItem(
+                  foodId: food.id,
+                  grams: recognized.servingGrams,
+                  snapshot: food,
+                ),
+              ];
+        meal = Meal(
+          id: newId(),
+          name: recognized.name,
+          time: defaultTime,
+          category: MealEngine.categoryForHour(defaultTime.hour),
+          items: detectedMealItems,
+          photo: photo,
+          input: 'Photo + AI estimate',
+          assumptions: recognized.details.isNotEmpty
+              ? recognized.details
+              : recognized.source,
+        );
+        title.text = meal!.name;
+        notes.text = description.text;
+        setState(() {
+          busy = false;
+          stage = 2;
+        });
+      } catch (e) {
+        if (mounted && generation == analysisGeneration) {
+          setState(() {
+            busy = false;
+            error = e
+                .toString()
+                .replaceFirst('FormatException: ', '')
+                .replaceFirst('Bad state: ', '');
+          });
+        }
+      }
+      return;
     }
     if (description.text.trim().isEmpty) {
       setState(
@@ -1429,7 +1539,9 @@ class _LoggingFlowState extends State<LoggingFlow> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Your description creates the estimate. Kayleo does not identify foods from this photo.',
+              foodService.geminiConfigured
+                  ? 'Kayleo can identify the visible foods and estimate calories. You’ll review everything before saving.'
+                  : 'Add a description of the foods on your plate so Kayleo can estimate calories.',
               style: TextStyle(fontSize: 11, color: _secondary),
             ),
             const SizedBox(height: KayleoSpacing.md),
@@ -1991,13 +2103,27 @@ class _LoggingFlowState extends State<LoggingFlow> {
                   ),
                 ),
                 IconButton(
+                  onPressed: () => _stepMealItem(item, -1),
+                  tooltip: 'Decrease ${food.name}',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
+                ),
+                IconButton(
+                  onPressed: () => _stepMealItem(item, 1),
+                  tooltip: 'Increase ${food.name}',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                ),
+                IconButton(
                   onPressed: () => editItem(item),
                   tooltip: 'Edit ${food.name}',
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.edit_outlined, size: 17),
                 ),
                 IconButton(
                   onPressed: () => setState(() => meal!.items.remove(item)),
                   tooltip: 'Remove ${food.name}',
+                  visualDensity: VisualDensity.compact,
                   icon: Icon(Icons.close_rounded, size: 17, color: _secondary),
                 ),
               ],
@@ -2006,6 +2132,31 @@ class _LoggingFlowState extends State<LoggingFlow> {
         ),
       ),
     );
+  }
+
+  void _stepMealItem(MealItem item, double delta) {
+    final food = mealItemFood(item);
+    final currentUnit =
+        (item.portion?['unit'] as String?) ?? food.nutritionBasisUnit;
+    final currentShare =
+        ((item.portion?['share'] as num?) ?? 1.0).toDouble();
+    final currentQty =
+        ((item.portion?['quantity'] as num?) ?? item.grams).toDouble();
+    final step = portionStepForUnit(currentUnit);
+    final minVal = step >= 25 ? 10.0 : 0.25;
+    final nextQty = (currentQty + delta * step).clamp(minVal, 3000.0);
+    final nextPortion = {
+      'quantity': nextQty,
+      'unit': currentUnit,
+      'share': currentShare,
+    };
+    try {
+      final grams = consumedPortion(food, nextPortion);
+      setState(() {
+        item.grams = grams;
+        item.portion = nextPortion;
+      });
+    } catch (_) {}
   }
 
   Future<void> editItem(MealItem item) async {

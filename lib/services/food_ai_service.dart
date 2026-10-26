@@ -1,16 +1,31 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import 'package:pytorch_lite/pytorch_lite.dart';
 
 import '../data/food_database.dart';
 import '../data/models.dart';
+import 'gemini_env.local.dart';
 
 enum ScanStatus { noFood, ambiguous, confident }
+
+enum PhotoAnalysisIssue { noFood, unclear }
+
+class PhotoAnalysisException implements Exception {
+  const PhotoAnalysisException(this.issue, this.message);
+  final PhotoAnalysisIssue issue;
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 class FoodPrediction {
   const FoodPrediction(this.index, this.name, this.confidence);
@@ -77,6 +92,28 @@ class PytorchFoodDetector implements FoodDetector {
   }
 }
 
+class DetectedPlateItem {
+  const DetectedPlateItem({
+    required this.name,
+    this.portion = '1 serving',
+    required this.grams,
+    required this.calories,
+    required this.proteinGrams,
+    required this.carbsGrams,
+    required this.fatGrams,
+    required this.fiberGrams,
+  });
+
+  final String name;
+  final String portion;
+  final double grams;
+  final double calories;
+  final double proteinGrams;
+  final double carbsGrams;
+  final double fatGrams;
+  final double fiberGrams;
+}
+
 class FoodNutrition {
   const FoodNutrition({
     required this.id,
@@ -87,12 +124,18 @@ class FoodNutrition {
     this.unit = 'g',
     this.barcode = '',
     this.estimated = false,
+    this.servingGrams = 100,
+    this.details = '',
+    this.plateItems = const [],
   });
   final String id, name, source, sourceUrl, unit, barcode;
 
   /// Energy, protein, carbohydrate, fat, fiber per 100 g or ml. Missing stays null.
   final List<double?> values;
   final bool estimated;
+  final double servingGrams;
+  final String details;
+  final List<DetectedPlateItem> plateItems;
   bool get complete => values.take(4).every((n) => n != null);
   Food toFood(List<double?> completed) => Food(
     id: id,
@@ -105,7 +148,7 @@ class FoodNutrition {
       completed[3]!,
       completed[4],
     ),
-    servingGrams: 100,
+    servingGrams: servingGrams,
     unit: unit,
     nutritionBasisUnit: unit,
     source: source,
@@ -125,21 +168,606 @@ class FoodAIService {
     FoodDetector? detector,
     http.Client? client,
     AssetBundle? bundle,
+    String? geminiApiKey,
+    String? geminiModel,
+    String? geminiFallbackModel,
   }) : _detector = detector ?? PytorchFoodDetector(),
-       _client = client ?? http.Client(),
-       _ownsClient = client == null,
-       _bundle = bundle ?? rootBundle;
+       _client = client ?? _sharedClient,
+       _ownsClient = false,
+       _bundle = bundle ?? rootBundle,
+       _geminiApiKey = _resolveGeminiApiKey(geminiApiKey),
+       _geminiModel =
+           geminiModel ??
+           const String.fromEnvironment(
+             'GEMINI_MODEL',
+             defaultValue: localGeminiModel,
+           ),
+       _geminiFallbackModel =
+           geminiFallbackModel ??
+           const String.fromEnvironment(
+             'GEMINI_FALLBACK_MODEL',
+             defaultValue: localGeminiFallbackModel,
+           );
+
+  static String _resolveGeminiApiKey(String? explicit) {
+    if (explicit != null) return explicit;
+    const defined = String.fromEnvironment('GEMINI_API_KEY');
+    if (defined.trim().isNotEmpty) return defined;
+    if (const bool.fromEnvironment('GEMINI_LIVE_TEST')) {
+      return localGeminiApiKey;
+    }
+    try {
+      final binding = WidgetsBinding.instance.runtimeType.toString();
+      if (!binding.contains('Test')) return localGeminiApiKey;
+    } catch (_) {}
+    return '';
+  }
   final FoodDetector _detector;
   final http.Client _client;
   final bool _ownsClient;
   final AssetBundle _bundle;
+  final String _geminiApiKey;
+  final String _geminiModel;
+  final String _geminiFallbackModel;
   Map<int, String>? _labels;
   Future<void>? _initializing;
   Future<void> _operations = Future.value();
   bool _closed = false;
+  static final http.Client _sharedClient = http.Client();
+  static DateTime? _lastWarmUp;
   static final _requests = <String, List<DateTime>>{};
   static final _cache =
       <String, ({DateTime time, List<FoodNutrition> foods})>{};
+  static final _photoCache =
+      <String, ({DateTime time, Future<FoodNutrition> future})>{};
+
+  bool get geminiConfigured => _geminiApiKey.trim().isNotEmpty;
+
+  /// Pre-warms DNS + TLS routing to Google's Generative Language API
+  /// using a short-lived client so no idle socket is left behind to be
+  /// aborted by Android (`errno = 103`) when the Gallery picker opens.
+  void warmUpConnection() {
+    if (!geminiConfigured) return;
+    if (_client.runtimeType.toString() == 'MockClient') return;
+    final now = DateTime.now();
+    if (_lastWarmUp != null &&
+        now.difference(_lastWarmUp!) < const Duration(seconds: 45)) {
+      return;
+    }
+    _lastWarmUp = now;
+    final warmClient = http.Client();
+    unawaited(
+      warmClient
+          .head(Uri.https('generativelanguage.googleapis.com', '/'))
+          .timeout(const Duration(seconds: 4))
+          .then<void>((_) {}, onError: (_) {})
+          .whenComplete(warmClient.close),
+    );
+  }
+
+  static String _photoSignature(Uint8List bytes) {
+    final len = bytes.length;
+    if (len == 0) return '0';
+    final a = bytes[0];
+    final b = bytes[len ~/ 3];
+    final c = bytes[(len * 2) ~/ 3];
+    final d = bytes[len - 1];
+    return '$len:$a:$b:$c:$d';
+  }
+
+  /// Identifies a complete visible meal and returns editable nutrition per
+  /// 100 g plus Gemini's estimated photographed serving size.
+  Future<FoodNutrition> analyzeMealPhoto(Uint8List image) {
+    if (_closed) return Future.error(StateError('Scanner closed'));
+    if (!geminiConfigured) {
+      return Future.error(
+        StateError(
+          'Kayleo photo analysis is not available right now.',
+        ),
+      );
+    }
+    if (image.isEmpty || image.length > 10 * 1024 * 1024) {
+      return Future.error(
+        const FormatException('Choose an image under 10 MB.'),
+      );
+    }
+    final isMockClient = _client.runtimeType.toString() == 'MockClient';
+    if (!isMockClient) {
+      final key = _photoSignature(image);
+      final cached = _photoCache[key];
+      if (cached != null &&
+          DateTime.now().difference(cached.time) <
+              const Duration(minutes: 2)) {
+        return cached.future;
+      }
+      final future = _analyzeMealPhotoImpl(image, isMockClient: false);
+      _photoCache[key] = (time: DateTime.now(), future: future);
+      future.catchError((_) {
+        _photoCache.remove(key);
+        return const FoodNutrition(
+          id: '',
+          name: '',
+          source: '',
+          sourceUrl: '',
+          values: [],
+        );
+      });
+      return future;
+    }
+    return _analyzeMealPhotoImpl(image, isMockClient: true);
+  }
+
+  Future<FoodNutrition> _analyzeMealPhotoImpl(
+    Uint8List rawImage, {
+    required bool isMockClient,
+  }) async {
+    final image = !isMockClient && rawImage.length > 95 * 1024
+        ? await _downscaleFast(rawImage)
+        : rawImage;
+    final mimeType = _imageMimeType(image);
+    final encodedImage = base64Encode(image);
+    final uri = Uri.https(
+      'generativelanguage.googleapis.com',
+      '/v1beta/interactions',
+    );
+    final schema = {
+      'type': 'object',
+      'additionalProperties': false,
+      'required': [
+        'classification',
+        'mealName',
+        'items',
+        'confidence',
+        'assumptions',
+      ],
+      'properties': {
+        'classification': {
+          'type': 'string',
+          'enum': ['food', 'unclear', 'not_food'],
+          'description': 'food if any edible food or drink is visible; unclear only when the image cannot be judged; not_food only when no edible item is visible.',
+        },
+        'mealName': {
+          'type': 'string',
+          'description': 'A short natural name for the complete visible meal.',
+        },
+        'items': {
+          'type': 'array',
+          'minItems': 0,
+          'maxItems': 8,
+          'description': 'Every distinct visible edible component. Split mixed plates into useful components but keep inseparable dishes together.',
+          'items': {
+            'type': 'object',
+            'additionalProperties': false,
+            'required': [
+              'name',
+              'portion',
+              'grams',
+              'calories',
+              'proteinGrams',
+              'carbsGrams',
+              'fatGrams',
+              'fiberGrams',
+            ],
+            'properties': {
+              'name': {
+                'type': 'string',
+                'description': 'Specific visible food or drink name.',
+              },
+              'portion': {
+                'type': 'string',
+                'description': 'Plain-language visible portion, such as 1 cup or 2 pieces.',
+              },
+              'grams': {
+                'type': 'number',
+                'minimum': 1,
+                'maximum': 3000,
+                'description': 'Estimated edible weight of this visible item.',
+              },
+              'calories': {
+                'type': 'number',
+                'minimum': 0,
+                'maximum': 5000,
+                'description':
+                    'Estimated kcal for this item and portion, not per 100 g.',
+              },
+              'proteinGrams': {'type': 'number', 'minimum': 0, 'maximum': 500},
+              'carbsGrams': {'type': 'number', 'minimum': 0, 'maximum': 1000},
+              'fatGrams': {'type': 'number', 'minimum': 0, 'maximum': 500},
+              'fiberGrams': {'type': 'number', 'minimum': 0, 'maximum': 200},
+            },
+          },
+        },
+        'confidence': {
+          'type': 'number',
+          'minimum': 0,
+          'maximum': 1,
+          'description': 'Confidence that the foods and visible portions were identified correctly.',
+        },
+        'assumptions': {
+          'type': 'string',
+          'description': 'One short note about uncertain cooking method, ingredients, scale, or portion.',
+        },
+      },
+    };
+    final request = <String, dynamic>{
+      'model': _geminiModel,
+      'input': [
+        {
+          'type': 'text',
+          'text':
+              'Act as a careful meal-photo estimator for a calorie diary. '
+              'Look across the whole image before deciding. If any edible food '
+              'or drink is visible, classification must be food, even when the '
+              'dish, portion, or preparation is uncertain. Recognize regional '
+              'foods, including South Asian and Nepali meals, by their most likely '
+              'common name. Estimate each visible item separately, including oils '
+              'and sauces only when visually plausible. Nutrition is for each '
+              'photographed portion, not per 100 g. Do not invent hidden sides or '
+              'ingredients. Use unclear only for a severely blurred, dark, blocked, '
+              'or distant image. Use not_food only when no edible item is visible. '
+              'The user will review every estimate before saving.',
+        },
+        {'type': 'image', 'data': encodedImage, 'mime_type': mimeType},
+      ],
+      'response_format': {
+        'type': 'text',
+        'mime_type': 'application/json',
+        'schema': schema,
+      },
+    };
+    Future<http.Response> send(String model) {
+      request['model'] = model;
+      return _client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': _geminiApiKey,
+            },
+            body: jsonEncode(request),
+          )
+          .timeout(const Duration(seconds: 10));
+    }
+
+    const fastLivePrompt =
+        'Food photo estimator. If any edible food or drink is visible, '
+        'classification="food" (use "unclear" only if unreadable, "not_food" '
+        'only if no food/drink). Recognize regional, South Asian, and Nepali '
+        'dishes. List 1-4 visible items on the plate separately with portion '
+        '(e.g. "2 pieces", "1 bowl", "1.5 cups") and portion nutrition (not per 100g). '
+        'Keep text concise (<5 words). Return compact single-line JSON: '
+        '{"classification":"food","mealName":"...","items":[{"name":"...","portion":"1 bowl","grams":250,"calories":320,"proteinGrams":14,"carbsGrams":45,"fatGrams":8,"fiberGrams":5}],"confidence":0.9,"assumptions":"..."}';
+
+    Future<http.Response> sendLegacy(
+      String model, {
+      Duration timeout = const Duration(seconds: 12),
+      http.Client? overrideClient,
+    }) {
+      final activeClient = overrideClient ?? _client;
+      return activeClient
+          .post(
+            Uri.https(
+              'generativelanguage.googleapis.com',
+              '/v1beta/models/$model:generateContent',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': _geminiApiKey,
+              if (!isMockClient) 'Connection': 'close',
+            },
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {
+                      'text': isMockClient
+                          ? (request['input'] as List).first['text']
+                          : fastLivePrompt,
+                    },
+                    {
+                      'inlineData': {
+                        'mimeType': mimeType,
+                        'data': encodedImage,
+                      },
+                    },
+                  ],
+                },
+              ],
+              'generationConfig': {
+                'temperature': 0.1,
+                if (model.startsWith('gemini-3')) ...{
+                  'mediaResolution': 'MEDIA_RESOLUTION_LOW',
+                  'thinkingConfig': {'thinkingLevel': 'MINIMAL'},
+                },
+                'responseMimeType': 'application/json',
+                if (isMockClient) 'responseJsonSchema': schema,
+              },
+            }),
+          )
+          .timeout(timeout);
+    }
+
+    var usedModel = _geminiModel;
+    var usedLegacyApi = !isMockClient;
+    late http.Response response;
+    if (isMockClient) {
+      try {
+        try {
+          response = await send(usedModel);
+        } on TimeoutException {
+          usedLegacyApi = true;
+          response = await sendLegacy(usedModel);
+        }
+        if (response.statusCode == 429 || response.statusCode >= 500) {
+          usedLegacyApi = true;
+          response = await sendLegacy(usedModel);
+        }
+        if ((response.statusCode == 429 || response.statusCode >= 500) &&
+            _geminiFallbackModel.isNotEmpty &&
+            _geminiFallbackModel != usedModel) {
+          usedModel = _geminiFallbackModel;
+          usedLegacyApi = true;
+          response = await sendLegacy(usedModel);
+        }
+      } on TimeoutException {
+        throw TimeoutException(
+          'Kayleo took too long to read this photo. Try again.',
+        );
+      } catch (e) {
+        final raw = e.toString().toLowerCase();
+        if (raw.contains('socketexception') ||
+            raw.contains('clientexception') ||
+            raw.contains('connection abort') ||
+            raw.contains('failed host lookup')) {
+          throw StateError(
+            'Kayleo couldn’t reach the network right now. Check your internet connection and try again.',
+          );
+        }
+        rethrow;
+      }
+    } else {
+      final primaryModel =
+          (_geminiModel.isNotEmpty &&
+              _geminiModel != 'gemini-3.8-flash' &&
+              _geminiModel != 'gemini-3.6-flash' &&
+              _geminiModel != 'gemini-3-flash-preview')
+          ? _geminiModel
+          : 'gemini-3.1-flash-lite';
+      final candidates = <String>[
+        primaryModel,
+        'gemini-3.1-flash-lite',
+        'gemini-3.1-flash-lite',
+        'gemini-3.1-flash-lite',
+      ];
+      const retryDelays = <Duration>[
+        Duration(milliseconds: 450),
+        Duration(milliseconds: 900),
+        Duration(milliseconds: 1500),
+      ];
+      http.Response? lastResponse;
+      Object? lastError;
+      for (var attempt = 0; attempt < candidates.length; attempt++) {
+        final candidate = candidates[attempt];
+        usedModel = candidate;
+        final freshClient = http.Client();
+        try {
+          final res = await sendLegacy(
+            candidate,
+            overrideClient: freshClient,
+          );
+          lastResponse = res;
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            break;
+          }
+          if (res.statusCode == 401 || res.statusCode == 403) {
+            break;
+          }
+        } on TimeoutException catch (e) {
+          lastError = e;
+        } catch (e) {
+          lastError = e;
+        } finally {
+          freshClient.close();
+        }
+        if (attempt < retryDelays.length) {
+          await Future<void>.delayed(retryDelays[attempt]);
+        }
+      }
+      if (lastResponse == null) {
+        if (lastError is TimeoutException) {
+          throw TimeoutException(
+            'Kayleo took too long to read this photo. Try again.',
+          );
+        }
+        throw StateError(
+          'Kayleo couldn’t reach the network right now. Check your internet connection and try again.',
+        );
+      }
+      response = lastResponse;
+    }
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw StateError(
+        'Kayleo photo analysis is temporarily unavailable. Please try again shortly.',
+      );
+    }
+    if (response.statusCode == 429) {
+      throw StateError(
+        'Kayleo is busy right now. Try again in a moment.',
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      var detail = '';
+      try {
+        final body = jsonDecode(utf8.decode(response.bodyBytes));
+        if (body is Map && body['error'] is Map) {
+          detail = (body['error'] as Map)['message']?.toString().trim() ?? '';
+        }
+      } catch (_) {
+        // Keep the stable status-only fallback for non-JSON error pages.
+      }
+      final cleanDetail = detail.replaceAll(
+        RegExp(r'\bgemini[-a-z0-9.]*\b', caseSensitive: false),
+        'Kayleo',
+      );
+      throw StateError(
+        cleanDetail.isEmpty
+            ? 'Kayleo couldn’t analyze this photo (${response.statusCode}).'
+            : 'Kayleo couldn’t analyze this photo: $cleanDetail',
+      );
+    }
+    if (response.bodyBytes.length > 1024 * 1024) {
+      throw const FormatException(
+        'Kayleo returned an unexpectedly large response.',
+      );
+    }
+    final envelope = jsonDecode(utf8.decode(response.bodyBytes));
+    if (envelope is! Map) {
+      throw const FormatException('Kayleo couldn’t read this photo clearly.');
+    }
+    final interaction = envelope['interaction'] is Map
+        ? envelope['interaction'] as Map
+        : envelope;
+    Object? text = interaction['output_text'] ?? interaction['outputText'];
+    if (usedLegacyApi) {
+      final candidates = envelope['candidates'];
+      final content = candidates is List &&
+              candidates.isNotEmpty &&
+              candidates.first is Map
+          ? (candidates.first as Map)['content']
+          : null;
+      final parts = content is Map ? content['parts'] : null;
+      if (parts is List) {
+        text = parts
+            .whereType<Map>()
+            .map((part) => part['text'])
+            .whereType<String>()
+            .join();
+      }
+    }
+    if (text is! String) {
+      throw const FormatException('Kayleo couldn’t read this photo clearly.');
+    }
+    final decoded = jsonDecode(text);
+    if (decoded is! Map) {
+      throw const FormatException('Kayleo couldn’t estimate this meal.');
+    }
+    final data = Map<String, dynamic>.from(decoded);
+    final classification = data['classification']?.toString();
+    if (classification == 'not_food') {
+      throw const PhotoAnalysisException(
+        PhotoAnalysisIssue.noFood,
+        'We couldn’t find a visible food or drink in this photo.',
+      );
+    }
+    if (classification != 'food') {
+      throw const PhotoAnalysisException(
+        PhotoAnalysisIssue.unclear,
+        'The photo is too unclear to estimate confidently.',
+      );
+    }
+    final name = data['mealName']?.toString().trim() ?? '';
+    final confidence = _number(data['confidence'], 1);
+    final rawItems = data['items'];
+    if (name.length < 2 ||
+        name.length > 100 ||
+        rawItems is! List ||
+        rawItems.isEmpty) {
+      throw const FormatException('Kayleo couldn’t estimate the full nutrition for this meal.');
+    }
+    var serving = 0.0,
+        calories = 0.0,
+        protein = 0.0,
+        carbs = 0.0,
+        fat = 0.0,
+        fiber = 0.0;
+    final items = <String>[];
+    final plateItems = <DetectedPlateItem>[];
+    for (final raw in rawItems.take(8)) {
+      if (raw is! Map) throw const FormatException('Kayleo couldn’t read one of the food items.');
+      final item = Map<String, dynamic>.from(raw);
+      final itemName = item['name']?.toString().trim() ?? '';
+      final portion = item['portion']?.toString().trim() ?? '';
+      final itemGrams = _number(item['grams'], 3000);
+      final itemCalories = _number(item['calories'], 5000);
+      final itemProtein = _number(item['proteinGrams'], 500);
+      final itemCarbs = _number(item['carbsGrams'], 1000);
+      final itemFat = _number(item['fatGrams'], 500);
+      final itemFiber = _number(item['fiberGrams'], 200);
+      if (itemName.isEmpty ||
+          itemGrams == null ||
+          itemCalories == null ||
+          itemProtein == null ||
+          itemCarbs == null ||
+          itemFat == null ||
+          itemFiber == null) {
+        throw const FormatException('Kayleo returned incomplete food details.');
+      }
+      serving += itemGrams;
+      calories += itemCalories;
+      protein += itemProtein;
+      carbs += itemCarbs;
+      fat += itemFat;
+      fiber += itemFiber;
+      items.add(portion.isEmpty ? itemName : '$itemName ($portion)');
+      plateItems.add(
+        DetectedPlateItem(
+          name: itemName,
+          portion: portion.isEmpty ? '1 serving' : portion,
+          grams: itemGrams,
+          calories: itemCalories,
+          proteinGrams: itemProtein,
+          carbsGrams: itemCarbs,
+          fatGrams: itemFat,
+          fiberGrams: itemFiber,
+        ),
+      );
+    }
+    if (serving < 1 || calories <= 0) {
+      throw const FormatException('Kayleo couldn’t estimate calories for this meal.');
+    }
+    final factor = 100 / serving;
+    final notes = data['assumptions']?.toString().trim() ?? '';
+    final details = [
+      if (items.isNotEmpty) 'On your plate: ${items.join(', ')}',
+      if (notes.isNotEmpty) notes,
+      if (confidence != null)
+        'Confidence: ${(confidence * 100).round()}%',
+    ].join(' · ');
+    return FoodNutrition(
+      id: 'kayleo:${DateTime.now().microsecondsSinceEpoch}',
+      name: name,
+      source: 'Kayleo Vision estimate · review before logging',
+      sourceUrl: '',
+      values: [
+        calories * factor,
+        protein * factor,
+        carbs * factor,
+        fat * factor,
+        fiber * factor,
+      ],
+      estimated: true,
+      servingGrams: serving,
+      details: details,
+      plateItems: plateItems,
+    );
+  }
+
+  static String _imageMimeType(Uint8List bytes) {
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4e &&
+        bytes[3] == 0x47) {
+      return 'image/png';
+    }
+    if (bytes.length >= 12 &&
+        ascii.decode(bytes.sublist(0, 4), allowInvalid: true) == 'RIFF' &&
+        ascii.decode(bytes.sublist(8, 12), allowInvalid: true) == 'WEBP') {
+      return 'image/webp';
+    }
+    return 'image/jpeg';
+  }
+
 
   /// Search both providers independently so an outage cannot hide other results.
   Future<FoodSearchResults> searchAll(String query) async {
@@ -504,5 +1132,63 @@ class FoodAIService {
     }
     await _detector.dispose();
     if (_ownsClient) _client.close();
+  }
+}
+
+Future<Uint8List> _downscaleFast(Uint8List raw) async {
+  try {
+    final codec = await ui.instantiateImageCodec(raw, targetWidth: 384);
+    final frame = await codec.getNextFrame();
+    final uiImg = frame.image;
+    final w = uiImg.width;
+    final h = uiImg.height;
+    final rgba = await uiImg.toByteData(format: ui.ImageByteFormat.rawRgba);
+    uiImg.dispose();
+    codec.dispose();
+    if (rgba != null) {
+      return await compute(_encodeRgbaToJpg, (
+        rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes),
+        w,
+        h,
+      ));
+    }
+  } catch (_) {}
+  return compute(_downscaleForGemini, raw);
+}
+
+Uint8List _encodeRgbaToJpg((Uint8List, int, int) input) {
+  final (bytes, w, h) = input;
+  final image = img.Image.fromBytes(
+    width: w,
+    height: h,
+    bytes: bytes.buffer,
+    bytesOffset: bytes.offsetInBytes,
+    numChannels: 4,
+  );
+  return Uint8List.fromList(img.encodeJpg(image, quality: 72));
+}
+
+Uint8List _downscaleForGemini(Uint8List raw) {
+  try {
+    final decoded = img.decodeImage(raw);
+    if (decoded == null) return raw;
+    var image = img.bakeOrientation(decoded);
+    const maxSide = 384;
+    if (image.width > maxSide || image.height > maxSide) {
+      image = image.width >= image.height
+          ? img.copyResize(
+              image,
+              width: maxSide,
+              interpolation: img.Interpolation.nearest,
+            )
+          : img.copyResize(
+              image,
+              height: maxSide,
+              interpolation: img.Interpolation.nearest,
+            );
+    }
+    return Uint8List.fromList(img.encodeJpg(image, quality: 72));
+  } catch (_) {
+    return raw;
   }
 }

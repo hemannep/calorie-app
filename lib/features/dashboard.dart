@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../core/app_state.dart';
@@ -41,6 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.state.addListener(_onStateChanged);
+    HealthService.instance.addListener(_loadHealthData);
     _loadHealthData();
   }
 
@@ -182,6 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    HealthService.instance.removeListener(_loadHealthData);
     widget.state.removeListener(_onStateChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -272,7 +275,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
         DashboardRingsSection(
           state: state,
           date: date,
@@ -827,6 +830,15 @@ class _DashboardRingsSectionState extends State<DashboardRingsSection> {
     super.dispose();
   }
 
+  void _goToPage(int index) {
+    if (_currentPage == index) return;
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _scheduleMeasure();
@@ -834,7 +846,16 @@ class _DashboardRingsSectionState extends State<DashboardRingsSection> {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _RingsSegmentedControl(
+            controller: _pageController,
+            currentPage: _currentPage,
+            onSelect: _goToPage,
+          ),
+        ),
         AnimatedContainer(
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
@@ -897,39 +918,160 @@ class _DashboardRingsSectionState extends State<DashboardRingsSection> {
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            2,
-            (index) => InkWell(
-              key: Key(
-                index == 0 ? 'rings-pill-nutrition' : 'rings-pill-activity',
-              ),
-              borderRadius: BorderRadius.circular(6),
-              onTap: () {
-                _pageController.animateToPage(
-                  index,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                width: _currentPage == index ? 18 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: _currentPage == index
-                      ? context.kayleoPrimary
-                      : context.kayleoSurfaces.border,
-                  borderRadius: BorderRadius.circular(6),
+      ],
+    );
+  }
+}
+
+/// Full-width sliding segmented control above the Today carousel.
+/// The white thumb follows the finger while swiping between pages, so the
+/// heading and the content always move together.
+class _RingsSegmentedControl extends StatelessWidget {
+  const _RingsSegmentedControl({
+    required this.controller,
+    required this.currentPage,
+    required this.onSelect,
+  });
+
+  final PageController controller;
+  final int currentPage;
+  final ValueChanged<int> onSelect;
+
+  static const _segments = [
+    (
+      key: Key('rings-heading-nutrition'),
+      label: 'Nutrition',
+      icon: Icons.restaurant_rounded,
+    ),
+    (
+      key: Key('rings-heading-activity'),
+      label: 'Activity',
+      icon: Icons.directions_walk_rounded,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = context.kayleoSurfaces;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final muted = context.kayleoMuted;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
+    return Semantics(
+      container: true,
+      label: 'Today overview sections',
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: surfaces.soft,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: surfaces.border.withValues(alpha: .5)),
+        ),
+        child: AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) {
+            var page = currentPage.toDouble();
+            if (controller.hasClients &&
+                controller.position.hasContentDimensions) {
+              page = (controller.page ?? page).clamp(0.0, 1.0);
+            }
+            return Stack(
+              children: [
+                // Sliding thumb
+                Align(
+                  alignment: Alignment(-1 + page * 2, 0),
+                  child: FractionallySizedBox(
+                    widthFactor: .5,
+                    heightFactor: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: surfaces.card,
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: dark ? .35 : .08,
+                            ),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
+                Row(
+                  children: [
+                    for (var i = 0; i < _segments.length; i++)
+                      Expanded(
+                        child: _segment(
+                          context,
+                          index: i,
+                          // 1.0 when fully selected, 0.0 when not.
+                          t: (1 - (page - i).abs()).clamp(0.0, 1.0),
+                          onSurface: onSurface,
+                          muted: muted,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _segment(
+    BuildContext context, {
+    required int index,
+    required double t,
+    required Color onSurface,
+    required Color muted,
+  }) {
+    final segment = _segments[index];
+    final textColor = Color.lerp(muted, onSurface, t)!;
+    final iconColor = Color.lerp(muted, context.kayleoPrimary, t)!;
+    return Semantics(
+      button: true,
+      selected: currentPage == index,
+      label: segment.label,
+      excludeSemantics: true,
+      child: InkWell(
+        key: segment.key,
+        borderRadius: BorderRadius.circular(999),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onSelect(index);
+        },
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(segment.icon, size: 17, color: iconColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    segment.label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: t > .5 ? FontWeight.w800 : FontWeight.w600,
+                      letterSpacing: -.1,
+                      color: textColor,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

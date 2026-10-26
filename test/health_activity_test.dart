@@ -138,11 +138,11 @@ void main() {
 
       // 1. Initial slide is Nutrition (Calorie ring visible)
       expect(find.byKey(const Key('today-calorie-ring')), findsOneWidget);
-      expect(find.byKey(const Key('rings-pill-nutrition')), findsOneWidget);
-      expect(find.byKey(const Key('rings-pill-activity')), findsOneWidget);
+      expect(find.byKey(const Key('rings-heading-nutrition')), findsOneWidget);
+      expect(find.byKey(const Key('rings-heading-activity')), findsOneWidget);
 
-      // 2. Switch to Activity slide via pill tap
-      await tester.tap(find.byKey(const Key('rings-pill-activity')));
+      // 2. Switch to Activity slide via heading tap
+      await tester.tap(find.byKey(const Key('rings-heading-activity')));
       await tester.pumpAndSettle();
 
       // Main Step ring is visible
@@ -185,7 +185,7 @@ void main() {
       expect(find.textContaining('7,200 / 12,000 steps'), findsOneWidget);
 
       // 5. Switch back to Nutrition slide via pill tap
-      await tester.tap(find.byKey(const Key('rings-pill-nutrition')));
+      await tester.tap(find.byKey(const Key('rings-heading-nutrition')));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('today-calorie-ring')), findsOneWidget);
@@ -280,7 +280,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Switch to Activity slide
-      await tester.tap(find.byKey(const Key('rings-pill-activity')));
+      await tester.tap(find.byKey(const Key('rings-heading-activity')));
       await tester.pumpAndSettle();
 
       // Verify "Not connected" badge and Connect button are prominently displayed

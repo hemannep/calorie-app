@@ -155,7 +155,7 @@ void main() {
     final camera = t.widget<FloatingActionButton>(
       find.byKey(const Key('bottom-camera-button')),
     );
-    expect(camera.backgroundColor, KayleoColors.lime);
+    expect(camera.backgroundColor, KayleoColors.forest);
     await t.tap(find.text('Progress').last);
     await t.pumpAndSettle();
     await snapshot(t, 'kayleo-progress');

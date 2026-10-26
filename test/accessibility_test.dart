@@ -137,7 +137,8 @@ void main() {
           'What brings\nyou here?',
           'About you.',
           'Find your\nrhythm.',
-          'Preparing your personal plan',
+          'What feels\ngood to eat?',
+          'Your plan,\nin balance.',
           'Your plan.\nYour pace.',
         ];
         for (var step = 0; step < titles.length; step++) {
@@ -170,17 +171,10 @@ void main() {
             await tester.pumpAndSettle();
           } else if (step == 5) {
             await _selectSemanticChoice(tester, 'Moderately active');
-            await _tapVisible(tester, find.text('Vegetarian'));
-            expect(
-              tester
-                  .widget<ChoiceChip>(
-                    find.widgetWithText(ChoiceChip, 'Vegetarian'),
-                  )
-                  .selected,
-              isTrue,
-            );
+          } else if (step == 6) {
+            await _selectSemanticChoice(tester, 'Vegetarian');
           }
-          if (step == 6) {
+          if (step == 7) {
             await tester.pump(const Duration(seconds: 10));
             await tester.pumpAndSettle();
             continue;

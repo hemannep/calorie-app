@@ -107,8 +107,9 @@ class HealthActivityData {
 }
 
 /// Service to connect and synchronize daily fitness and motion data
-/// directly with Apple Health (iOS) and Health Connect (Android).
-class HealthService {
+/// directly with Apple Health (iOS), Health Connect (Android), and the
+/// phone's built-in hardware step counter sensor on Android.
+class HealthService extends ChangeNotifier {
   HealthService({Health? health}) : _health = health ?? Health();
 
   static HealthService instance = HealthService();
@@ -118,6 +119,8 @@ class HealthService {
   final Health _health;
   static const _platformChannel = MethodChannel('kayleo/health');
   bool _configured = false;
+  bool _channelListening = false;
+  bool _promptedSensorOnce = false;
   final Map<String, Future<HealthActivityData>> _inFlight = {};
   final Map<String, (DateTime, HealthActivityData)> _cache = {};
 
@@ -212,13 +215,101 @@ class HealthService {
   }
 
   Future<void> _ensureConfigured() async {
-    if (_configured) return;
     if (!isPlatformSupported) return;
+    if (!_channelListening && !kIsWeb && Platform.isAndroid) {
+      try {
+        _platformChannel.setMethodCallHandler(_handleNativeCall);
+        _channelListening = true;
+      } catch (_) {}
+    }
+    if (_configured) return;
     try {
       await _health.configure();
       _configured = true;
     } catch (e) {
       debugPrint('HealthService configure error: $e');
+    }
+  }
+
+  Future<dynamic> _handleNativeCall(MethodCall call) async {
+    if (call.method == 'onStepsChanged') {
+      final now = DateTime.now();
+      final todayKey =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final newSteps = call.arguments is int ? call.arguments as int : null;
+      final cached = _cache[todayKey];
+      if (newSteps != null && cached != null && newSteps > cached.$2.steps) {
+        final prev = cached.$2;
+        final min = prev.rawActiveMinutes
+            ? prev.activeMinutes
+            : HealthActivityData.estimateActiveMinutesFromSteps(newSteps);
+        final cal = prev.rawActiveCalories
+            ? prev.activeCalories
+            : HealthActivityData.estimateActiveCaloriesFromSteps(newSteps);
+        final km = prev.rawDistance
+            ? prev.motionKm
+            : HealthActivityData.estimateDistanceKmFromSteps(newSteps);
+        _cache[todayKey] = (
+          now,
+          prev.copyWith(
+            steps: newSteps,
+            activeMinutes: min,
+            activeCalories: cal,
+            motionKm: km,
+            isAuthorized: true,
+          ),
+        );
+      } else {
+        _cache.remove(todayKey);
+      }
+      notifyListeners();
+    }
+  }
+
+  Future<bool> _hasHealthConnectPermissions() async {
+    try {
+      const types = [HealthDataType.STEPS];
+      const permissions = [HealthDataAccess.READ];
+      final has = await _health.hasPermissions(types, permissions: permissions);
+      return has == true;
+    } catch (e) {
+      debugPrint('HealthService _hasHealthConnectPermissions error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _hasSensorPermission() async {
+    if (kIsWeb || !Platform.isAndroid) return false;
+    try {
+      return await _platformChannel.invokeMethod<bool>('hasSensorPermission') ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _requestSensorPermission() async {
+    if (kIsWeb || !Platform.isAndroid) return false;
+    try {
+      return await _platformChannel.invokeMethod<bool>(
+            'requestSensorPermission',
+          ) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<int> _getHardwareSteps(String dateKey, bool isToday) async {
+    if (kIsWeb || !Platform.isAndroid) return 0;
+    try {
+      return await _platformChannel.invokeMethod<int>('getDailySteps', {
+            'date': dateKey,
+            'isToday': isToday,
+          }) ??
+          0;
+    } catch (_) {
+      return 0;
     }
   }
 
@@ -228,10 +319,14 @@ class HealthService {
     if (!isPlatformSupported) return false;
     await _ensureConfigured();
     try {
-      // On Android, check if at least steps or core activity types are granted
-      final types = Platform.isAndroid
-          ? const [HealthDataType.STEPS]
-          : dataTypes;
+      if (Platform.isAndroid) {
+        final results = await Future.wait([
+          _hasHealthConnectPermissions(),
+          _hasSensorPermission(),
+        ]);
+        return results[0] || results[1];
+      }
+      final types = dataTypes;
       if (types.isEmpty) return false;
       final permissions = List.filled(types.length, HealthDataAccess.READ);
       final has = await _health.hasPermissions(types, permissions: permissions);
@@ -242,18 +337,39 @@ class HealthService {
     }
   }
 
-  /// Request user authorization for HealthKit or Health Connect.
+  /// Request user authorization for HealthKit or Health Connect + phone step sensor.
   Future<bool> requestPermissions() async {
     if (mockIsAuthorized != null) return mockIsAuthorized!;
     if (!isPlatformSupported) return false;
     await _ensureConfigured();
     try {
+      var sensorOk = false;
+      var healthConnectOk = false;
       if (Platform.isAndroid) {
+        sensorOk = await _requestSensorPermission();
         final available = await isHealthConnectAvailable();
-        if (!available) {
+        if (available) {
+          final types = dataTypes;
+          final permissions = List.filled(types.length, HealthDataAccess.READ);
+          try {
+            healthConnectOk = await _health.requestAuthorization(
+              types,
+              permissions: permissions,
+            );
+          } catch (e) {
+            debugPrint('HealthService Health Connect auth error: $e');
+          }
+        } else if (!sensorOk) {
           await installHealthConnect();
           return false;
         }
+        final ok = sensorOk || healthConnectOk;
+        if (ok) {
+          _cache.clear();
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(healthConnectedPrefKey, true);
+        }
+        return ok;
       }
       final types = dataTypes;
       if (types.isEmpty) return false;
@@ -364,10 +480,27 @@ class HealthService {
     final prefs = await SharedPreferences.getInstance();
     final isConnectedPref = prefs.getBool(healthConnectedPrefKey) ?? false;
 
+    final dateKey =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+    var hasHealthConnectPerm = false;
+    var hasSensorPerm = false;
+
     // Check authorization beforehand to avoid SecurityException on Android Health Connect
     if (Platform.isAndroid) {
-      final hasPerm = await hasPermissions();
-      if (!hasPerm) {
+      final perms = await Future.wait([
+        _hasHealthConnectPermissions(),
+        _hasSensorPermission(),
+      ]);
+      hasHealthConnectPerm = perms[0];
+      hasSensorPerm = perms[1];
+      if ((hasHealthConnectPerm || isConnectedPref) &&
+          !hasSensorPerm &&
+          !_promptedSensorOnce) {
+        _promptedSensorOnce = true;
+        hasSensorPerm = await _requestSensorPermission();
+      }
+      if (!hasHealthConnectPerm && !hasSensorPerm) {
         return const HealthActivityData(
           isAuthorized: false,
           isAvailable: true,
@@ -380,6 +513,7 @@ class HealthService {
           isAvailable: true,
         );
       }
+      hasHealthConnectPerm = true;
     }
 
     final startTime = DateTime(date.year, date.month, date.day, 0, 0, 0);
@@ -409,81 +543,94 @@ class HealthService {
     var gotRawDistance = false;
 
     try {
-      // 1. Fetch aggregate steps safely
-      try {
-        final stepsAggregate = await _health.getTotalStepsInInterval(
-          startTime,
-          endTime,
-        );
-        if (stepsAggregate != null) {
-          totalSteps = stepsAggregate;
-        }
-      } catch (e) {
-        debugPrint('HealthService getTotalStepsInInterval error: $e');
-      }
-
-      // 2. Fetch data points for remaining health types (skip raw STEPS if aggregate succeeded)
-      final types = totalSteps > 0
-          ? dataTypes.where((t) => t != HealthDataType.STEPS).toList()
-          : dataTypes;
-      if (types.isNotEmpty) {
+      if (hasHealthConnectPerm) {
+        // 1. Fetch aggregate steps safely from HealthKit / Health Connect
         try {
-          final dataPoints = await _health.getHealthDataFromTypes(
-            types: types,
-            startTime: startTime,
-            endTime: endTime,
+          final stepsAggregate = await _health.getTotalStepsInInterval(
+            startTime,
+            endTime,
           );
-
-          for (final dp in dataPoints) {
-            final val = dp.value;
-            if (val is NumericHealthValue) {
-              final numVal = val.numericValue;
-              switch (dp.type) {
-                case HealthDataType.STEPS:
-                  if (totalSteps == 0) {
-                    totalSteps += numVal.round();
-                  }
-                  break;
-                case HealthDataType.ACTIVE_ENERGY_BURNED:
-                  totalActiveCalories += numVal.round();
-                  gotRawActiveCalories = true;
-                  break;
-                case HealthDataType.BASAL_ENERGY_BURNED:
-                  totalBasalCalories += numVal.round();
-                  break;
-                case HealthDataType.EXERCISE_TIME:
-                  totalActiveMinutes += numVal.round();
-                  gotRawActiveMinutes = true;
-                  break;
-                case HealthDataType.APPLE_MOVE_TIME:
-                  totalActiveMinutes += (numVal / 60).round();
-                  gotRawActiveMinutes = true;
-                  break;
-                case HealthDataType.DISTANCE_DELTA:
-                case HealthDataType.DISTANCE_WALKING_RUNNING:
-                  totalMotionMeters += numVal.toDouble();
-                  gotRawDistance = true;
-                  break;
-                case HealthDataType.FLIGHTS_CLIMBED:
-                  totalFloorsClimbed += numVal.round();
-                  break;
-                case HealthDataType.HEART_RATE:
-                  heartRateSum += numVal.toDouble();
-                  heartRateCount++;
-                  break;
-                default:
-                  break;
-              }
-            } else if (dp.type == HealthDataType.WORKOUT) {
-              final durationMin = dp.dateTo.difference(dp.dateFrom).inMinutes;
-              if (durationMin > 0) {
-                totalActiveMinutes += durationMin;
-                gotRawActiveMinutes = true;
-              }
-            }
+          if (stepsAggregate != null) {
+            totalSteps = stepsAggregate;
           }
         } catch (e) {
-          debugPrint('HealthService getHealthDataFromTypes error: $e');
+          debugPrint('HealthService getTotalStepsInInterval error: $e');
+        }
+
+        // 2. Fetch data points for remaining health types (skip raw STEPS if aggregate succeeded)
+        final types = totalSteps > 0
+            ? dataTypes.where((t) => t != HealthDataType.STEPS).toList()
+            : dataTypes;
+        if (types.isNotEmpty) {
+          try {
+            final dataPoints = await _health.getHealthDataFromTypes(
+              types: types,
+              startTime: startTime,
+              endTime: endTime,
+            );
+
+            for (final dp in dataPoints) {
+              final val = dp.value;
+              if (val is NumericHealthValue) {
+                final numVal = val.numericValue;
+                switch (dp.type) {
+                  case HealthDataType.STEPS:
+                    if (totalSteps == 0) {
+                      totalSteps += numVal.round();
+                    }
+                    break;
+                  case HealthDataType.ACTIVE_ENERGY_BURNED:
+                    totalActiveCalories += numVal.round();
+                    gotRawActiveCalories = true;
+                    break;
+                  case HealthDataType.BASAL_ENERGY_BURNED:
+                    totalBasalCalories += numVal.round();
+                    break;
+                  case HealthDataType.EXERCISE_TIME:
+                    totalActiveMinutes += numVal.round();
+                    gotRawActiveMinutes = true;
+                    break;
+                  case HealthDataType.APPLE_MOVE_TIME:
+                    totalActiveMinutes += (numVal / 60).round();
+                    gotRawActiveMinutes = true;
+                    break;
+                  case HealthDataType.DISTANCE_DELTA:
+                  case HealthDataType.DISTANCE_WALKING_RUNNING:
+                    totalMotionMeters += numVal.toDouble();
+                    gotRawDistance = true;
+                    break;
+                  case HealthDataType.FLIGHTS_CLIMBED:
+                    totalFloorsClimbed += numVal.round();
+                    break;
+                  case HealthDataType.HEART_RATE:
+                    heartRateSum += numVal.toDouble();
+                    heartRateCount++;
+                    break;
+                  default:
+                    break;
+                }
+              } else if (dp.type == HealthDataType.WORKOUT) {
+                final durationMin = dp.dateTo.difference(dp.dateFrom).inMinutes;
+                if (durationMin > 0) {
+                  totalActiveMinutes += durationMin;
+                  gotRawActiveMinutes = true;
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('HealthService getHealthDataFromTypes error: $e');
+          }
+        }
+      }
+
+      // 2b. On Android, also read the phone's built-in hardware step counter
+      // sensor so phones where Health Connect has 0 steps (e.g. Honor, Xiaomi,
+      // Vivo, Oppo, or Samsung without Health Connect sync enabled) still
+      // report accurate daily steps.
+      if (Platform.isAndroid && hasSensorPerm) {
+        final sensorSteps = await _getHardwareSteps(dateKey, isSameDay);
+        if (sensorSteps > totalSteps) {
+          totalSteps = sensorSteps;
         }
       }
 

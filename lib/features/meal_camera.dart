@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 
 import '../core/ui.dart';
 
@@ -19,6 +21,7 @@ class MealCamera extends StatefulWidget {
     this.showModeBar = true,
     this.bottomInset = 0,
     this.onReleased,
+    this.onPhotoCaptured,
   });
 
   final ValueChanged<Uint8List> onPhoto;
@@ -30,6 +33,7 @@ class MealCamera extends StatefulWidget {
   final bool showModeBar;
   final double bottomInset;
   final VoidCallback? onReleased;
+  final ValueChanged<Uint8List>? onPhotoCaptured;
 
   @override
   State<MealCamera> createState() => _MealCameraState();
@@ -46,6 +50,9 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
   FlashMode _flashMode = FlashMode.off;
   int _generation = 0;
   Future<void> _operations = Future.value();
+  double _minZoom = 1, _maxZoom = 1, _zoom = 1, _zoomStart = 1;
+  Offset? _focusPoint;
+  int _focusTick = 0;
 
   @override
   void initState() {
@@ -98,8 +105,9 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
             );
         final controller = CameraController(
           _selected!,
-          ResolutionPreset.medium,
+          ResolutionPreset.veryHigh,
           enableAudio: false,
+          imageFormatGroup: ImageFormatGroup.jpeg,
         );
         _controller = controller;
         await controller.initialize();
@@ -121,7 +129,15 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
         }
         try {
           await controller.setFocusMode(FocusMode.auto);
+          await controller.setExposureMode(ExposureMode.auto);
         } catch (_) {}
+        try {
+          _minZoom = await controller.getMinZoomLevel();
+          _maxZoom = (await controller.getMaxZoomLevel()).clamp(_minZoom, 8.0);
+        } catch (_) {
+          _minZoom = _maxZoom = 1;
+        }
+        _zoom = _minZoom;
         if (!_current(generation)) {
           await _release();
           return;
@@ -178,12 +194,18 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
     try {
       unawaited(HapticFeedback.mediumImpact().catchError((_) {}));
       final file = await controller.takePicture();
-      final bytes = await file.readAsBytes();
+      final raw = await file.readAsBytes();
+      if (!_current(generation)) return;
+      // Hardware Full HD captures are typically <1 MB; only re-encode if needed.
+      final bytes = raw.length > 2 * 1024 * 1024
+          ? await compute(_compressPhoto, raw)
+          : raw;
       if (!_current(generation)) return;
       if (bytes.length > 2 * 1024 * 1024) {
         throw CameraException('PhotoSize', 'Photo is too large.');
       }
       setState(() => _captured = bytes);
+      widget.onPhotoCaptured?.call(bytes);
       _operations = _operations.then((_) => _release());
       await _operations;
     } catch (_) {
@@ -228,42 +250,192 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  Future<void> _focusAt(
+    CameraController controller,
+    Offset local,
+    Size box,
+    double ratio,
+  ) async {
+    final generation = _generation;
+    // The preview is cover-fitted, so map the tap through the cropped area.
+    final previewW = 320 * ratio, previewH = 320.0;
+    final scale = (box.width / previewW) > (box.height / previewH)
+        ? box.width / previewW
+        : box.height / previewH;
+    final shownW = previewW * scale, shownH = previewH * scale;
+    final point = Offset(
+      ((local.dx - (box.width - shownW) / 2) / shownW).clamp(0.0, 1.0),
+      ((local.dy - (box.height - shownH) / 2) / shownH).clamp(0.0, 1.0),
+    );
+    final tick = ++_focusTick;
+    setState(() => _focusPoint = local);
+    unawaited(HapticFeedback.selectionClick().catchError((_) {}));
+    try {
+      await controller.setFocusMode(FocusMode.auto);
+      if (!_current(generation)) return;
+      await controller.setFocusPoint(point);
+      if (!_current(generation)) return;
+      await controller.setExposurePoint(point);
+    } catch (_) {}
+    await Future<void>.delayed(const Duration(milliseconds: 1400));
+    if (_current(generation) && tick == _focusTick) {
+      setState(() => _focusPoint = null);
+    }
+  }
+
   Widget _preview(CameraController controller) => LayoutBuilder(
-    builder: (context, c) => GestureDetector(
-      onTapDown: (tap) async {
-        final generation = _generation;
-        try {
-          final point = Offset(
-            (tap.localPosition.dx / c.maxWidth).clamp(0, 1),
-            (tap.localPosition.dy / c.maxHeight).clamp(0, 1),
-          );
-          await controller.setFocusPoint(point);
-          if (!_current(generation)) return;
-          await controller.setExposurePoint(point);
-        } catch (_) {}
-      },
-      child: ValueListenableBuilder(
-        valueListenable: controller,
-        builder: (context, value, child) {
-          final orientation = value.deviceOrientation;
-          final landscape =
-              orientation == DeviceOrientation.landscapeLeft ||
-              orientation == DeviceOrientation.landscapeRight;
-          final ratio = landscape ? value.aspectRatio : 1 / value.aspectRatio;
-          return ClipRect(
-            child: SizedBox.expand(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: 320 * ratio,
-                  height: 320,
-                  child: CameraPreview(controller),
+    builder: (context, c) => ValueListenableBuilder(
+      valueListenable: controller,
+      builder: (context, value, child) {
+        final orientation = value.deviceOrientation;
+        final landscape =
+            orientation == DeviceOrientation.landscapeLeft ||
+            orientation == DeviceOrientation.landscapeRight;
+        final ratio = landscape ? value.aspectRatio : 1 / value.aspectRatio;
+        final box = Size(c.maxWidth, c.maxHeight);
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (tap) =>
+              _focusAt(controller, tap.localPosition, box, ratio),
+          onScaleStart: (_) => _zoomStart = _zoom,
+          onScaleUpdate: (details) {
+            if (details.pointerCount < 2 || _maxZoom <= _minZoom) return;
+            final next = (_zoomStart * details.scale).clamp(_minZoom, _maxZoom);
+            if ((next - _zoom).abs() < .01) return;
+            setState(() => _zoom = next);
+            controller.setZoomLevel(next).catchError((_) {});
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ClipRect(
+                child: SizedBox.expand(
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: 320 * ratio,
+                      height: 320,
+                      child: CameraPreview(controller),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-      ),
+              if (_focusPoint != null)
+                Positioned(
+                  left: _focusPoint!.dx - 38,
+                  top: _focusPoint!.dy - 38,
+                  child: IgnorePointer(
+                    child: TweenAnimationBuilder<double>(
+                      key: ValueKey(_focusTick),
+                      tween: Tween(begin: 1.35, end: 1),
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutBack,
+                      builder: (context, s, child) =>
+                          Transform.scale(scale: s, child: child),
+                      child: Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: lime, width: 2),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x66000000),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: lime,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (_maxZoom > _minZoom + .1)
+                Positioned(
+                  bottom: 12,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final preset in [
+                            1.0,
+                            if (_maxZoom >= 2.0) 2.0,
+                          ])
+                            GestureDetector(
+                              onTap: () {
+                                final target = preset.clamp(_minZoom, _maxZoom);
+                                setState(() => _zoom = target);
+                                controller
+                                    .setZoomLevel(target)
+                                    .catchError((_) {});
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (_zoom - preset).abs() < 0.25
+                                      ? lime
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Text(
+                                  '${preset.toStringAsFixed(0)}×',
+                                  style: TextStyle(
+                                    color: (_zoom - preset).abs() < 0.25
+                                        ? forest
+                                        : Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if ((_zoom - 1.0).abs() >= 0.25 &&
+                              (_zoom - 2.0).abs() >= 0.25)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                '${_zoom.toStringAsFixed(1)}×',
+                                style: const TextStyle(
+                                  color: lime,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     ),
   );
 
@@ -341,17 +513,19 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
             Image.memory(_captured!, fit: BoxFit.cover)
           else if (ready)
             _preview(_controller!),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xAA0D120F),
-                  Color(0x190D120F),
-                  Color(0xD90D120F),
-                ],
-                stops: [0, .45, 1],
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xAA0D120F),
+                    Color(0x190D120F),
+                    Color(0xD90D120F),
+                  ],
+                  stops: [0, .45, 1],
+                ),
               ),
             ),
           ),
@@ -464,7 +638,8 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                               )
                             : _captured != null
                             ? const Tag('PHOTO PREVIEW', color: Colors.white)
-                            : LayoutBuilder(
+                            : IgnorePointer(
+                                child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   final textScale = MediaQuery.textScalerOf(
                                     context,
@@ -515,6 +690,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                                     ),
                                   );
                                 },
+                                ),
                               ),
                       ),
                     ),
@@ -686,17 +862,19 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
             else if (ready)
               _preview(_controller!),
             if (_error == null && !_loading && !_paused)
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x65000000),
-                      Colors.transparent,
-                      Color(0x95000000),
-                    ],
-                    stops: [0, .4, 1],
+              const IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0x65000000),
+                        Colors.transparent,
+                        Color(0x95000000),
+                      ],
+                      stops: [0, .4, 1],
+                    ),
                   ),
                 ),
               ),
@@ -1032,4 +1210,28 @@ class _CameraModePillState extends State<_CameraModePill> {
       ),
     );
   }
+}
+
+/// Downscales a full-resolution capture to at most 2048 px on the long side,
+/// fixes EXIF rotation, and lowers JPEG quality until it fits under 2 MB.
+Uint8List _compressPhoto(Uint8List raw) {
+  const limit = 2 * 1024 * 1024 - 64 * 1024;
+  final decoded = img.decodeImage(raw);
+  if (decoded == null) {
+    if (raw.length <= limit) return raw;
+    throw CameraException('PhotoSize', 'Photo is too large.');
+  }
+  var image = img.bakeOrientation(decoded);
+  const maxSide = 2048;
+  if (image.width > maxSide || image.height > maxSide) {
+    image = image.width >= image.height
+        ? img.copyResize(image, width: maxSide, interpolation: img.Interpolation.average)
+        : img.copyResize(image, height: maxSide, interpolation: img.Interpolation.average);
+  }
+  for (final quality in [92, 85, 78, 70, 60]) {
+    final out = Uint8List.fromList(img.encodeJpg(image, quality: quality));
+    if (out.length <= limit) return out;
+  }
+  final smaller = img.copyResize(image, width: (image.width * .7).round());
+  return Uint8List.fromList(img.encodeJpg(smaller, quality: 75));
 }

@@ -548,7 +548,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: KayleoSpacing.xl),
                   Center(
                     child: Text(
-                      'Private by design · Meal photos stay on your device',
+                      'Saved meal photos stay local · AI analysis is opt-in at build time',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 10.5,

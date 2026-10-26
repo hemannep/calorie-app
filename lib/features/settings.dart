@@ -87,179 +87,156 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = state.profile;
+    final loggedDays = state.meals.map((m) => dateKey(m.time)).toSet().length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ─── Header ───
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Profile',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Your plan, progress and preferences',
-                    style: TextStyle(fontSize: 12, color: context.kayleoMuted),
-                  ),
-                ],
+              child: Text(
+                'Profile',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
             ),
-            IconButton.filledTonal(
-              tooltip: 'Edit your details',
+            TextButton(
               onPressed: () =>
                   openSheet(context, EditProfileSheet(state: state)),
-              icon: const Icon(Icons.edit_outlined, size: 20),
+              style: TextButton.styleFrom(
+                foregroundColor: context.kayleoPrimary,
+                backgroundColor: context.kayleoSurfaces.soft,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              child: const Text(
+                'Edit profile',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 18),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                context.kayleoPrimary,
-                Color.lerp(context.kayleoPrimary, Colors.black, .22)!,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: context.kayleoPrimary.withValues(alpha: .18),
-                blurRadius: 28,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
+
+        // ─── Identity card ───
+        Panel(
+          padding: 20,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   InkWell(
                     onTap: () => _pickProfilePhoto(context),
-                    borderRadius: BorderRadius.circular(48),
+                    borderRadius: BorderRadius.circular(36),
                     child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: .65),
-                              width: 2,
+                        ProfileAvatar(profile: p, radius: 28),
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: context.kayleoPrimary,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: context.kayleoSurfaces.card,
+                                width: 2,
+                              ),
                             ),
-                          ),
-                          child: ProfileAvatar(profile: p, radius: 38),
-                        ),
-                        const Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: CircleAvatar(
-                            radius: 12,
-                            backgroundColor: lime,
                             child: Icon(
                               Icons.camera_alt_rounded,
-                              size: 13,
-                              color: forest,
+                              size: 11,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           p.name.isEmpty ? 'Your profile' : p.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 23,
+                            fontSize: 19,
                             fontWeight: FontWeight.w800,
+                            letterSpacing: -.4,
                           ),
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 3),
                         Text(
-                          '${p.goal} · ${p.age} years',
+                          '${p.goal} · ${p.age} yrs',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: .78),
+                            color: context.kayleoMuted,
                             fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         if (state.accountEmail != null) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             state.accountEmail!,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: .64),
+                              color: context.kayleoMuted,
                               fontSize: 11,
                             ),
                           ),
                         ],
-                        const SizedBox(height: 6),
-                        GestureDetector(
-                          onTap: () => openSheet(
-                            context,
-                            EditProfileSheet(state: state),
-                          ),
-                          child: const Text(
-                            'Edit profile',
-                            style: TextStyle(
-                              color: lime,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .11),
+                  color: context.kayleoSurfaces.soft.withValues(alpha: .42),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Expanded(
-                      child: _profileStat(
-                        context,
-                        '${state.meals.map((m) => dateKey(m.time)).toSet().length}',
-                        'Logged days',
-                        light: true,
-                      ),
+                      child: _heroStat(context, '$loggedDays', 'Logged days'),
                     ),
-                    _heroDivider(),
+                    _heroDivider(context),
                     Expanded(
-                      child: _profileStat(
+                      child: _heroStat(
                         context,
                         '${state.streak}',
                         'Day streak',
-                        light: true,
                       ),
                     ),
-                    _heroDivider(),
+                    _heroDivider(context),
                     Expanded(
-                      child: _profileStat(
+                      child: _heroStat(
                         context,
                         '${state.milestoneUnlocks.length}',
                         'Milestones',
-                        light: true,
                       ),
                     ),
                   ],
@@ -268,57 +245,60 @@ class SettingsScreen extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 14),
+
+        // ─── Daily plan ───
         _planCard(context, p),
-        const SizedBox(height: 24),
-        const SectionTitle('Quick access'),
-        GridView.count(
-          crossAxisCount: MediaQuery.sizeOf(context).width > 700 ? 4 : 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-          childAspectRatio: 2.25,
-          children: [
-            _quickAction(
-              context,
-              Icons.workspace_premium_outlined,
-              'Milestones',
-              () => openMilestones(context, state),
-            ),
-            _quickAction(
-              context,
-              Icons.widgets_outlined,
-              'Home screen widgets',
-              () => Navigator.of(context).push<void>(
-                MaterialPageRoute(
-                  builder: (_) => WidgetGalleryScreen(state: state),
-                ),
+        const SizedBox(height: 22),
+
+        // ─── Shortcuts ───
+        _sectionLabel(context, 'SHORTCUTS'),
+        _group(context, [
+          _setting(
+            context,
+            Icons.workspace_premium_outlined,
+            'Milestones',
+            () => openMilestones(context, state),
+            subtitle: '${state.milestoneUnlocks.length} unlocked',
+          ),
+          _setting(
+            context,
+            Icons.widgets_outlined,
+            'Home screen widgets',
+            () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => WidgetGalleryScreen(state: state),
               ),
             ),
-            _quickAction(
-              context,
-              Icons.bookmark_border_rounded,
-              'Saved meals',
-              () => navigate(4),
-            ),
-            _quickAction(
-              context,
-              Icons.people_outline_rounded,
-              'Community',
-              () => navigate(5),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        const SectionTitle('Personalize'),
+            subtitle: 'Preview iOS & Android widgets',
+          ),
+          _setting(
+            context,
+            Icons.bookmark_border_rounded,
+            'Saved meals',
+            () => navigate(4),
+            subtitle: 'Your usual meals, ready to log',
+          ),
+          _setting(
+            context,
+            Icons.people_outline_rounded,
+            'Community',
+            () => navigate(5),
+            subtitle: 'Circles and shared progress',
+          ),
+        ]),
+        const SizedBox(height: 22),
+
+        // ─── Settings groups ───
+        _sectionLabel(context, 'PERSONALIZE'),
         _group(context, [
           _setting(
             context,
             Icons.badge_outlined,
             'Measurements',
             () => openSheet(context, EditProfileSheet(state: state)),
-            subtitle: 'Measurements, activity and goal',
+            subtitle:
+                '${p.weight.toStringAsFixed(0)} kg · ${p.height.toStringAsFixed(0)} cm',
           ),
           _setting(
             context,
@@ -343,8 +323,8 @@ class SettingsScreen extends StatelessWidget {
             subtitle: p.units,
           ),
         ]),
-        const SizedBox(height: 24),
-        const SectionTitle('Goals & tracking'),
+        const SizedBox(height: 22),
+        _sectionLabel(context, 'GOALS & TRACKING'),
         _group(context, [
           _setting(
             context,
@@ -368,8 +348,8 @@ class SettingsScreen extends StatelessWidget {
             subtitle: 'Meals, water and weekly review',
           ),
         ]),
-        const SizedBox(height: 24),
-        const SectionTitle('Your data'),
+        const SizedBox(height: 22),
+        _sectionLabel(context, 'YOUR DATA'),
         _group(context, [
           _setting(
             context,
@@ -393,8 +373,8 @@ class SettingsScreen extends StatelessWidget {
             subtitle: 'Manage local records',
           ),
         ]),
-        const SizedBox(height: 24),
-        const SectionTitle('Kayleo'),
+        const SizedBox(height: 22),
+        _sectionLabel(context, 'KAYLEO'),
         _group(context, [
           _setting(
             context,
@@ -412,8 +392,8 @@ class SettingsScreen extends StatelessWidget {
           ),
         ]),
         if (state.accountEmail != null) ...[
-          const SizedBox(height: 24),
-          const SectionTitle('Account'),
+          const SizedBox(height: 22),
+          _sectionLabel(context, 'ACCOUNT'),
           _group(context, [
             if (state.accountUid != null)
               _setting(
@@ -434,234 +414,261 @@ class SettingsScreen extends StatelessWidget {
         ],
         const SizedBox(height: KayleoSpacing.xl),
         Center(
-          child: Text(
-            'Kayleo · Your day, in balance.',
-            style: TextStyle(fontSize: 12, color: _settingsMuted(context)),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Kayleo · Your day, in balance.',
+              style: TextStyle(fontSize: 11, color: _settingsMuted(context)),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _heroDivider() => Container(
+  Widget _heroStat(BuildContext context, String value, String label) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        label,
+        maxLines: 1,
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 10.5, color: context.kayleoMuted),
+      ),
+    ],
+  );
+
+  Widget _heroDivider(BuildContext context) => Container(
     width: 1,
-    height: 34,
-    color: Colors.white.withValues(alpha: .2),
+    height: 26,
+    color: context.kayleoSurfaces.border.withValues(alpha: .7),
+  );
+
+  Widget _sectionLabel(BuildContext context, String text) => Padding(
+    padding: const EdgeInsets.only(left: 4, bottom: 8),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.2,
+        color: context.kayleoMuted,
+      ),
+    ),
   );
 
   Widget _planCard(BuildContext context, BodyProfile p) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: context.kayleoSurfaces.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: context.kayleoSurfaces.border),
-      ),
-      child: Row(
-        children: [
-          KayleoRing(
-            progress: 1,
-            segmented: true,
-            size: 112,
-            stroke: 9,
-            highlight: false,
-            color: context.kayleoPrimary,
-            track: context.kayleoSurfaces.soft,
-            semanticLabel: '${p.calorieTarget} calorie daily goal',
-            child: Container(
-              margin: const EdgeInsets.all(23),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: context.kayleoBackground,
-                shape: BoxShape.circle,
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      number(p.calorieTarget),
-                      style: TextStyle(
-                        color: context.kayleoText,
-                        fontSize: 21,
-                        height: 1,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'kcal goal',
-                      style: TextStyle(
-                        color: context.kayleoMuted,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 17),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final proteinCal = (p.proteinTarget * 4).clamp(1, 10000);
+    final carbCal = (p.carbTarget * 4).clamp(1, 10000);
+    final fatCal = (p.fatTarget * 9).clamp(1, 10000);
+    final totalCal = proteinCal + carbCal + fatCal;
+    return Panel(
+      padding: 20,
+      child: InkWell(
+        onTap: () => openSheet(context, TargetsSheet(state: state)),
+        borderRadius: BorderRadius.circular(KayleoRadius.large),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
                         'Your daily plan',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: context.kayleoMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${number(p.calorieTarget)} kcal',
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
+                          letterSpacing: -.6,
                         ),
                       ),
-                    ),
-                    InkWell(
-                      onTap: () =>
-                          openSheet(context, TargetsSheet(state: state)),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(6),
-                        child: Icon(
-                          Icons.tune_rounded,
-                          size: 19,
-                          color: context.kayleoPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 9),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _goalRing(
-                      context,
-                      '${p.proteinTarget}g',
-                      'Protein',
-                      const Color(0xFFF07894),
-                    ),
-                    _goalRing(
-                      context,
-                      '${p.carbTarget}g',
-                      'Carbs',
-                      const Color(0xFFF1B963),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 7),
-                Center(
-                  child: _goalRing(
-                    context,
-                    '${p.fatTarget}g',
-                    'Fat',
-                    const Color(0xFF9A7DDD),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: context.kayleoSurfaces.soft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    size: 16,
+                    color: context.kayleoPrimary,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _goalRing(
-    BuildContext context,
-    String value,
-    String label,
-    Color color,
-  ) => SizedBox(
-    width: 56,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        KayleoRing(
-          progress: 1,
-          size: 44,
-          stroke: 5,
-          highlight: false,
-          color: color,
-          track: context.kayleoSurfaces.soft,
-          semanticLabel: '$label goal $value',
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value,
-                style: TextStyle(
-                  color: context.kayleoText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, c) {
+                final gaps = 4.0;
+                final avail = (c.maxWidth - gaps).clamp(0.0, double.infinity);
+                final pW = avail * proteinCal / totalCal;
+                final cW = avail * carbCal / totalCal;
+                final fW = avail * fatCal / totalCal;
+                return Row(
+                  children: [
+                    Container(
+                      width: pW,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: KayleoColors.protein,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Container(
+                      width: cW,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: KayleoColors.carbs,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Container(
+                      width: fW,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: KayleoColors.fat,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.fade,
-          style: TextStyle(
-            color: context.kayleoMuted,
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    ),
-  );
-
-  Widget _quickAction(
-    BuildContext context,
-    IconData icon,
-    String label,
-    VoidCallback action,
-  ) => Material(
-    color: context.kayleoSurfaces.card,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(18),
-      side: BorderSide(color: context.kayleoSurfaces.border),
-    ),
-    child: InkWell(
-      onTap: action,
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: context.kayleoSurfaces.soft,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 19, color: context.kayleoPrimary),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 2,
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.2,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, c) {
+                final wide =
+                    c.maxWidth >= 280 &&
+                    MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+                final items = [
+                  ('Protein', '${p.proteinTarget}g', KayleoColors.protein),
+                  ('Carbs', '${p.carbTarget}g', KayleoColors.carbs),
+                  ('Fat', '${p.fatTarget}g', KayleoColors.fat),
+                  (
+                    'Water',
+                    '${(p.waterTarget / 1000).toStringAsFixed(p.waterTarget % 1000 == 0 ? 0 : 1)}L',
+                    KayleoColors.hydration,
+                  ),
+                ];
+                if (!wide) {
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
+                    children: [
+                      for (final item in items)
+                        _macroChip(context, item.$1, item.$2, item.$3),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    for (var i = 0; i < items.length; i++)
+                      Expanded(
+                        child: _macroStatCol(
+                          context,
+                          items[i].$1,
+                          items[i].$2,
+                          items[i].$3,
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ],
         ),
       ),
-    ),
+    );
+  }
+
+  Widget _macroStatCol(
+    BuildContext context,
+    String label,
+    String value,
+    Color color,
+  ) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 3),
+      Padding(
+        padding: const EdgeInsets.only(left: 11),
+        child: Text(
+          value,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        ),
+      ),
+    ],
+  );
+
+  Widget _macroChip(
+    BuildContext context,
+    String label,
+    String value,
+    Color color,
+  ) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 7,
+        height: 7,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      const SizedBox(width: 6),
+      Text(
+        label,
+        style: TextStyle(fontSize: 11.5, color: context.kayleoMuted),
+      ),
+      const SizedBox(width: 4),
+      Text(
+        value,
+        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+      ),
+    ],
   );
 
   Future<void> _signOut(BuildContext context) async {
@@ -683,37 +690,6 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
-  Widget _profileStat(
-    BuildContext context,
-    String value,
-    String label, {
-    bool light = false,
-  }) => Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        value,
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w800,
-          color: light ? Colors.white : Theme.of(context).colorScheme.primary,
-        ),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        label,
-        maxLines: 2,
-        textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 11,
-          color: light ? Colors.white70 : context.kayleoMuted,
-        ),
-      ),
-    ],
-  );
-
   Widget _group(BuildContext context, List<Widget> rows) => Panel(
     padding: 0,
     border: false,
@@ -722,7 +698,7 @@ class SettingsScreen extends StatelessWidget {
         for (var i = 0; i < rows.length; i++) ...[
           rows[i],
           if (i != rows.length - 1)
-            const Divider(height: 1, indent: 52, endIndent: 16),
+            Divider(height: 1, indent: 48, endIndent: 16, color: context.kayleoSurfaces.border.withValues(alpha: .6)),
         ],
       ],
     ),
@@ -735,36 +711,21 @@ class SettingsScreen extends StatelessWidget {
     VoidCallback action, {
     String? subtitle,
   }) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: KayleoSpacing.lg,
-      vertical: 3,
-    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: KayleoSpacing.lg, vertical: 2),
     leading: Container(
-      width: 38,
-      height: 38,
+      width: 34,
+      height: 34,
       decoration: BoxDecoration(
         color: context.kayleoSurfaces.soft,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+      child: Icon(icon, size: 17, color: context.kayleoPrimary),
     ),
-    title: Text(
-      title,
-      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-    ),
+    title: Text(title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
     subtitle: subtitle == null
         ? null
-        : Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 11, color: context.kayleoMuted),
-          ),
-    trailing: Icon(
-      Icons.chevron_right_rounded,
-      size: 20,
-      color: _settingsMuted(context),
-    ),
+        : Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.kayleoMuted)),
+    trailing: Icon(Icons.chevron_right_rounded, size: 18, color: _settingsMuted(context)),
     onTap: action,
   );
 
@@ -1566,7 +1527,7 @@ class PrivacySheet extends StatelessWidget {
                 SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    'Firebase secures your account. Your profile, meals, hydration, weight, activity, saved meals, and milestones are backed up to your own Firestore diary. Meal photos and device notification settings stay on this device. Sample diaries stay local. Browser storage can be cleared by your browser.',
+                    'Firebase secures your account. Your profile, meals, hydration, weight, activity, saved meals, and milestones are backed up to your own Firestore diary. Saved meal photos and device notification settings stay on this device. When Kayleo photo recognition is used, the captured image is analyzed securely to estimate nutrition. Sample diaries stay local. Browser storage can be cleared by your browser.',
                     style: TextStyle(
                       fontSize: 12,
                       color: context.kayleoText,

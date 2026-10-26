@@ -172,56 +172,66 @@ class StreakSummary extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Icon(
-                  Icons.local_fire_department_rounded,
-                  size: 46,
-                  color: badgeColor('streak'),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                alignment: WrapAlignment.spaceBetween,
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.local_fire_department_rounded,
+                        size: 46,
+                        color: badgeColor('streak'),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${state.streak}',
+                            style: const TextStyle(
+                              fontSize: 34,
+                              height: 1.1,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            'day streak',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.kayleoMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${state.streak}',
+                        '$best',
                         style: const TextStyle(
-                          fontSize: 34,
-                          height: 1.1,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       Text(
-                        'day streak',
+                        'personal best',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: context.kayleoMuted,
                         ),
                       ),
                     ],
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '$best',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      'personal best',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: context.kayleoMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             _StreakWeek(state: state),

@@ -1,7 +1,15 @@
 {
   "version": "0.2.0",
   "configurations": [
-  
+    {
+      "name": "Kayleo — Android (Gemini enabled)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}",
+      "toolArgs": ["--dart-define-from-file=.env.json"]
+    },
+
     {
       "name": "Kayleo — iPhone (opens from Home Screen)",
       "request": "launch",
@@ -10,6 +18,7 @@
       "cwd": "${workspaceFolder}",
       "deviceId": "00008150-001C79D026D8C01C",
       "flutterMode": "release",
+      "toolArgs": ["--dart-define-from-file=.env.json"],
       "preLaunchTask": "Prepare iPhone build"
     }
   ]

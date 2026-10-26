@@ -78,9 +78,11 @@ void main() {
       }),
     );
     await scanner(tester, state, service);
-    expect(find.text('⚠️ No Food Detected'), findsOneWidget);
+    expect(find.text('Nothing to log yet'), findsOneWidget);
     expect(requests, 0);
-    await tester.tap(find.text('Retake Photo'));
+    expect(find.text('Choose photo'), findsOneWidget);
+    expect(find.text('Type instead'), findsOneWidget);
+    await tester.tap(find.text('Retake photo'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('meal-camera')), findsOneWidget);
     expect(state.meals, isEmpty);
@@ -187,6 +189,83 @@ void main() {
     expect(state.meals.single.items.single.grams, 150);
     expect(state.meals.single.items.single.portion!['share'], .25);
   });
+  testWidgets(
+    'On your plate widget supports item +/- quantity, unit chips, sharing, and adding missing food by text',
+    (tester) async {
+      final state = await AppState.load();
+      const food = FoodNutrition(
+        id: 'kayleo:plate-test',
+        name: 'Dal Bhat Plate',
+        source: 'Kayleo Vision estimate · review before logging',
+        sourceUrl: '',
+        values: [140, 6, 22, 3, 2],
+        estimated: true,
+        servingGrams: 300,
+        plateItems: [
+          DetectedPlateItem(
+            name: 'Steamed rice',
+            portion: '1 bowl',
+            grams: 200,
+            calories: 260,
+            proteinGrams: 5.4,
+            carbsGrams: 56.4,
+            fatGrams: 0.6,
+            fiberGrams: 0.8,
+          ),
+          DetectedPlateItem(
+            name: 'Chicken momo',
+            portion: '4 pieces',
+            grams: 100,
+            calories: 160,
+            proteinGrams: 12.6,
+            carbsGrams: 9.6,
+            fatGrams: 8.4,
+            fiberGrams: 5.2,
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: kayleoTheme(),
+          home: FoodConfirmationScreen(state: state, food: food),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -320));
+      await tester.pumpAndSettle();
+      expect(find.text('On your plate'), findsOneWidget);
+      expect(find.text('2 ITEMS'), findsOneWidget);
+      expect(find.text('Steamed rice'), findsOneWidget);
+      expect(find.text('Chicken momo'), findsOneWidget);
+
+      // Increment Chicken momo by 1 piece (from 4 pieces = 100g to 5 pieces = 125g)
+      await tester.ensureVisible(find.byKey(const Key('plate-item-inc-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('plate-item-inc-1')));
+      await tester.pumpAndSettle();
+
+      // Add a missing food by typing into the "On your plate" text field
+      await tester.ensureVisible(
+        find.byKey(const Key('add-missing-food-input')),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('add-missing-food-input')),
+        '2 roti',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Roti'), findsOneWidget);
+
+      await tester.tap(find.text('Confirm & Log Meal'));
+      await tester.pumpAndSettle();
+      expect(state.meals, hasLength(1));
+      expect(state.meals.single.items, hasLength(3));
+      expect(state.meals.single.items[0].grams, 200);
+      expect(state.meals.single.items[1].grams, 125);
+      expect(state.meals.single.items[2].grams, 80);
+    },
+  );
   testWidgets('Splash remains visible for the default 1.5 seconds', (
     tester,
   ) async {

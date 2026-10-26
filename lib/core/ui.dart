@@ -681,6 +681,7 @@ class SheetFrame extends StatelessWidget {
           ),
           if (footer != null)
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.fromLTRB(
                 KayleoSpacing.xl,
                 KayleoSpacing.lg,
@@ -688,12 +689,12 @@ class SheetFrame extends StatelessWidget {
                 KayleoSpacing.page,
               ),
               decoration: BoxDecoration(
-                color: context.kayleoSurfaces.card,
+                color: Theme.of(context).scaffoldBackgroundColor,
                 border: Border(
                   top: BorderSide(color: context.kayleoSurfaces.border),
                 ),
               ),
-              child: footer,
+              child: SizedBox(width: double.infinity, child: footer),
             ),
         ],
       ),

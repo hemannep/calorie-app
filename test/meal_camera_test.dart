@@ -206,8 +206,9 @@ void main() {
       await tester.pump();
       debugDefaultTargetPlatformOverride = null;
       await tester.pumpAndSettle();
-      expect(find.text('Let’s try another way'), findsOneWidget);
-      await tester.tap(find.text('Type Meal Instead'));
+      expect(find.text('Photo analysis paused'), findsOneWidget);
+      await tester.ensureVisible(find.text('Type instead'));
+      await tester.tap(find.text('Type instead'));
       await tester.pumpAndSettle();
       expect(cameras.active, isEmpty);
       expect(tester.takeException(), isNull);
@@ -624,8 +625,9 @@ void main() {
       await tester.pump();
       debugDefaultTargetPlatformOverride = null;
       await tester.pumpAndSettle();
-      expect(find.text('Let’s try another way'), findsOneWidget);
-      await tester.tap(find.text('Type Meal Instead'));
+      expect(find.text('Photo analysis paused'), findsOneWidget);
+      await tester.ensureVisible(find.text('Type instead'));
+      await tester.tap(find.text('Type instead'));
       await tester.pumpAndSettle();
       expect(find.byType(MealCamera), findsNothing);
       expect(tester.takeException(), isNull);

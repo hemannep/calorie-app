@@ -76,10 +76,15 @@ void main() {
           matching: find.byType(Panel),
         )
         .first;
-    final dotsGap =
-        t.getTopLeft(find.byKey(const Key('rings-pill-nutrition'))).dy -
-        t.getBottomLeft(macroCard).dy;
-    expect(dotsGap, inInclusiveRange(0, 16));
+    final headingGap =
+        t.getTopLeft(find.byKey(const Key('today-calorie-ring'))).dy -
+        t.getBottomLeft(find.byKey(const Key('rings-heading-nutrition'))).dy;
+    expect(headingGap, greaterThan(0));
+    expect(
+      t.getTopLeft(find.byKey(const Key('home-food-search'))).dy -
+          t.getBottomLeft(macroCard).dy,
+      inInclusiveRange(0, 24),
+    );
     expect(
       t.getTopLeft(find.byKey(const Key('home-food-search'))).dy,
       greaterThan(t.getBottomLeft(find.byType(KayleoRing).at(3)).dy),

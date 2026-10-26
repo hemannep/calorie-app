@@ -53,20 +53,25 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
+        SizedBox(
+          width: double.infinity,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              Text(
                 'Progress',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
-            ),
-            OutlinedButton.icon(
-              onPressed: widget.onOpenDiary,
-              icon: const Icon(Icons.calendar_month_rounded, size: 17),
-              label: const Text('Full diary'),
-            ),
-          ],
+              OutlinedButton.icon(
+                onPressed: widget.onOpenDiary,
+                icon: const Icon(Icons.calendar_month_rounded, size: 17),
+                label: const Text('Full diary'),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 22),
         AchievementOverview(state: state),
@@ -78,23 +83,28 @@ class _ProgressScreenState extends State<ProgressScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    Text(
                       'Today’s diary',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => showLogger(context, state),
-                    icon: const Icon(Icons.add_rounded, size: 17),
-                    label: const Text('Log meal'),
-                  ),
-                ],
+                    TextButton.icon(
+                      onPressed: () => showLogger(context, state),
+                      icon: const Icon(Icons.add_rounded, size: 17),
+                      label: const Text('Log meal'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               if (todayMeals.isEmpty)
@@ -524,7 +534,10 @@ class _BmiCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
             children: [
               Text(
                 bmi.toStringAsFixed(1),
@@ -533,7 +546,6 @@ class _BmiCard extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,

@@ -80,7 +80,7 @@ void main() {
             source == 'reported' && layout.width == 390 && layout.scale == 1;
         if (preview) await snapshot(tester, 'dashboard-nutrition-matched');
 
-        final activityPill = find.byKey(const Key('rings-pill-activity'));
+        final activityPill = find.byKey(const Key('rings-heading-activity'));
           if (activityPill.hitTestable().evaluate().isEmpty) {
             await tester.ensureVisible(activityPill);
           }

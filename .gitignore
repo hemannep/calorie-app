@@ -91,6 +91,10 @@ unlinked_spec.ds
 **/android/key.properties
 *.jks
 local.properties
+.env
+.env.*
+!.env.example
+*.local.dart
 **/.cxx/
 
 # iOS/XCode related

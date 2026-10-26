@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,35 +5,47 @@ import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/ui.dart';
 import '../data/models.dart';
+import 'onboarding_plan_preparation.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.state});
   final AppState state;
+
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  int step = 0;
-  bool saving = false;
-  Timer? preparationTimer;
-  int preparationTick = 0;
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with SingleTickerProviderStateMixin {
+  static const _totalSteps = 9;
+  int step = 0, direction = 1;
+  bool saving = false, changingStep = false, exiting = false;
   final profile = BodyProfile();
   final form = GlobalKey<FormState>();
+  final scroll = ScrollController();
   final name = TextEditingController();
   final age = TextEditingController(text: '28');
   final height = TextEditingController(text: '172');
   final weight = TextEditingController(text: '70');
+  late final AnimationController page;
+
   @override
   void initState() {
     super.initState();
     name.text = widget.state.profile.name;
     profile.name = widget.state.profile.name;
+    page = AnimationController(
+      vsync: this,
+      value: 1,
+      duration: const Duration(milliseconds: 280),
+      reverseDuration: const Duration(milliseconds: 110),
+    );
   }
 
   @override
   void dispose() {
-    preparationTimer?.cancel();
+    page.dispose();
+    scroll.dispose();
     name.dispose();
     age.dispose();
     height.dispose();
@@ -42,1086 +53,1304 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  void next() {
-    if (step == 4) {
-      if (!form.currentState!.validate()) {
-        return;
-      }
-      profile.name = name.text.trim().isEmpty ? 'Friend' : name.text.trim();
-      profile.age = int.parse(age.text);
-      profile.height = double.parse(height.text);
-      profile.weight = double.parse(weight.text);
-    }
-    if (step == 5) {
-      profile.calculateTargets();
-      setState(() {
-        step = 6;
-        preparationTick = 0;
-      });
-      preparationTimer?.cancel();
-      preparationTimer = Timer.periodic(const Duration(milliseconds: 100), (
-        timer,
-      ) {
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
-        setState(() {
-          preparationTick++;
-          if (preparationTick >= 100) {
-            timer.cancel();
-            step = 7;
-          }
-        });
-      });
-      return;
-    }
-    if (step < 7) {
-      setState(() => step++);
+  Future<void> goTo(int nextStep) async {
+    if (saving || changingStep || step == nextStep) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    setState(() {
+      changingStep = true;
+      exiting = true;
+      direction = step == 7 && nextStep == 8
+          ? 0
+          : nextStep > step
+          ? 1
+          : -1;
+    });
+    if (!reduceMotion) await page.reverse();
+    if (!mounted) return;
+    setState(() {
+      step = nextStep;
+      exiting = false;
+    });
+    if (scroll.hasClients) scroll.jumpTo(0);
+    if (reduceMotion) {
+      page.value = 1;
     } else {
+      await page.forward();
+    }
+    if (mounted) setState(() => changingStep = false);
+  }
+
+  void next() {
+    if (saving || changingStep) return;
+    if (step == 4) {
+      if (!form.currentState!.validate()) return;
+      profile
+        ..name = name.text.trim().isEmpty ? 'Friend' : name.text.trim()
+        ..age = int.parse(age.text.trim())
+        ..height = double.parse(height.text.trim())
+        ..weight = double.parse(weight.text.trim());
+    }
+    if (step == 6) profile.calculateTargets();
+    if (step == 8) {
       complete();
+    } else {
+      goTo(step + 1);
     }
   }
 
   void previous() {
-    if (step == 7) {
-      setState(() => step = 5);
-    } else if (step > 0 && step != 6) {
-      setState(() => step--);
-    }
+    if (step > 0 && step != 7) goTo(step == 8 ? 6 : step - 1);
   }
 
   Future<void> complete({bool demo = false}) async {
-    if (saving) {
-      return;
-    }
+    if (saving) return;
     setState(() => saving = true);
-    await widget.state.completeOnboarding(
-      demo ? BodyProfile() : profile,
-      withDemo: demo,
-    );
+    try {
+      await widget.state.completeOnboarding(
+        demo ? BodyProfile() : profile,
+        withDemo: demo,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save your plan. Try again.')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 850;
+    final wide = MediaQuery.sizeOf(context).width >= 960;
     return Scaffold(
-      body: Stack(
+      body: Row(
         children: [
-          const Positioned.fill(child: _OnboardingBackdrop()),
-          SafeArea(
-            child: Row(
-              children: [
-                if (wide) Expanded(child: _illustration(true)),
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: EdgeInsets.all(wide ? 60 : KayleoSpacing.xl),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 440),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (!wide) ...[
-                              Row(
-                                children: [
-                                  if (step < 3)
-                                    SizedBox(
-                                      width: 48,
-                                      child: step > 0
-                                          ? IconButton(
-                                              onPressed: saving
-                                                  ? null
-                                                  : previous,
-                                              tooltip: 'Previous step',
-                                              icon: Icon(
-                                                Icons.arrow_back_rounded,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                  Expanded(
-                                    child: Align(
-                                      alignment: step < 3
-                                          ? Alignment.center
-                                          : Alignment.centerLeft,
-                                      child: const Brand(size: 30),
-                                    ),
-                                  ),
-                                  if (step < 3) const SizedBox(width: 48),
-                                ],
-                              ),
-                              const SizedBox(height: KayleoSpacing.lg),
-                              if (step < 3)
-                                ExcludeSemantics(
-                                  child: SizedBox(
-                                    height: 252,
-                                    child: _illustration(false),
-                                  ),
+          if (wide)
+            SizedBox(
+              width: math.min(MediaQuery.sizeOf(context).width * .4, 520),
+              child: const _OnboardingIdentity(),
+            ),
+          Expanded(
+            child: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 580),
+                  child: Column(
+                    children: [
+                      _navigation(),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) =>
+                              SingleChildScrollView(
+                                controller: scroll,
+                                keyboardDismissBehavior:
+                                    ScrollViewKeyboardDismissBehavior.onDrag,
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  16,
+                                  24,
+                                  24,
                                 ),
-                              const SizedBox(height: KayleoSpacing.xl),
-                            ],
-                            if (step >= 3 || wide) ...[
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      step < 3
-                                          ? 'MEET KAYLEO'
-                                          : 'MAKE IT YOURS',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        letterSpacing: 1.2,
-                                        fontWeight: FontWeight.w800,
-                                        color: context.kayleoPrimary,
-                                      ),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight: math.max(
+                                      0,
+                                      constraints.maxHeight - 40,
                                     ),
                                   ),
-                                  if (step > 0 && step != 6)
-                                    IconButton(
-                                      onPressed: saving ? null : previous,
-                                      tooltip: 'Previous step',
-                                      icon: Icon(
-                                        Icons.arrow_back_rounded,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  Semantics(
-                                    label: 'Step ${step + 1} of 8',
-                                    excludeSemantics: true,
-                                    child: Text(
-                                      '${step + 1} / 8',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: context.kayleoMuted,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: KayleoSpacing.md),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(99),
-                                child: LinearProgressIndicator(
-                                  value: (step + 1) / 8,
-                                  minHeight: 4,
-                                  backgroundColor:
-                                      context.kayleoSurfaces.border,
-                                  color: context.kayleoPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: KayleoSpacing.card),
-                            ],
-                            AnimatedSwitcher(
-                              duration: MediaQuery.disableAnimationsOf(context)
-                                  ? Duration.zero
-                                  : const Duration(milliseconds: 240),
-                              switchInCurve: Curves.easeOutCubic,
-                              switchOutCurve: Curves.easeInCubic,
-                              transitionBuilder: (child, animation) =>
-                                  FadeTransition(
-                                    opacity: animation,
-                                    child: SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(.025, .015),
-                                        end: Offset.zero,
-                                      ).animate(animation),
-                                      child: child,
-                                    ),
-                                  ),
-                              child: KeyedSubtree(
-                                key: ValueKey(step),
-                                child: _content(),
-                              ),
-                            ),
-                            const SizedBox(height: KayleoSpacing.xxl),
-                            if (step != 6)
-                              SizedBox(
-                                width: double.infinity,
-                                child: FilledButton(
-                                  key: const Key('onboarding-continue'),
-                                  onPressed: saving ? null : next,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: lime,
-                                    foregroundColor: forest,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          saving
-                                              ? 'Preparing your space…'
-                                              : step == 7
-                                              ? 'Let’s start your day'
-                                              : step == 0
-                                              ? 'Get started'
-                                              : 'Continue',
-                                          textAlign: TextAlign.center,
+                                  child: AnimatedBuilder(
+                                    animation: page,
+                                    builder: (context, child) => Opacity(
+                                      opacity: page.value,
+                                      child: FractionalTranslation(
+                                        translation: Offset(
+                                          (exiting ? -direction : direction) *
+                                              .085 *
+                                              (1 -
+                                                  Curves.easeOutCubic.transform(
+                                                    page.value,
+                                                  )),
+                                          direction == 0
+                                              ? .025 * (1 - page.value)
+                                              : 0,
+                                        ),
+                                        child: IgnorePointer(
+                                          ignoring: changingStep || saving,
+                                          child: child,
                                         ),
                                       ),
-                                      const SizedBox(width: KayleoSpacing.md),
-                                      Icon(
-                                        Icons.arrow_forward_rounded,
-                                        size: 18,
-                                      ),
-                                    ],
+                                    ),
+                                    child: _content(),
                                   ),
                                 ),
                               ),
-                            const SizedBox(height: KayleoSpacing.md),
-                            if (step < 3)
-                              Center(
-                                child: TextButton(
-                                  key: const Key('explore-demo'),
-                                  onPressed: saving
-                                      ? null
-                                      : () => complete(demo: true),
-                                  child: Text(
-                                    'Explore with sample data',
-                                    style: TextStyle(
-                                      color: context.kayleoMuted,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: KayleoSpacing.card),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.lock_outline_rounded,
-                                  color: context.kayleoMuted,
-                                  size: 13,
-                                ),
-                                const SizedBox(width: 7),
-                                Flexible(
-                                  child: Text(
-                                    'Your plan is always yours to adjust.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: context.kayleoMuted,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
                         ),
                       ),
+                      if (step != 7) _footer(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _navigation() => step == 7
+      ? Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: MediaQuery.withNoTextScaling(child: const Brand(size: 28)),
+        )
+      : Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 24, 12),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: step > 0 && step != 7
+                    ? IconButton.filledTonal(
+                        onPressed: saving || changingStep ? null : previous,
+                        tooltip: 'Previous step',
+                        style: IconButton.styleFrom(
+                          backgroundColor: context.kayleoSurfaces.soft,
+                        ),
+                        icon: const Icon(Icons.arrow_back_rounded, size: 21),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 18),
+              if (step < 3)
+                const Expanded(child: Center(child: Brand(size: 28)))
+              else
+                Expanded(
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: (step - 2) / (_totalSteps - 3)),
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 350),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, _) => LinearProgressIndicator(
+                      value: value,
+                      minHeight: 5,
+                      borderRadius: BorderRadius.circular(99),
+                      color: context.kayleoPrimary,
+                      backgroundColor: context.kayleoSurfaces.border,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _illustration(bool wide) {
-    final theme = Theme.of(context);
-    final soft = theme.extension<KayleoSurfaces>()!.soft;
-    return Container(
-      color: wide ? soft.withValues(alpha: .3) : null,
-      child: Stack(
-        children: [
-          if (wide) const Positioned(left: 48, top: 44, child: Brand(size: 34)),
-          Center(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final width = wide
-                    ? math.min(constraints.maxWidth - 72, 420.0)
-                    : constraints.maxWidth;
-                return ExcludeSemantics(
-                  child: MediaQuery.withNoTextScaling(
-                    child: SizedBox(
-                      width: width,
-                      height: wide ? 370 : 252,
-                      child: _collage(step < 3 ? step : 0),
-                    ),
+              const SizedBox(width: 18),
+              Semantics(
+                label: 'Step ${step + 1} of $_totalSteps',
+                excludeSemantics: true,
+                child: Text(
+                  step < 3 ? '0${step + 1}' : '${step - 2} / 6',
+                  style: TextStyle(
+                    color: context.kayleoMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
-                );
-              },
-            ),
-          ),
-          if (wide)
-            Positioned(
-              left: 48,
-              right: 48,
-              bottom: 48,
-              child: Text(
-                'Your day, in balance.',
-                style: theme.textTheme.titleLarge,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _photoCard(String image, double width, double height, double angle) =>
-      Transform.rotate(
-        angle: angle,
-        child: Container(
-          width: width,
-          height: height,
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: Theme.of(context).extension<KayleoSurfaces>()!.card,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: .08),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
+                ),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Image.asset('assets/images/$image.jpg', fit: BoxFit.cover),
+        );
+
+  Widget _footer() => Container(
+    key: const Key('onboarding-footer'),
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
+    decoration: BoxDecoration(
+      color: context.kayleoBackground,
+      border: Border(
+        top: BorderSide(
+          color: context.kayleoSurfaces.border.withValues(alpha: .65),
+        ),
+      ),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            key: const Key('onboarding-continue'),
+            onPressed: saving || changingStep ? null : next,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(
+                fontFamily: 'Manrope',
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 22),
+                Expanded(
+                  child: Text(
+                    saving
+                        ? 'Saving your plan…'
+                        : step == 8
+                        ? 'Let’s start your day'
+                        : step == 6
+                        ? 'Create my plan'
+                        : step == 0
+                        ? 'Get started'
+                        : 'Continue',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                saving
+                    ? const Icon(Icons.more_horiz_rounded, size: 18)
+                    : const Icon(Icons.arrow_forward_rounded, size: 18),
+              ],
+            ),
           ),
         ),
-      );
-
-  Widget _collage(int intro) => LayoutBuilder(
-    builder: (context, constraints) {
-      final width = constraints.maxWidth;
-      final height = constraints.maxHeight;
-      final scheme = Theme.of(context).colorScheme;
-      final surface = Theme.of(context).extension<KayleoSurfaces>()!.card;
-      if (intro == 0) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              left: width * .03,
-              top: height * .22,
-              child: _photoCard('burger', width * .42, height * .58, -.16),
+        if (step < 3)
+          TextButton(
+            key: const Key('explore-demo'),
+            onPressed: saving || changingStep
+                ? null
+                : () => complete(demo: true),
+            style: TextButton.styleFrom(foregroundColor: context.kayleoMuted),
+            child: const Text(
+              'Explore with sample data',
+              style: TextStyle(fontSize: 12),
             ),
-            Positioned(
-              right: width * .02,
-              top: height * .12,
-              child: _photoCard('pancakes', width * .40, height * .56, .15),
-            ),
-            Positioned(
-              left: width * .23,
-              top: height * .08,
-              child: _photoCard('salad', width * .55, height * .80, -.04),
-            ),
-            Positioned(
-              right: width * .10,
-              bottom: 10,
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: const BoxDecoration(
-                  color: lime,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.camera_alt_outlined, color: forest, size: 24),
-              ),
-            ),
-          ],
-        );
-      }
-      if (intro == 1) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              left: width * .08,
-              top: height * .12,
-              child: _photoCard('bowl', width * .62, height * .67, -.10),
-            ),
-            Positioned(
-              right: width * .02,
-              top: height * .06,
-              child: _photoCard('breakfast', width * .40, height * .48, .12),
-            ),
-            Positioned(
-              left: width * .10,
-              right: width * .06,
-              bottom: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: surface,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .06),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 19,
-                      backgroundColor: lime,
-                      child: Icon(
-                        Icons.mic_none_rounded,
-                        color: forest,
-                        size: 23,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(
-                          18,
-                          (i) => Container(
-                            width: 3,
-                            height: [12.0, 22.0, 34.0, 17.0, 28.0, 38.0][i % 6],
-                            decoration: BoxDecoration(
-                              color: scheme.primary.withValues(
-                                alpha: i < 12 ? .9 : .3,
-                              ),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      }
-      return Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            left: width * .03,
-            top: height * .10,
-            child: _photoCard('momo', width * .48, height * .65, -.14),
-          ),
-          Positioned(
-            right: width * .05,
-            top: height * .10,
-            child: _photoCard('curry', width * .56, height * .65, .11),
-          ),
-          Positioned(
-            left: width * .04,
-            right: width * .04,
-            bottom: 10,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: surface,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: .07),
-                    blurRadius: 16,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Rice, curry and a side of greens',
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.5,
-                        color: scheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const CircleAvatar(
-                    radius: 18,
-                    backgroundColor: lime,
-                    child: Icon(
-                      Icons.arrow_upward_rounded,
-                      color: forest,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          )
+        else ...[
+          const SizedBox(height: 12),
+          Text(
+            'Your plan is always yours to adjust.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: context.kayleoMuted),
           ),
         ],
-      );
-    },
+      ],
+    ),
   );
 
   Widget _content() {
-    if (step == 6) return _preparingPlan();
-    const titles = [
-      'Snap it.\nKayleo gets it.',
-      'Speak naturally.\nJust like you.',
-      'Or type it.',
-      'What brings\nyou here?',
-      'About you.',
-      'Find your\nrhythm.',
-      '',
-      'Your plan.\nYour pace.',
-    ];
-    const descriptions = [
-      'Add a meal photo and review the details. Photo recognition is a preview in this prototype.',
-      'Describe your meal with device voice input. You stay in control of the details.',
-      'Start with the food you ate. Review portions, calories, and macros before adding.',
-      'There’s no perfect goal. Choose what feels right for this chapter.',
-      'We use these details to estimate your daily energy needs. You can always change your targets.',
-      'Your routine helps us set a useful starting point. No workouts or wearables required.',
-      '',
-      'A practical starting point for your day. Every target is editable in Your space.',
-    ];
+    if (step < 3) return _intro();
+    if (step == 7) {
+      return OnboardingPlanPreparation(
+        profile: profile,
+        onReady: () => goTo(8),
+      );
+    }
     return Column(
-      crossAxisAlignment: step < 3
-          ? CrossAxisAlignment.center
-          : CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _eyebrow(switch (step) {
+          3 => 'YOUR DIRECTION',
+          4 => 'THE STARTING POINT',
+          5 => 'YOUR EVERYDAY',
+          6 => 'YOUR FOOD PREFERENCES',
+          _ => 'MADE FOR YOU',
+        }),
+        const SizedBox(height: 12),
+        _heading(switch (step) {
+          3 => 'What brings\nyou here?',
+          4 => 'About you.',
+          5 => 'Find your\nrhythm.',
+          6 => 'What feels\ngood to eat?',
+          _ => 'Your plan.\nYour pace.',
+        }),
+        const SizedBox(height: 12),
         Text(
-          titles[step],
-          textAlign: step < 3 ? TextAlign.center : TextAlign.start,
-          style: TextStyle(
-            fontSize:
-                MediaQuery.sizeOf(context).width < 360 ||
-                    MediaQuery.textScalerOf(context).scale(14) > 20
-                ? 32
-                : 40,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1.8,
-            height: 1.15,
-          ),
-        ),
-        const SizedBox(height: KayleoSpacing.page),
-        Text(
-          descriptions[step],
-          textAlign: step < 3 ? TextAlign.center : TextAlign.start,
+          switch (step) {
+            3 => 'Choose a direction. We’ll help you find a starting point.',
+            4 => 'A few details help us estimate your daily energy needs.',
+            5 => 'Think about a typical week, including work, walking and exercise.',
+            6 => 'Pick the way you usually eat. There’s room for flexibility.',
+            _ =>
+              'A little structure for your day. Plenty of room for real life.',
+          },
           style: TextStyle(
             fontSize: 14,
-            height: 1.8,
+            height: 1.6,
             color: context.kayleoMuted,
           ),
         ),
-        const SizedBox(height: 26),
-        if (step < 3)
-          Semantics(
-            label: 'Introduction ${step + 1} of 3',
-            excludeSemantics: true,
-            child: Row(
-              key: const Key('onboarding-intro-progress'),
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                3,
-                (i) => AnimatedContainer(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 200),
-                  width: i == step ? 20 : 6,
-                  height: 6,
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  decoration: BoxDecoration(
-                    color: i == step
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).extension<KayleoSurfaces>()!.border,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        if (step == 3) ...[
-          for (final (goal, icon, sub) in [
-            (
-              'Feel healthier',
-              Icons.spa_outlined,
-              'Understand my food and build better habits',
-            ),
-            (
-              'Lose weight',
-              Icons.trending_down_rounded,
-              'A gentle, sustainable starting point',
-            ),
-            (
-              'Maintain weight',
-              Icons.balance_rounded,
-              'Find balance in my everyday meals',
-            ),
-            (
-              'Build muscle',
-              Icons.fitness_center_rounded,
-              'Fuel my strength and recovery',
-            ),
-          ])
-            _choice(
-              goal,
-              sub,
-              icon,
-              profile.goal == goal,
-              () => setState(() => profile.goal = goal),
-            ),
-        ],
-        if (step == 4)
-          Form(
-            key: form,
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: name,
-                  decoration: const InputDecoration(
-                    labelText: 'What should we call you?',
-                    hintText: 'Your first name',
-                  ),
-                  textCapitalization: TextCapitalization.words,
-                  maxLength: 24,
-                ),
-                const SizedBox(height: 14),
-                _adaptiveFields(
-                  TextFormField(
-                    controller: age,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Age'),
-                    validator: (v) {
-                      final n = int.tryParse(v ?? '');
-                      return n == null || n < 18 || n > 100
-                          ? 'Adults 18–100'
-                          : null;
-                    },
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: profile.sex,
-                    isExpanded: true,
-                    style: TextStyle(fontSize: 14, color: context.kayleoText),
-                    decoration: const InputDecoration(
-                      labelText: 'Sex for calculation',
-                    ),
-                    items: ['Prefer not to say', 'Female', 'Male']
-                        .map(
-                          (v) => DropdownMenuItem(
-                            value: v,
-                            child: Text(
-                              v,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => profile.sex = v!,
-                  ),
-                ),
-                const SizedBox(height: KayleoSpacing.lg),
-                _adaptiveFields(
-                  _numberField(height, 'Height (cm)', 100, 250),
-                  _numberField(weight, 'Weight (kg)', 30, 300),
-                ),
-                const SizedBox(height: KayleoSpacing.lg),
-                Text(
-                  'This prototype provides general estimates for adults. If sex is unspecified, the formula uses a midpoint. It does not account for pregnancy or medical needs.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: context.kayleoMuted,
-                    height: 1.6,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        if (step == 5) ...[
-          for (final (value, sub) in [
-            ('Mostly sitting', 'Desk days, light movement'),
-            ('Lightly active', 'Some walking, 1–3 workouts a week'),
-            ('Moderately active', 'Regular movement, 3–5 workouts a week'),
-            ('Very active', 'An active job or frequent training'),
-          ])
-            _choice(
-              value,
-              sub,
-              Icons.directions_walk_rounded,
-              profile.activity == value,
-              () => setState(() => profile.activity = value),
-            ),
-          const SizedBox(height: KayleoSpacing.lg),
-          Text(
-            'How do you like to eat?',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: KayleoSpacing.md),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: ['Everything', 'Vegetarian', 'Vegan', 'Pescatarian']
-                .map(
-                  (diet) => ChoiceChip(
-                    label: Text(
-                      diet,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: profile.diet == diet
-                            ? forest
-                            : context.kayleoText,
-                      ),
-                    ),
-                    selected: profile.diet == diet,
-                    onSelected: (_) => setState(() => profile.diet = diet),
-                    selectedColor: lime,
-                    checkmarkColor: forest,
-                    side: BorderSide(color: context.kayleoSurfaces.border),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-        if (step == 7) ...[
-          Panel(
-            color: context.kayleoSurfaces.soft,
-            border: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Tag(
-                  'YOUR DAILY STARTING POINT',
-                  color: Colors.white,
-                  icon: Icons.spa_outlined,
-                ),
-                const SizedBox(height: KayleoSpacing.page),
-                Wrap(
-                  spacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.end,
-                  children: [
-                    Text(
-                      number(profile.calorieTarget),
-                      style: TextStyle(
-                        color: context.kayleoPrimary,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(bottom: KayleoSpacing.sm),
-                      child: Text(
-                        'kcal / day',
-                        style: TextStyle(color: context.kayleoPrimary),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: KayleoSpacing.card),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns =
-                        constraints.maxWidth < 240 ||
-                            MediaQuery.textScalerOf(context).scale(12) > 16
-                        ? 1
-                        : 3;
-                    final width =
-                        (constraints.maxWidth - 16 * (columns - 1)) / columns;
-                    return Wrap(
-                      spacing: 16,
-                      runSpacing: 20,
-                      children: [
-                        SizedBox(
-                          width: width,
-                          child: MacroBar(
-                            'Protein',
-                            0,
-                            profile.proteinTarget,
-                            KayleoColors.protein,
-                          ),
-                        ),
-                        SizedBox(
-                          width: width,
-                          child: MacroBar(
-                            'Carbs',
-                            0,
-                            profile.carbTarget,
-                            orange,
-                          ),
-                        ),
-                        SizedBox(
-                          width: width,
-                          child: MacroBar(
-                            'Fat',
-                            0,
-                            profile.fatTarget,
-                            KayleoColors.fat,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Built from your details',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Resting energy and activity estimate: ${number(profile.maintenance)} kcal/day',
-                ),
-                const SizedBox(height: 8),
-                Text('Goal: ${profile.goal} · Activity: ${profile.activity}'),
-                const SizedBox(height: 8),
-                Text(
-                  'BMI ${profile.bmi.toStringAsFixed(1)} · ${profile.bmiCategory}',
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'BMI is a screening measure, not a diagnosis. Your calorie and macro targets are estimates you can adjust.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.5,
-                    color: context.kayleoMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        const SizedBox(height: 30),
+        switch (step) {
+          3 => _goals(),
+          4 => _details(),
+          5 => _activity(),
+          6 => _diet(),
+          _ => _plan(),
+        },
       ],
     );
   }
 
-  Widget _preparingPlan() {
-    final progress = (preparationTick / 100).clamp(0.0, 1.0);
-    final phase = preparationTick < 34
-        ? 'Estimating daily energy from your measurements'
-        : preparationTick < 68
-        ? 'Accounting for your activity and goal'
-        : 'Balancing calories and macros';
-    return Semantics(
-      liveRegion: true,
+  Widget _intro() => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      ExcludeSemantics(
+        child: MediaQuery.withNoTextScaling(child: _IntroArtwork(index: step)),
+      ),
+      const SizedBox(height: 30),
+      _heading(
+        [
+          'Snap it.\nKayleo gets it.',
+          'Speak naturally.\nJust like you.',
+          'Or type it.',
+        ][step],
+        centered: true,
+      ),
+      const SizedBox(height: 14),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Text(
+          [
+            'Take a photo. Review the foods and portions.\nMake every detail your own.',
+            'Say what you ate, in your own words.\nA simpler way to start your meal log.',
+            'A quick note is all it takes to start.\nReview your meal before adding it.',
+          ][step],
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.7,
+            color: context.kayleoMuted,
+          ),
+        ),
+      ),
+      const SizedBox(height: 24),
+      Semantics(
+        label: 'Introduction ${step + 1} of 3',
+        excludeSemantics: true,
+        child: Row(
+          key: const Key('onboarding-intro-progress'),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            3,
+            (index) => AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 250),
+              width: step == index ? 24 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: step == index
+                    ? context.kayleoPrimary
+                    : context.kayleoSurfaces.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _eyebrow(String text) => Text(
+    text,
+    style: TextStyle(
+      color: context.kayleoPrimary,
+      fontSize: 10,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.7,
+    ),
+  );
+
+  Widget _heading(String text, {bool centered = false}) => Text(
+    text,
+    textAlign: centered ? TextAlign.center : TextAlign.start,
+    style: TextStyle(
+      fontSize:
+          MediaQuery.sizeOf(context).width < 360 ||
+              MediaQuery.textScalerOf(context).scale(14) > 20
+          ? 32
+          : 38,
+      fontWeight: FontWeight.w800,
+      letterSpacing: -1.6,
+      height: 1.12,
+    ),
+  );
+
+  Widget _goals() => Column(
+    children: [
+      for (final (goal, subtitle, icon) in [
+        ('Feel healthier', 'Build a little more balance', Icons.spa_outlined),
+        (
+          'Lose weight',
+          'Take a steady, thoughtful approach',
+          Icons.south_east_rounded,
+        ),
+        (
+          'Maintain weight',
+          'Find your everyday balance',
+          Icons.balance_rounded,
+        ),
+        (
+          'Build muscle',
+          'Support strength and recovery',
+          Icons.fitness_center_rounded,
+        ),
+      ])
+        _choice(
+          goal,
+          subtitle,
+          icon,
+          profile.goal == goal,
+          () => setState(() => profile.goal = goal),
+        ),
+    ],
+  );
+
+  Widget _activity() => Column(
+    children: [
+      for (final (value, subtitle, icon) in [
+        (
+          'Mostly sitting',
+          'Desk days, light movement',
+          Icons.chair_alt_outlined,
+        ),
+        (
+          'Lightly active',
+          'Some walking, 1–3 workouts a week',
+          Icons.directions_walk_rounded,
+        ),
+        (
+          'Moderately active',
+          'Regular movement, 3–5 workouts a week',
+          Icons.directions_run_rounded,
+        ),
+        (
+          'Very active',
+          'An active job or frequent training',
+          Icons.bolt_outlined,
+        ),
+      ])
+        _choice(
+          value,
+          subtitle,
+          icon,
+          profile.activity == value,
+          () => setState(() => profile.activity = value),
+        ),
+    ],
+  );
+
+  Widget _diet() => Column(
+    children: [
+      for (final (value, subtitle, icon) in [
+        ('Everything', 'A little of everything', Icons.restaurant_rounded),
+        ('Vegetarian', 'Plant foods, eggs and dairy', Icons.egg_outlined),
+        ('Vegan', 'Entirely plant based', Icons.eco_outlined),
+        (
+          'Pescatarian',
+          'Plant foods, fish and seafood',
+          Icons.set_meal_outlined,
+        ),
+      ])
+        _choice(
+          value,
+          subtitle,
+          icon,
+          profile.diet == value,
+          () => setState(() => profile.diet = value),
+        ),
+      const SizedBox(height: 8),
+      _note(
+        Icons.tune_rounded,
+        'A preference, not a rule. You can change this in Your space.',
+      ),
+    ],
+  );
+
+  Widget _details() => Form(
+    key: form,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: name,
+          textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.next,
+          maxLength: 24,
+          decoration: const InputDecoration(
+            labelText: 'What should we call you?',
+            hintText: 'Your first name',
+            counterText: '',
+          ),
+        ),
+        const SizedBox(height: 22),
+        _adaptiveFields(
+          TextFormField(
+            controller: age,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Age',
+              suffixText: 'years',
+            ),
+            validator: (value) {
+              final number = int.tryParse(value?.trim() ?? '');
+              return number == null || number < 18 || number > 100
+                  ? 'Adults 18–100'
+                  : null;
+            },
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: profile.sex,
+            isExpanded: true,
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 13,
+              color: context.kayleoText,
+            ),
+            decoration: const InputDecoration(labelText: 'Sex for calculation'),
+            items: ['Prefer not to say', 'Female', 'Male']
+                .map(
+                  (value) => DropdownMenuItem(
+                    value: value,
+                    child: Text(value, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => profile.sex = value!,
+          ),
+        ),
+        const SizedBox(height: 22),
+        _adaptiveFields(
+          _numberField(height, 'Height (cm)', 'cm', 100, 250),
+          _numberField(weight, 'Weight (kg)', 'kg', 30, 300),
+        ),
+        const SizedBox(height: 24),
+        _note(
+          Icons.lock_outline_rounded,
+          'Used to estimate your starting targets. Your details stay editable.',
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'For adults 18+. If sex is unspecified, the calculation uses a midpoint. Estimates do not account for pregnancy or medical needs.',
+          style: TextStyle(
+            fontSize: 11,
+            height: 1.6,
+            color: context.kayleoMuted,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _plan() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: forest,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.wb_sunny_outlined, color: lime, size: 18),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'YOUR DAILY STARTING POINT',
+                    style: TextStyle(
+                      color: lime,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Text(
+              number(profile.calorieTarget),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 54,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -2,
+                height: 1.1,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'calories per day',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: .7),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: SizedBox(
+                height: 7,
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: profile.proteinTarget * 4,
+                      child: Container(color: KayleoColors.protein),
+                    ),
+                    Expanded(
+                      flex: profile.carbTarget * 4,
+                      child: Container(color: KayleoColors.carbs),
+                    ),
+                    Expanded(
+                      flex: profile.fatTarget * 9,
+                      child: Container(color: KayleoColors.fat),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final stack = MediaQuery.textScalerOf(context).scale(12) > 18;
+          final width = stack
+              ? constraints.maxWidth
+              : (constraints.maxWidth - 20) / 3;
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final (label, value, color) in [
+                ('Protein', profile.proteinTarget, KayleoColors.protein),
+                ('Carbs', profile.carbTarget, KayleoColors.carbs),
+                ('Fat', profile.fatTarget, KayleoColors.fat),
+              ])
+                Container(
+                  width: width,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: context.kayleoSurfaces.card,
+                    border: Border.all(color: context.kayleoSurfaces.border),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${value}g',
+                        style: const TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -.8,
+                        ),
+                      ),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.kayleoMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+      const SizedBox(height: 24),
+      Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Built around you',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            ),
+          ),
+          TextButton(
+            onPressed: () => goTo(3),
+            child: const Text('Edit answers', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+      const SizedBox(height: 4),
+      _summaryRow(Icons.flag_outlined, 'Your direction', profile.goal),
+      _summaryRow(
+        Icons.directions_walk_rounded,
+        'Your routine',
+        profile.activity,
+      ),
+      _summaryRow(Icons.restaurant_rounded, 'Your food', profile.diet),
+      const SizedBox(height: 14),
+      _note(
+        Icons.tune_rounded,
+        'These are estimates, not strict rules. Adjust your targets anytime in Your space.',
+      ),
+      Center(
+        child: TextButton.icon(
+          onPressed: _showCalculation,
+          icon: const Icon(Icons.info_outline_rounded, size: 16),
+          label: const Text(
+            'How we estimate your targets',
+            style: TextStyle(fontSize: 11),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _summaryRow(IconData icon, String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 11),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: context.kayleoMuted),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: context.kayleoMuted),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  void _showCalculation() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (context) => SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 32),
-          Container(
-            width: 76,
-            height: 76,
-            decoration: BoxDecoration(
-              color: context.kayleoSurfaces.soft,
-              borderRadius: BorderRadius.circular(26),
-            ),
-            child: Icon(
-              Icons.auto_awesome_rounded,
-              color: context.kayleoPrimary,
-              size: 34,
-            ),
-          ),
-          const SizedBox(height: 28),
-          const Text(
-            'Preparing your personal plan',
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              height: 1.15,
-              letterSpacing: -1.4,
-            ),
-          ),
-          const SizedBox(height: 18),
           Text(
-            'We’re using your answers to calculate a useful starting point.',
+            'A starting point, explained.',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'We estimate resting energy from your age, height, weight and sex, then account for your activity. Your estimated maintenance is ${number(profile.maintenance)} calories per day.',
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Your selected goal adjusts the calorie target. Protein is based on body weight; the remaining energy is shared between fats and carbohydrates.',
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'These general estimates do not account for pregnancy or medical needs. Your targets can be changed in Your space.',
+            style: TextStyle(color: context.kayleoMuted, height: 1.6),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Got it'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _choice(
+    String title,
+    String subtitle,
+    IconData icon,
+    bool selected,
+    VoidCallback action,
+  ) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: action,
+          borderRadius: BorderRadius.circular(21),
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: selected
+                  ? context.kayleoPrimary
+                  : context.kayleoSurfaces.card,
+              borderRadius: BorderRadius.circular(21),
+              border: Border.all(
+                color: selected
+                    ? context.kayleoPrimary
+                    : context.kayleoSurfaces.border,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? Theme.of(context).colorScheme.onPrimary
+                              .withValues(alpha: .1)
+                        : context.kayleoSurfaces.soft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 21,
+                    color: selected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : context.kayleoPrimary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: selected
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : context.kayleoText,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.4,
+                          color: selected
+                              ? Theme.of(context).colorScheme.onPrimary
+                                    .withValues(alpha: .75)
+                              : context.kayleoMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Icon(
+                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                  size: 21,
+                  color: selected
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : context.kayleoSurfaces.border,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _note(IconData icon, String text) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: context.kayleoSurfaces.soft.withValues(alpha: .55),
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 17, color: context.kayleoPrimary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
             style: TextStyle(
-              fontSize: 14,
-              height: 1.7,
+              fontSize: 11,
+              height: 1.6,
               color: context.kayleoMuted,
             ),
           ),
-          const SizedBox(height: 38),
-          LinearProgressIndicator(
-            value: progress,
-            minHeight: 9,
-            borderRadius: BorderRadius.circular(12),
-            backgroundColor: context.kayleoSurfaces.soft,
-          ),
-          const SizedBox(height: 14),
-          Text(phase, style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 24),
-          for (final (index, label) in [
-            (0, 'Your measurements'),
-            (1, 'Your activity and goal'),
-            (2, 'Daily nutrition targets'),
-          ])
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  Icon(
-                    preparationTick >= (index + 1) * 33
-                        ? Icons.check_circle_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    color: context.kayleoPrimary,
-                    size: 21,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(label)),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 
   Widget _adaptiveFields(Widget first, Widget second) => LayoutBuilder(
     builder: (context, constraints) {
-      if (constraints.maxWidth < 360 ||
+      if (constraints.maxWidth < 320 ||
           MediaQuery.textScalerOf(context).scale(14) > 20) {
-        return Column(
-          children: [
-            first,
-            const SizedBox(height: KayleoSpacing.lg),
-            second,
-          ],
-        );
+        return Column(children: [first, const SizedBox(height: 22), second]);
       }
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(child: first),
-          const SizedBox(width: KayleoSpacing.md),
+          const SizedBox(width: 14),
           Expanded(child: second),
         ],
       );
     },
   );
 
-  Widget _choice(
-    String title,
-    String sub,
-    IconData icon,
-    bool selected,
-    VoidCallback action,
-  ) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Semantics(
-      button: true,
-      selected: selected,
-      child: InkWell(
-        onTap: action,
-        borderRadius: BorderRadius.circular(15),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(KayleoSpacing.lg),
-          decoration: BoxDecoration(
-            color: selected
-                ? context.kayleoSurfaces.soft
-                : context.kayleoSurfaces.card,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: selected
-                  ? context.kayleoPrimary
-                  : context.kayleoSurfaces.border,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? context.kayleoPrimary
-                      : context.kayleoSurfaces.soft,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  icon,
-                  color: selected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : context.kayleoPrimary,
-                  size: 21,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      sub,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.kayleoMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                color: selected
-                    ? context.kayleoPrimary
-                    : context.kayleoSurfaces.border,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
   Widget _numberField(
-    TextEditingController c,
+    TextEditingController controller,
     String label,
+    String unit,
     double min,
     double max,
   ) => TextFormField(
-    controller: c,
+    controller: controller,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-    decoration: InputDecoration(labelText: label),
-    validator: (v) {
-      final n = double.tryParse(v ?? '');
-      return n == null || !n.isFinite || n < min || n > max
+    textInputAction: TextInputAction.next,
+    decoration: InputDecoration(labelText: label, suffixText: unit),
+    validator: (value) {
+      final number = double.tryParse(value?.trim() ?? '');
+      return number == null || !number.isFinite || number < min || number > max
           ? '$min–$max'
           : null;
     },
   );
 }
 
-class _OnboardingBackdrop extends StatelessWidget {
-  const _OnboardingBackdrop();
+class _IntroArtwork extends StatelessWidget {
+  const _IntroArtwork({required this.index});
+  final int index;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => SizedBox(
+      height: constraints.maxWidth < 320 ? 242 : 264,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: switch (index) {
+          0 => _photo(context),
+          1 => _voice(context),
+          _ => _text(context),
+        },
+      ),
+    ),
+  );
+
+  Widget _photo(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      Image.asset('assets/images/salad.jpg', fit: BoxFit.cover),
+      const DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Color(0x700D241A)],
+          ),
+        ),
+      ),
+      Positioned(top: 18, left: 18, child: _pill('A FRESH PERSPECTIVE')),
+      Positioned(
+        bottom: 18,
+        left: 18,
+        right: 18,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.kayleoSurfaces.card,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 19,
+                backgroundColor: lime,
+                child: Icon(Icons.check_rounded, color: forest, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your meal, a little clearer.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: context.kayleoText,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'You review every detail',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.kayleoMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _voice(BuildContext context) => Container(
+    color: forest,
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _pill('IN YOUR OWN WORDS'),
+        const Spacer(),
+        const Text(
+          '“Rice, vegetables\nand lentils for lunch.”',
+          style: TextStyle(
+            fontSize: 23,
+            height: 1.3,
+            letterSpacing: -.8,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const Spacer(),
+        Row(
+          children: [
+            const CircleAvatar(
+              radius: 22,
+              backgroundColor: lime,
+              child: Icon(Icons.mic_none_rounded, color: forest),
+            ),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(
+                  25,
+                  (index) => Container(
+                    width: 3,
+                    height: [
+                      9.0,
+                      19.0,
+                      30.0,
+                      14.0,
+                      36.0,
+                      23.0,
+                      11.0,
+                    ][index % 7],
+                    decoration: BoxDecoration(
+                      color: lime.withValues(alpha: index < 18 ? .95 : .35),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _text(BuildContext context) => Container(
+    color: context.kayleoSurfaces.soft,
+    padding: const EdgeInsets.all(22),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'A NOTE TO YOUR DIARY',
+          style: TextStyle(
+            fontSize: 9,
+            letterSpacing: 1.3,
+            fontWeight: FontWeight.w800,
+            color: context.kayleoPrimary,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.all(17),
+          decoration: BoxDecoration(
+            color: context.kayleoSurfaces.card,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'A bowl of greens\nand grilled chicken',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.5,
+                    color: context.kayleoText,
+                  ),
+                ),
+              ),
+              Container(width: 2, height: 30, color: context.kayleoPrimary),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'assets/images/salad.jpg',
+                width: 42,
+                height: 42,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Ready for your review',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: context.kayleoPrimary,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_rounded,
+              size: 18,
+              color: context.kayleoPrimary,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _pill(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
     decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-        colors: [
-          context.kayleoBackground,
-          context.kayleoSurfaces.soft.withValues(alpha: .18),
-          context.kayleoBackground,
-        ],
+      color: lime,
+      borderRadius: BorderRadius.circular(99),
+    ),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: forest,
+        fontSize: 8,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1,
+      ),
+    ),
+  );
+}
+
+class _OnboardingIdentity extends StatelessWidget {
+  const _OnboardingIdentity();
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: forest,
+    child: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(42),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Brand(size: 34, light: true),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Good food.\nReal life.\nYour rhythm.',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 45,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -2,
+                            height: 1.08,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'A little clarity,\none meal at a time.',
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.6,
+                            color: Colors.white.withValues(alpha: .65),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Image.asset(
+                            'assets/images/bowl.jpg',
+                            height: math.min(constraints.maxHeight * .27, 220),
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Text(
+                    'YOUR DAY, IN BALANCE.',
+                    style: TextStyle(
+                      color: lime,
+                      fontSize: 9,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     ),
   );

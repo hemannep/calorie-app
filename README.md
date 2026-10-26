@@ -77,13 +77,31 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory build/web
 
 Open http://127.0.0.1:8765. A preview server is running there at handoff. It is local to this computer.
 
+## Gemini meal photo analysis
+
+Gemini analyzes camera/gallery images when an API key is supplied at build time.
+Do not commit the key or place it in Dart source. Copy `.env.example` to the
+ignored `.env.json`, add the key, and run locally with:
+
+```sh
+flutter run --dart-define-from-file=.env.json
+```
+
+The code defaults to `gemini-3.8-flash` with `gemini-3.6-flash` as an automatic
+fallback for temporary demand or server errors. Override either with
+`GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` in `.env.json`. `tools/run_ios.sh` and
+the workspace iPhone launch configuration load this file automatically.
+Client-side keys can be extracted from mobile and web builds, so production
+deployments should call Gemini through an authenticated backend and
+restrict/rotate the key in Google AI Studio.
+
 ## Explore
 
 1. Watch the branded splash, then complete the seven-step onboarding. Or choose **Explore with sample data** for a clearly marked, populated sample week.
 2. From **Today**, choose **Scan food**, **Type it**, or **Tell Kayleo**.
 3. Try **Rice and chicken curry**. Answer the rice portion and preparation questions, edit the ingredients, and confirm the meal. The diary and totals update immediately.
 4. Try **Two eggs and avocado toast**, **8 chicken momo**, or **I had a veg burger with five ounces of French fries**. Amounts are calculated from structured food portions.
-5. Uploaded photos are kept locally, if enabled. Describe their contents to create an estimate; sample photo scans demonstrate the future recognition workflow.
+5. Saved meal photos are kept locally, if enabled. With Gemini configured, the captured image is sent to Google for analysis and produces an editable calorie/macro estimate.
 6. In **Saved meals**, review and log a usual. With suitable history, text or voice can also use **same breakfast as yesterday**.
 7. Add water, record weight and movement, and explore **Progress** and the weekly review. The charts and review use your actual local records.
 8. Visit **You / Settings** to adjust your profile, targets, units, reminder preferences, photo retention, privacy, export, or reset. Mobile users also find Saved meals and Community here.
@@ -105,7 +123,7 @@ Open http://127.0.0.1:8765. A preview server is running there at handoff. It is 
 
 ## Prototype boundaries
 
-**Photo recognition is a clearly labeled demo.** Uploaded images are not analyzed by a trained model. Text uses a deterministic local parser and a small food library. Unknown food can be entered manually; no invented nutrition is returned for an unmatched description. Composite and regional recipes are illustrative estimates, not a verified nutrition database.
+Photo recognition uses Gemini when configured and falls back to the bundled on-device classifier otherwise. Image-derived foods, portions, calories, and macros are estimates and must be reviewed before saving. Text uses a deterministic local parser and a small food library.
 
 Speech recognition uses the device/browser provider and may require connectivity. The sample plate’s camera button opens a live camera in the same meal panel on Android, iOS, and web. Capture a photo, retake it, or use it in your meal log. The main photo action starts the camera directly. The camera stops when you capture, close, leave the panel, or background the app. Web camera access requires HTTPS or localhost; native desktop builds offer photo selection and a browser/phone fallback. Device camera/microphone permissions are requested only when their controls are used. Actual hardware permission flows need testing on physical devices.
 

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:http/testing.dart';
 import 'package:calorie_app/services/food_ai_service.dart';
 
@@ -52,6 +54,129 @@ class Detector implements FoodDetector {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'Live Gemini recognizes the bundled meal photo',
+    () async {
+      final bytes = await File('assets/images/bowl.jpg').readAsBytes();
+      HttpOverrides.global = null;
+      final client = IOClient(HttpClient());
+      final service = FoodAIService(client: client);
+      final result = await service.analyzeMealPhoto(bytes);
+      expect(result.name, isNotEmpty);
+      expect(result.servingGrams, greaterThan(0));
+      expect(result.values.first, greaterThan(0));
+      await service.dispose();
+      client.close();
+    },
+    skip: !const bool.fromEnvironment('GEMINI_LIVE_TEST'),
+    timeout: const Timeout(Duration(seconds: 90)),
+  );
+
+  test('Gemini photo analysis sends image and converts serving totals to per 100 g', () async {
+    late http.Request request;
+    final service = FoodAIService(
+      geminiApiKey: 'test-key',
+      geminiModel: 'test-flash',
+      client: MockClient((incoming) async {
+        request = incoming;
+        return http.Response(
+          jsonEncode({
+            'interaction': {
+              'output_text': jsonEncode({
+                'classification': 'food',
+                'mealName': 'Dal bhat with chicken',
+                'items': [
+                  {
+                    'name': 'rice',
+                    'portion': '1.5 cups',
+                    'grams': 300,
+                    'calories': 390,
+                    'proteinGrams': 8,
+                    'carbsGrams': 85,
+                    'fatGrams': 1,
+                    'fiberGrams': 2,
+                  },
+                  {
+                    'name': 'lentil soup and chicken curry',
+                    'portion': '1 bowl',
+                    'grams': 200,
+                    'calories': 360,
+                    'proteinGrams': 27,
+                    'carbsGrams': 20,
+                    'fatGrams': 19,
+                    'fiberGrams': 10,
+                  },
+                ],
+                'confidence': .82,
+                'assumptions': 'Sauce amount is uncertain',
+              }),
+            },
+          }),
+          200,
+        );
+      }),
+    );
+    final result = await service.analyzeMealPhoto(
+      Uint8List.fromList([0xff, 0xd8, 0xff]),
+    );
+    expect(request.url.path, '/v1beta/interactions');
+    expect(request.headers['x-goog-api-key'], 'test-key');
+    expect(request.url.queryParameters, isEmpty);
+    final requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+    expect(requestBody['model'], 'test-flash');
+    expect(
+      (requestBody['response_format'] as Map)['mime_type'],
+      'application/json',
+    );
+    expect(result.name, 'Dal bhat with chicken');
+    expect(result.servingGrams, 500);
+    expect(result.values.take(4), [150, 7, 21, 4]);
+    expect(result.values[4], closeTo(2.4, .000001));
+    expect(result.details, contains('rice (1.5 cups)'));
+    expect(result.details, contains('lentil soup and chicken curry (1 bowl)'));
+    expect(result.details, contains('82%'));
+    await service.dispose();
+  });
+
+  test(
+    'Gemini photo analysis rejects non-food without a second request',
+    () async {
+      var calls = 0;
+      final service = FoodAIService(
+        geminiApiKey: 'test-key',
+        client: MockClient((_) async {
+          calls++;
+          return http.Response(
+            jsonEncode({
+              'interaction': {
+                'output_text': jsonEncode({
+                  'classification': 'not_food',
+                  'mealName': '',
+                  'items': <Object>[],
+                  'confidence': .95,
+                  'assumptions': '',
+                }),
+              },
+            }),
+            200,
+          );
+        }),
+      );
+      await expectLater(
+        service.analyzeMealPhoto(Uint8List.fromList([1, 2, 3])),
+        throwsA(
+          isA<PhotoAnalysisException>().having(
+            (error) => error.issue,
+            'issue',
+            PhotoAnalysisIssue.noFood,
+          ),
+        ),
+      );
+      expect(calls, 1);
+      await service.dispose();
+    },
+  );
+
   for (final sample in <(List<double>, ScanStatus)>[
     ([.8, .1, .05, .05], ScanStatus.noFood),
     ([.3, .39, .2, .11], ScanStatus.noFood),

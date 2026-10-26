@@ -340,6 +340,8 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('onboarding-continue')));
       await tester.tap(find.byKey(const Key('onboarding-continue')));
       await tester.pumpAndSettle();
+      if (i == 2) await snapshot(tester, 'onboarding-v2-goal');
+      if (i == 3) await snapshot(tester, 'onboarding-v2-details');
     }
     await tester.enterText(
       find.widgetWithText(TextFormField, 'What should we call you?'),
@@ -352,15 +354,46 @@ void main() {
     await tester.ensureVisible(find.text('Moderately active'));
     await tester.tap(find.text('Moderately active'));
     await tester.pumpAndSettle();
+    await snapshot(tester, 'onboarding-v2-activity');
     await tester.ensureVisible(find.byKey(const Key('onboarding-continue')));
     await tester.tap(find.byKey(const Key('onboarding-continue')));
-    await tester.pump();
-    expect(find.text('Preparing your personal plan'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('What feels\ngood to eat?'), findsOneWidget);
+    await tester.ensureVisible(find.text('Vegetarian'));
+    await tester.tap(find.text('Vegetarian'));
+    await tester.pumpAndSettle();
+    await snapshot(tester, 'onboarding-v2-diet');
+    await tester.tap(find.byKey(const Key('onboarding-continue')));
+    await tester.pumpAndSettle();
+    expect(find.text('Your plan,\nin balance.'), findsOneWidget);
     expect(s.onboarded, isFalse);
     await tester.pump(const Duration(seconds: 10));
     await tester.pumpAndSettle();
     expect(find.text('Your plan.\nYour pace.'), findsOneWidget);
     await snapshot(tester, 'personal-plan-mobile');
+    await tester.ensureVisible(find.text('Edit answers'));
+    await tester.tap(find.text('Edit answers'));
+    await tester.pumpAndSettle();
+    expect(find.text('What brings\nyou here?'), findsOneWidget);
+    await tester.tap(find.text('Build muscle'));
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const Key('onboarding-continue')));
+      await tester.pumpAndSettle();
+      if (i == 0) {
+        expect(
+          tester
+              .widget<TextFormField>(
+                find.widgetWithText(TextFormField, 'What should we call you?'),
+              )
+              .controller!
+              .text,
+          'Jamie',
+        );
+      }
+    }
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('Your plan.\nYour pace.'), findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('onboarding-continue')));
     await tester.tap(find.byKey(const Key('onboarding-continue')));
     await tester.pumpAndSettle();
@@ -369,6 +402,8 @@ void main() {
     expect(s.meals, isEmpty);
     expect(s.weights.length, 1);
     expect(s.profile.activity, 'Moderately active');
+    expect(s.profile.diet, 'Vegetarian');
+    expect(s.profile.goal, 'Build muscle');
     expect(find.byKey(const Key('home-food-search')), findsOneWidget);
     await snapshot(tester, 'empty-day-mobile');
     await tester.pumpWidget(const SizedBox());
