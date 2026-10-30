@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:firebase_core/firebase_core.dart';
 
@@ -7,6 +8,7 @@ import 'core/firebase_auth_repository.dart';
 import 'core/auth_repository.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
@@ -197,7 +199,9 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
         state?.onboarded == true &&
         !_notificationPromptQueued) {
       _notificationPromptQueued = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAskForNotifications());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _maybeAskForNotifications(),
+      );
     }
     final next = state?.signedOut == true
         ? 'signed-out'
@@ -208,10 +212,30 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
       navigatorKey = GlobalKey<NavigatorState>();
       identity = next;
     }
+    AppLocalizations.setActiveLanguageCode(state?.languageCode);
     return MaterialApp(
       navigatorKey: navigatorKey,
       navigatorObservers: [kayleoRouteObserver],
       title: 'Kayleo',
+      locale: state?.languageCode == null || state!.languageCode == 'system'
+          ? null
+          : Locale(state!.languageCode),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localeResolutionCallback: (locale, supportedLocales) {
+        if (locale == null) return const Locale('en');
+        for (final supported in supportedLocales) {
+          if (supported.languageCode == locale.languageCode) {
+            return supported;
+          }
+        }
+        return const Locale('en');
+      },
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       debugShowCheckedModeBanner: false,
       theme: kayleoTheme(),
       darkTheme: kayleoTheme(brightness: Brightness.dark),
@@ -252,7 +276,7 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
                           });
                           _start();
                         },
-                        child: const Text('Retry'),
+                        child: const LocalizedText('Retry'),
                       ),
                     ),
                   )
@@ -264,19 +288,35 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
 
   Future<void> _maybeAskForNotifications() async {
     final current = state;
-    if (!mounted || current == null || !current.onboarded || current.signedOut) return;
-    if (current.storage.getBool('kayleo_notification_prompted_v1') == true) return;
+    if (!mounted ||
+        current == null ||
+        !current.onboarded ||
+        current.signedOut) {
+      return;
+    }
+    if (current.storage.getBool('kayleo_notification_prompted_v1') == true) {
+      return;
+    }
     await current.storage.setBool('kayleo_notification_prompted_v1', true);
     if (!mounted) return;
     final enable = await showDialog<bool>(
       context: navigatorKey.currentContext!,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Stay on track with reminders'),
-        content: const Text('Allow notifications for meal check-ins, hydration, weekly reviews, smart nudges, and milestone celebrations? You can change these anytime in Reminders.'),
+        icon: const Center(child: KayleoIcon(size: 44, radius: 12)),
+        title: const LocalizedText('Stay on track with reminders'),
+        content: const LocalizedText(
+          'Allow notifications for meal check-ins, hydration, weekly reviews, smart nudges, and milestone celebrations? You can change these anytime in Reminders.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Allow notifications')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const LocalizedText('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const LocalizedText('Allow notifications'),
+          ),
         ],
       ),
     );
@@ -286,36 +326,171 @@ class _KayleoAppState extends State<KayleoApp> with WidgetsBindingObserver {
   }
 }
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({
     super.key,
     this.duration = const Duration(milliseconds: 1500),
   });
   final Duration duration;
   @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  static const _soundChannel = MethodChannel('kayleo/home_widgets');
+  static const List<String> _eyebrowPhrases = [
+    'MINDFUL NUTRITION',
+    'EAT WITH INTENTION',
+    'FUELED BY NATURE',
+    'DAILY VITALITY',
+    'NOURISH TO FLOURISH',
+    'BALANCED LIVING',
+    'WHOLE FOOD ENERGY',
+    'GENTLE PROGRESS',
+    'CONSCIOUS FUELING',
+    'BETTER EVERY BITE',
+    'PURE NOURISHMENT',
+    'YOUR WELLNESS RITUAL',
+    'CALM CONSISTENCY',
+    'CLEAN DAILY FUEL',
+    'SMART MACRO HABITS',
+    'HONOR YOUR BODY',
+    'SIMPLY NOURISHED',
+    'STEADY MOMENTUM',
+    'FRESH PERSPECTIVE',
+    'HEALTHY RHYTHMS',
+    'THRIVE NATURALLY',
+    'INTENTIONAL CHOICES',
+    'FEEL YOUR BEST',
+    'SUSTAINABLE BALANCE',
+    'MINDFUL MACROS',
+    'LISTEN TO YOUR BODY',
+    'EFFORTLESS CLARITY',
+    'REAL FOOD FIRST',
+    'POWERED BY PLANTS',
+    'STRENGTH IN BALANCE',
+    'SMALL DAILY WINS',
+    'VIBRANT ENERGY',
+    'WHOLESOME HABITS',
+    'RESTORE & REFUEL',
+    'CRAFT YOUR ROUTINE',
+    'NATURAL HARMONY',
+    'JOYFUL NUTRITION',
+    'CONSISTENT CARE',
+    'FUEL YOUR GOALS',
+    'NOURISH EVERY CELL',
+    'SERENE WELLNESS',
+    'LIGHT & ENERGIZED',
+    'ROOTED IN HEALTH',
+    'MINDFUL EATING',
+    'ELEVATE YOUR DAY',
+    'GOOD FOOD MOOD',
+    'ACTIVE & NOURISHED',
+    'WELLNESS IN MOTION',
+    'GARDEN FRESH FOCUS',
+    'CLEAR MIND & BODY',
+    'BALANCED PLATE',
+    'YOUR HEALTHY PACE',
+    'QUIET DISCIPLINE',
+    'FUEL FOR LIFE',
+    'CULTIVATE VITALITY',
+    'NOURISHING MOMENTS',
+    'METABOLIC HARMONY',
+    'RADIANT HEALTH',
+    'PROGRESS OVER PERFECTION',
+    'HYDRATE & NOURISH',
+  ];
+
+  late final String _eyebrow =
+      _eyebrowPhrases[math.Random().nextInt(_eyebrowPhrases.length)];
+  int _lastSoundCount = 0;
+
+  void _triggerStepFeedback(int count, {required bool silent}) {
+    if (silent || count <= _lastSoundCount) return;
+    _lastSoundCount = count;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (count < 7) {
+        unawaited(HapticFeedback.selectionClick());
+        unawaited(
+          _soundChannel
+              .invokeMethod<void>('playSplashSound', 'tick')
+              .catchError((_) {}),
+        );
+      } else if (count == 7) {
+        unawaited(HapticFeedback.lightImpact());
+        unawaited(
+          _soundChannel
+              .invokeMethod<void>('playSplashSound', 'chime')
+              .catchError((_) {}),
+        );
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final silent = reduceMotion || widget.duration == Duration.zero;
     final typingDuration = reduceMotion
         ? Duration.zero
-        : duration < const Duration(milliseconds: 1150)
-        ? duration
-        : const Duration(milliseconds: 1150);
+        : widget.duration < const Duration(milliseconds: 1100)
+        ? widget.duration
+        : const Duration(milliseconds: 1100);
     return Scaffold(
       backgroundColor: context.kayleoBackground,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/kayleo-splash.png',
-            fit: BoxFit.cover,
-            color: dark ? const Color(0xFF243A2B) : null,
-            colorBlendMode: BlendMode.multiply,
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: reduceMotion ? 1.0 : 1.045, end: 1.0),
+            duration: reduceMotion ? Duration.zero : widget.duration,
+            curve: Curves.easeOutCubic,
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
+            child: Image.asset(
+              'assets/images/kayleo-splash.png',
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              color: dark ? const Color(0xFF243A2B) : null,
+              colorBlendMode: BlendMode.multiply,
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0, -.26),
+                radius: .85,
+                colors: [
+                  (dark ? const Color(0xFF16231B) : const Color(0xFFFFFDF7))
+                      .withValues(alpha: dark ? .52 : .64),
+                  (dark ? const Color(0xFF101713) : const Color(0xFFF7F5ED))
+                      .withValues(alpha: .0),
+                ],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  (dark ? const Color(0xFF101713) : const Color(0xFFF7F5ED))
+                      .withValues(alpha: .28),
+                  Colors.transparent,
+                  (dark ? const Color(0xFF101713) : const Color(0xFFF7F5ED))
+                      .withValues(alpha: .12),
+                ],
+                stops: const [0, .55, 1],
+              ),
+            ),
           ),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, c) => Align(
-                alignment: const Alignment(0, -.18),
+                alignment: const Alignment(0, -.25),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: TweenAnimationBuilder<int>(
@@ -323,61 +498,171 @@ class SplashScreen extends StatelessWidget {
                     tween: IntTween(begin: reduceMotion ? 7 : 0, end: 7),
                     duration: typingDuration,
                     builder: (context, count, _) {
-                      final size = c.maxWidth < 600 ? 72.0 : 100.0;
+                      _triggerStepFeedback(count, silent: silent);
+                      final size = c.maxWidth < 600 ? 68.0 : 92.0;
+                      final done = count == 7;
+                      final progress = (count / 7).clamp(0.0, 1.0);
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Opacity(opacity: 0, child: Brand(size: size)),
-                                Positioned(
-                                  top: 0,
-                                  left: 0,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Brand(
-                                        size: size,
-                                        visibleCharacters: count,
+                          AnimatedOpacity(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 260),
+                            opacity: count > 0 ? 1 : 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    (dark
+                                            ? const Color(0xFF1E2D24)
+                                            : const Color(0xFFFFFFFF))
+                                        .withValues(alpha: dark ? .78 : .82),
+                                borderRadius: BorderRadius.circular(99),
+                                border: Border.all(
+                                  color: dark
+                                      ? Colors.white.withValues(alpha: .08)
+                                      : forest.withValues(alpha: .08),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  AnimatedScale(
+                                    duration: reduceMotion
+                                        ? Duration.zero
+                                        : const Duration(milliseconds: 320),
+                                    scale: done ? 1.15 : .85,
+                                    curve: Curves.easeOutBack,
+                                    child: Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: lime,
+                                        shape: BoxShape.circle,
                                       ),
-                                      if (count < 7)
-                                        Container(
-                                          width: 3,
-                                          height: size * .66,
-                                          margin: const EdgeInsets.only(
-                                            left: 3,
-                                            top: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: lime,
-                                            borderRadius: BorderRadius.circular(
-                                              2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 7),
+                                  LocalizedText(
+                                    _eyebrow,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.4,
+                                      color: dark ? lime : forest,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          AnimatedScale(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 360),
+                            curve: Curves.easeOutBack,
+                            scale: done ? 1.0 : .97,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Opacity(opacity: 0, child: Brand(size: size)),
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Brand(
+                                          size: size,
+                                          visibleCharacters: count,
+                                        ),
+                                        if (!done)
+                                          Container(
+                                            width: 2.5,
+                                            height: size * .58,
+                                            margin: const EdgeInsets.only(
+                                              left: 3,
+                                              top: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: lime,
+                                              borderRadius:
+                                                  BorderRadius.circular(99),
                                             ),
                                           ),
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedSlide(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 300),
+                            curve: Curves.easeOutCubic,
+                            offset: done ? Offset.zero : const Offset(0, 0.22),
+                            child: AnimatedOpacity(
+                              duration: reduceMotion
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 280),
+                              curve: Curves.easeOut,
+                              opacity: done ? 1 : 0,
+                              child: LocalizedText(
+                                'Your day, in balance.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: c.maxWidth < 360 ? 15 : 16,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: .25,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                           const SizedBox(height: 22),
                           AnimatedOpacity(
                             duration: reduceMotion
                                 ? Duration.zero
-                                : const Duration(milliseconds: 180),
-                            opacity: count == 7 ? 1 : 0,
-                            child: Text(
-                              'Your day, in balance.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                : const Duration(milliseconds: 240),
+                            opacity: count > 0 ? 1 : 0,
+                            child: Semantics(
+                              label: context.l10n.translate('Loading'),
+                              child: ExcludeSemantics(
+                                child: SizedBox(
+                                  width: 48,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(99),
+                                    child: TweenAnimationBuilder<double>(
+                                      tween: Tween(begin: 0, end: progress),
+                                      duration: reduceMotion
+                                          ? Duration.zero
+                                          : const Duration(milliseconds: 220),
+                                      curve: Curves.easeOut,
+                                      builder: (context, value, _) =>
+                                          LinearProgressIndicator(
+                                            value: value,
+                                            minHeight: 2.5,
+                                            backgroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: .08),
+                                            color: lime,
+                                          ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),

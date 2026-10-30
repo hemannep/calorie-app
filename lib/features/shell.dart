@@ -16,12 +16,12 @@ import 'community.dart';
 import 'milestones.dart';
 
 const _nav = [
-  ('Today', Icons.grid_view_rounded),
-  ('Community', Icons.people_outline_rounded),
-  ('Progress', Icons.show_chart_rounded),
-  ('Scan food', Icons.camera_alt_outlined),
-  ('Saved meals', Icons.bookmark_border_rounded),
-  ('You', Icons.tune_rounded),
+  ('today', Icons.grid_view_rounded),
+  ('community', Icons.people_outline_rounded),
+  ('progress', Icons.show_chart_rounded),
+  ('scanFood', Icons.camera_alt_outlined),
+  ('savedMeals', Icons.bookmark_border_rounded),
+  ('you', Icons.tune_rounded),
 ];
 
 class AppShell extends StatefulWidget {
@@ -48,7 +48,12 @@ class AppShellState extends State<AppShell> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.state,
+    builder: (context, _) => _buildShell(context),
+  );
+
+  Widget _buildShell(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 1050;
     final useIosGlassBar =
         !wide && !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
@@ -74,14 +79,14 @@ class AppShellState extends State<AppShell> {
                         _topbar(wide),
                       if (state.storageError != null)
                         MaterialBanner(
-                          content: Text(
+                          content: LocalizedText(
                             state.storageError!,
                             style: const TextStyle(fontSize: 12),
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => exportData(context, state),
-                              child: const Text('Export backup'),
+                              child: const LocalizedText('Export backup'),
                             ),
                           ],
                         ),
@@ -151,7 +156,7 @@ class AppShellState extends State<AppShell> {
                     ),
                     child: FloatingActionButton(
                       key: const Key('bottom-camera-button'),
-                      tooltip: 'Scan food',
+                      tooltip: context.l10n.t('scanFood'),
                       backgroundColor: context.kayleoPrimary,
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       elevation: 0,
@@ -242,26 +247,26 @@ class AppShellState extends State<AppShell> {
                           _iosGlassItem(
                             0,
                             Icons.grid_view_rounded,
-                            'Today',
+                            context.l10n.t('today'),
                             foreground,
                           ),
                           _iosGlassItem(
                             1,
                             Icons.people_outline_rounded,
-                            'Community',
+                            context.l10n.t('community'),
                             foreground,
                           ),
                           const Expanded(child: SizedBox()),
                           _iosGlassItem(
                             2,
                             Icons.show_chart_rounded,
-                            'Progress',
+                            context.l10n.t('progress'),
                             foreground,
                           ),
                           _iosGlassItem(
                             5,
                             Icons.person_outline_rounded,
-                            'You',
+                            context.l10n.t('you'),
                             foreground,
                           ),
                         ],
@@ -275,9 +280,9 @@ class AppShellState extends State<AppShell> {
               top: 0,
               child: Semantics(
                 button: true,
-                label: 'Scan food',
+                label: context.l10n.t('scanFood'),
                 child: Tooltip(
-                  message: 'Scan food',
+                  message: context.l10n.t('scanFood'),
                   child: Container(
                     width: 56,
                     height: 56,
@@ -378,7 +383,12 @@ class AppShellState extends State<AppShell> {
 
   Widget _bottomBar() {
     var labelHeight = 0.0;
-    for (final label in ['Today', 'Community', 'Progress', 'You']) {
+    for (final label in [
+      context.l10n.t('today'),
+      context.l10n.t('community'),
+      context.l10n.t('progress'),
+      context.l10n.t('you'),
+    ]) {
       final painter = TextPainter(
         text: TextSpan(
           text: label,
@@ -407,11 +417,15 @@ class AppShellState extends State<AppShell> {
       height: rowHeight,
       child: Row(
         children: [
-          _bottomItem(0, Icons.grid_view_rounded, 'Today'),
-          _bottomItem(1, Icons.people_outline_rounded, 'Community'),
+          _bottomItem(0, Icons.grid_view_rounded, context.l10n.t('today')),
+          _bottomItem(
+            1,
+            Icons.people_outline_rounded,
+            context.l10n.t('community'),
+          ),
           const Expanded(child: SizedBox()),
-          _bottomItem(2, Icons.show_chart_rounded, 'Progress'),
-          _bottomItem(5, Icons.person_outline_rounded, 'You'),
+          _bottomItem(2, Icons.show_chart_rounded, context.l10n.t('progress')),
+          _bottomItem(5, Icons.person_outline_rounded, context.l10n.t('you')),
         ],
       ),
     );
@@ -433,7 +447,7 @@ class AppShellState extends State<AppShell> {
                   : context.kayleoMuted,
             ),
             const SizedBox(height: 5),
-            Text(
+            LocalizedText(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -467,7 +481,7 @@ class AppShellState extends State<AppShell> {
         ),
         Padding(
           padding: EdgeInsets.only(left: 30, bottom: 14),
-          child: Text(
+          child: LocalizedText(
             'YOUR EVERYDAY',
             style: TextStyle(
               fontSize: 9,
@@ -511,8 +525,8 @@ class AppShellState extends State<AppShell> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _nav[i].$1,
+                          LocalizedText(
+                            context.l10n.t(_nav[i].$1),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: selected == i
@@ -524,7 +538,7 @@ class AppShellState extends State<AppShell> {
                             ),
                           ),
                           if (i == 1)
-                            Text(
+                            LocalizedText(
                               'Preview',
                               style: TextStyle(
                                 fontSize: 11,
@@ -556,12 +570,12 @@ class AppShellState extends State<AppShell> {
                     size: 22,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  const LocalizedText(
                     'Kayleo+',
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                   ),
                   const SizedBox(height: 7),
-                  Text(
+                  LocalizedText(
                     'More understanding.\nMade for your everyday.',
                     style: TextStyle(
                       fontSize: 10,
@@ -579,7 +593,7 @@ class AppShellState extends State<AppShell> {
                         minimumSize: const Size(0, 38),
                         padding: const EdgeInsets.all(KayleoSpacing.md),
                       ),
-                      child: Text(
+                      child: LocalizedText(
                         widget.state.premium
                             ? 'Premium preview'
                             : 'Explore premium',
@@ -615,14 +629,14 @@ class AppShellState extends State<AppShell> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        LocalizedText(
                           widget.state.profile.name,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        Text(
+                        LocalizedText(
                           'Your personal space',
                           style: TextStyle(
                             fontSize: 9,
@@ -654,7 +668,7 @@ class AppShellState extends State<AppShell> {
     child: Row(
       children: [
         if (selected == 6)
-          Text(
+          LocalizedText(
             'Diary',
             style: TextStyle(
               fontSize: wide ? 20 : 18,
@@ -664,7 +678,7 @@ class AppShellState extends State<AppShell> {
         else if (wide) ...[
           Icon(Icons.circle_outlined, size: 18, color: context.kayleoPrimary),
           const SizedBox(width: 10),
-          Text(
+          LocalizedText(
             'Understand your nutrition.',
             style: TextStyle(fontSize: 11, color: context.kayleoMuted),
           ),
@@ -694,7 +708,7 @@ class AppShellState extends State<AppShell> {
             color: context.kayleoPrimary,
           ),
           const SizedBox(width: 6),
-          Text(
+          LocalizedText(
             'Saved on this device',
             style: TextStyle(fontSize: 10, color: context.kayleoMuted),
           ),
@@ -704,7 +718,7 @@ class AppShellState extends State<AppShell> {
           IconButton(
             onPressed: () =>
                 openSheet(context, InboxSheet(state: widget.state)),
-            tooltip: 'Your reminders',
+            tooltip: context.l10n.translate('Your reminders'),
             icon: Icon(
               Icons.notifications_none_rounded,
               size: 21,
@@ -777,21 +791,33 @@ class InboxSheet extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconBox(m.$1, size: 37),
+                    const KayleoIcon(size: 37, radius: 10),
                     const SizedBox(width: 13),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            m.$2,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: LocalizedText(
+                                  m.$2,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                m.$1,
+                                size: 16,
+                                color: context.kayleoPrimary,
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
-                          Text(
+                          LocalizedText(
                             m.$3,
                             style: TextStyle(
                               fontSize: 11,
@@ -809,7 +835,7 @@ class InboxSheet extends StatelessWidget {
           const SizedBox(height: KayleoSpacing.md),
           OutlinedButton(
             onPressed: () => openSheet(context, ReminderSheet(state: state)),
-            child: const Text('Manage my reminders'),
+            child: const LocalizedText('Manage my reminders'),
           ),
         ],
       ),

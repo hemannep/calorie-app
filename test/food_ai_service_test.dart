@@ -109,6 +109,13 @@ void main() {
                 ],
                 'confidence': .82,
                 'assumptions': 'Sauce amount is uncertain',
+                'clarifications': [
+                  {
+                    'question': 'Which chicken cut is in the curry?',
+                    'options': ['Breast', 'Thigh'],
+                    'reason': 'The fat content differs by cut.',
+                  },
+                ],
               }),
             },
           }),
@@ -135,8 +142,73 @@ void main() {
     expect(result.details, contains('rice (1.5 cups)'));
     expect(result.details, contains('lentil soup and chicken curry (1 bowl)'));
     expect(result.details, contains('82%'));
+    expect(result.clarifications.single.options, ['Breast', 'Thigh']);
     await service.dispose();
   });
+
+  test(
+    'Gemini photo refinement includes the correction and first result',
+    () async {
+      late Map<String, dynamic> requestBody;
+      final service = FoodAIService(
+        geminiApiKey: 'test-key',
+        geminiModel: 'test-flash',
+        client: MockClient((incoming) async {
+          requestBody = jsonDecode(incoming.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'interaction': {
+                'output_text': jsonEncode({
+                  'classification': 'food',
+                  'mealName': 'Mushroom pizza with extra bacon',
+                  'items': [
+                    {
+                      'name': 'Mushroom pizza with bacon and mozzarella',
+                      'portion': '2 slices',
+                      'grams': 240,
+                      'calories': 680,
+                      'proteinGrams': 30,
+                      'carbsGrams': 62,
+                      'fatGrams': 34,
+                      'fiberGrams': 5,
+                    },
+                  ],
+                  'confidence': .9,
+                  'assumptions': 'Mozzarella amount estimated',
+                }),
+              },
+            }),
+            200,
+          );
+        }),
+      );
+      const previous = FoodNutrition(
+        id: 'kayleo:first',
+        name: 'Bacon pizza',
+        source: 'Kayleo Vision estimate',
+        sourceUrl: '',
+        values: [200, 10, 20, 8, 2],
+      );
+
+      final result = await service.refineMealPhoto(
+        Uint8List.fromList([0xff, 0xd8, 0xff]),
+        correction: 'mushroom pizza with extra bacon and mozzarella',
+        previous: previous,
+      );
+
+      final prompt =
+          ((requestBody['input'] as List).first as Map)['text'] as String;
+      expect(requestBody['input'], hasLength(1));
+      expect(prompt, contains('Bacon pizza'));
+      expect(
+        prompt,
+        contains('mushroom pizza with extra bacon and mozzarella'),
+      );
+      expect(result.name, 'Mushroom pizza with extra bacon');
+      expect(result.plateItems.single.name, contains('mozzarella'));
+      await service.dispose();
+    },
+  );
 
   test(
     'Gemini photo analysis rejects non-food without a second request',

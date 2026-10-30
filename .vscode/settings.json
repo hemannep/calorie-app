@@ -1,6 +1,4 @@
 {
-  "dart.flutterAdditionalArgs": [
-    "--dart-define-from-file=.env.json"
-  ]
+  "dart.flutterSdkPath": "/Users/hemanneupane/development/flutter"
 }
 

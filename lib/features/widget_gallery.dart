@@ -38,89 +38,154 @@ class WidgetGalleryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Home screen widgets'),
+      title: const LocalizedText('Widgets'),
       actions: [
         IconButton(
-          tooltip: 'How to add widgets',
+          tooltip: context.l10n.translate('How to add widgets'),
           onPressed: () => _help(context),
           icon: const Icon(Icons.help_outline_rounded),
         ),
       ],
     ),
     body: ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
-        const Text(
-          'Your day, at a glance.',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -.8,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: .07),
+            borderRadius: BorderRadius.circular(22),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Four small ways to keep Kayleo close.',
-          style: TextStyle(color: context.kayleoMuted, fontSize: 13),
-        ),
-        const SizedBox(height: 24),
-        for (final w in widgets) ...[
-          Panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.widgets_rounded,
+                  size: 21,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        w.$2,
-                        style: Theme.of(context).textTheme.titleMedium,
+                    const LocalizedText(
+                      'Your day, at a glance',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.2,
                       ),
                     ),
-                    Tag(w.$3),
+                    const SizedBox(height: 3),
+                    LocalizedText(
+                      'Quick logging, right from your home screen.',
+                      style: TextStyle(
+                        color: context.kayleoMuted,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: w.$1 == 'rings' ? 336 : 172,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        for (final w in widgets) ...[
+          Panel(
+            padding: 0,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 18,
                     ),
-                    child: AspectRatio(
-                      aspectRatio: w.$1 == 'rings' ? 2.1 : 1,
-                      child: KayleoWidgetPreview(
-                        kind: w.$1,
-                        streak: state.streak > 0 ? state.streak : 2,
+                    color: Theme.of(context).colorScheme.primary
+                        .withValues(alpha: .035),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: w.$1 == 'rings' ? 336 : 164,
+                        ),
+                        child: AspectRatio(
+                          aspectRatio: w.$1 == 'rings' ? 2.1 : 1,
+                          child: KayleoWidgetPreview(
+                            kind: w.$1,
+                            streak: state.streak > 0 ? state.streak : 2,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  w.$4,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: context.kayleoMuted,
-                    height: 1.6,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 15, 12, 14),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: LocalizedText(
+                                      w.$2,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Tag(w.$3),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              LocalizedText(
+                                w.$4,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: context.kayleoMuted,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        IconButton.filled(
+                          tooltip: context.l10n.translate('Add widget'),
+                          onPressed: () async {
+                            final requested = await HomeWidgetService.instance
+                                .requestPin(w.$1);
+                            if (context.mounted && !requested) _help(context);
+                          },
+                          icon: const Icon(Icons.add_rounded),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final requested = await HomeWidgetService.instance
-                          .requestPin(w.$1);
-                      if (context.mounted && !requested) _help(context);
-                    },
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Add to home screen'),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
         ],
       ],
     ),
@@ -131,24 +196,30 @@ class WidgetGalleryScreen extends StatelessWidget {
     Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        LocalizedText(
           'Add a Kayleo widget',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 22),
-        const Text('Android', style: TextStyle(fontWeight: FontWeight.w800)),
+        const LocalizedText(
+          'Android',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 8),
-        const Text(
+        const LocalizedText(
           'Touch and hold an empty area on your home screen. Choose Widgets, find Kayleo, then drag your favorite widget into place.',
         ),
         const SizedBox(height: 20),
-        const Text('iPhone', style: TextStyle(fontWeight: FontWeight.w800)),
+        const LocalizedText(
+          'iPhone',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 8),
-        const Text(
+        const LocalizedText(
           'Touch and hold your home screen. Tap Edit, then Add Widget. Search for Kayleo, choose a widget, and tap Add Widget.',
         ),
         const SizedBox(height: 20),
-        Text(
+        LocalizedText(
           'Open Kayleo and sign in to show your daily totals. The previews above use example data.',
           style: TextStyle(fontSize: 12, color: context.kayleoMuted),
         ),
@@ -159,11 +230,7 @@ class WidgetGalleryScreen extends StatelessWidget {
 
 /// Sample cards mirror the native widgets without relying on live account data.
 class KayleoWidgetPreview extends StatelessWidget {
-  const KayleoWidgetPreview({
-    super.key,
-    required this.kind,
-    this.streak,
-  });
+  const KayleoWidgetPreview({super.key, required this.kind, this.streak});
 
   final String kind;
   final int? streak;
@@ -185,29 +252,36 @@ class KayleoWidgetPreview extends StatelessWidget {
               child: SizedBox(
                 width: 160,
                 height: 160,
-                child: CustomPaint(
-                  painter: _StreakArtworkPainter(streak: streak ?? 2),
-                ),
+                child: KayleoStreakArtwork(streak: streak ?? 2),
               ),
             )
           : DefaultTextStyle(
-              style: const TextStyle(fontFamily: 'Manrope', color: Color(0xFF163E2D)),
+              style: const TextStyle(
+                fontFamily: 'Manrope',
+                color: Color(0xFF163E2D),
+              ),
               child: Column(
                 children: [
                   Row(
                     children: [
-                      Text(
+                      LocalizedText(
                         kind == 'rings' ? 'Kayleo Calories' : 'Kayleo',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const Spacer(),
-                      Text(
+                      LocalizedText(
                         switch (kind) {
                           'barcode' => 'Barcode',
                           'rings' => 'Today',
                           _ => 'Calories',
                         },
-                        style: const TextStyle(fontSize: 9, color: Color(0xFF626E64)),
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: Color(0xFF626E64),
+                        ),
                       ),
                     ],
                   ),
@@ -224,9 +298,12 @@ class KayleoWidgetPreview extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const Text(
+                          const LocalizedText(
                             'Food labels, faster',
-                            style: TextStyle(fontSize: 9, color: Color(0xFF626E64)),
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Color(0xFF626E64),
+                            ),
                           ),
                           const SizedBox(height: 8),
                           _button('Scan barcode', null),
@@ -247,9 +324,19 @@ class KayleoWidgetPreview extends StatelessWidget {
                                   .71,
                                 ),
                                 const SizedBox(height: 9),
-                                _macro('Carbs left', '106g', KayleoColors.carbs, .58),
+                                _macro(
+                                  'Carbs left',
+                                  '106g',
+                                  KayleoColors.carbs,
+                                  .58,
+                                ),
                                 const SizedBox(height: 9),
-                                _macro('Fat left', '26g', KayleoColors.fat, .63),
+                                _macro(
+                                  'Fat left',
+                                  '26g',
+                                  KayleoColors.fat,
+                                  .63,
+                                ),
                               ],
                             ),
                           ),
@@ -261,7 +348,10 @@ class KayleoWidgetPreview extends StatelessWidget {
                               children: [
                                 _action(Icons.camera_alt_outlined, 'Scan food'),
                                 const SizedBox(height: 6),
-                                _action(Icons.qr_code_scanner_rounded, 'Barcode'),
+                                _action(
+                                  Icons.qr_code_scanner_rounded,
+                                  'Barcode',
+                                ),
                                 const SizedBox(height: 4),
                                 _action(Icons.mic_none_rounded, 'Voice'),
                               ],
@@ -295,7 +385,7 @@ class KayleoWidgetPreview extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
+        const LocalizedText(
           '720',
           style: TextStyle(
             fontSize: 23,
@@ -304,7 +394,7 @@ class KayleoWidgetPreview extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 2),
-        const Text(
+        const LocalizedText(
           'Calories left',
           style: TextStyle(fontSize: 8, color: Color(0xFF626E64)),
         ),
@@ -324,7 +414,7 @@ class KayleoWidgetPreview extends StatelessWidget {
           Icon(icon, size: 16, color: KayleoColors.forest),
           const SizedBox(width: 4),
         ],
-        Text(
+        LocalizedText(
           title,
           style: const TextStyle(
             fontSize: 10,
@@ -351,7 +441,7 @@ class KayleoWidgetPreview extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              LocalizedText(
                 value,
                 style: TextStyle(
                   fontSize: 16,
@@ -360,7 +450,7 @@ class KayleoWidgetPreview extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(
+              LocalizedText(
                 title,
                 style: TextStyle(
                   fontSize: 8,
@@ -385,14 +475,36 @@ class KayleoWidgetPreview extends StatelessWidget {
       children: [
         Icon(icon, size: 17, color: const Color(0xFF163E2D)),
         const SizedBox(width: 3),
-        Text(
+        LocalizedText(
           title,
           style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w600),
         ),
       ],
     ),
   );
+}
 
+/// The flame-and-number artwork shared by the native-style streak surfaces.
+class KayleoStreakArtwork extends StatelessWidget {
+  const KayleoStreakArtwork({
+    super.key,
+    required this.streak,
+    this.background = const Color(0xFFFCFAF4),
+    this.showBrand = true,
+  });
+
+  final int streak;
+  final Color background;
+  final bool showBrand;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _StreakArtworkPainter(
+      streak: streak,
+      background: background,
+      showBrand: showBrand,
+    ),
+  );
 }
 
 class _BarcodePreviewPainter extends CustomPainter {
@@ -431,14 +543,18 @@ class _BarcodePreviewPainter extends CustomPainter {
 }
 
 class _StreakArtworkPainter extends CustomPainter {
-  const _StreakArtworkPainter({required this.streak});
+  const _StreakArtworkPainter({
+    required this.streak,
+    this.background = const Color(0xFFFCFAF4),
+    this.showBrand = true,
+  });
   final int streak;
+  final Color background;
+  final bool showBrand;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.scale(size.width / 600, size.height / 600);
-
-    const background = Color(0xFFFCFAF4);
 
     final outerFlame = Path()
       ..moveTo(284, 84)
@@ -530,27 +646,38 @@ class _StreakArtworkPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      final baseline = tp.computeDistanceToActualBaseline(TextBaseline.alphabetic);
+      final baseline = tp.computeDistanceToActualBaseline(
+        TextBaseline.alphabetic,
+      );
       tp.paint(canvas, Offset(300 - tp.width / 2, 493 - baseline));
     }
 
-    final kayleoPainter = TextPainter(
-      text: const TextSpan(
-        text: 'Kayleo',
-        style: TextStyle(
-          fontSize: 23,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'Manrope',
-          color: Color(0xFF5B4F42),
+    if (showBrand) {
+      final kayleoPainter = TextPainter(
+        text: const TextSpan(
+          text: 'Kayleo',
+          style: TextStyle(
+            fontSize: 23,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Manrope',
+            color: Color(0xFF5B4F42),
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    final kayleoBaseline = kayleoPainter.computeDistanceToActualBaseline(TextBaseline.alphabetic);
-    kayleoPainter.paint(canvas, Offset(300 - kayleoPainter.width / 2, 558 - kayleoBaseline));
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final kayleoBaseline = kayleoPainter.computeDistanceToActualBaseline(
+        TextBaseline.alphabetic,
+      );
+      kayleoPainter.paint(
+        canvas,
+        Offset(300 - kayleoPainter.width / 2, 558 - kayleoBaseline),
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(_StreakArtworkPainter oldDelegate) => oldDelegate.streak != streak;
+  bool shouldRepaint(_StreakArtworkPainter oldDelegate) =>
+      oldDelegate.streak != streak ||
+      oldDelegate.background != background ||
+      oldDelegate.showBrand != showBrand;
 }
-

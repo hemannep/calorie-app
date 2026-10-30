@@ -200,12 +200,14 @@ void main() {
     await drain(n);
     await n.enable(s);
     await drain(n);
-    expect(d.pending.keys, unorderedEquals([10, 11, 15]));
+    expect(d.pending.keys, containsAll([10, 11, 15]));
+    expect(d.pending.keys.where((id) => id >= 200 && id < 214), isNotEmpty);
     s.preferences['Meal reminders'] = false;
     s.preferences['Hydration reminders'] = true;
     await s.persist();
     await drain(n);
-    expect(d.pending.keys, unorderedEquals([12, 13, 14, 15]));
+    expect(d.pending.keys, containsAll([12, 13, 14, 15]));
+    expect(d.pending.keys, isNot(containsAll([10, 11])));
     s.markSignedOut();
     await drain(n);
     expect(d.pending, isEmpty);
@@ -308,5 +310,15 @@ void main() {
     expect(d.requests, 0);
     expect(d.shown, isEmpty);
     n.dispose();
+  });
+  test('Device notification details use Kayleo icon and brand color', () {
+    final android = DeviceNotificationDriver.details.android!;
+    final ios = DeviceNotificationDriver.details.iOS!;
+    expect(android.icon, 'ic_notification');
+    expect(android.color?.toARGB32(), 0xFF111512);
+    expect(android.largeIcon, isNull);
+    expect(ios.presentAlert, isTrue);
+    expect(ios.presentBanner, isTrue);
+    expect(ios.presentList, isTrue);
   });
 }

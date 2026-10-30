@@ -18,6 +18,11 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # Vendored upstream plugins are pinned only for their Android Built-in
+    # Kotlin build scripts and retain their own analysis/test configuration.
+    - packages/firebase_auth/**
+    - packages/firebase_core/**
+    - packages/health/**
 
 linter:
   # The lint rules applied to this project can be customized in the

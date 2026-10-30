@@ -89,6 +89,69 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await service.dispose();
   });
+  testWidgets('Hidden dumpling filling asks the user before review', (
+    tester,
+  ) async {
+    var calls = 0;
+    final state = await AppState.load();
+    final service = FoodAIService(
+      geminiApiKey: 'test-key',
+      geminiModel: 'test-flash',
+      client: MockClient((_) async {
+        calls++;
+        final answered = calls > 1;
+        return http.Response(
+          jsonEncode({
+            'interaction': {
+              'output_text': jsonEncode({
+                'classification': 'food',
+                'mealName': answered ? 'Chicken momo' : 'Steamed momo',
+                'items': [
+                  {
+                    'name': answered ? 'Chicken momo' : 'Steamed momo',
+                    'portion': '6 pieces',
+                    'grams': 180,
+                    'calories': answered ? 360 : 330,
+                    'proteinGrams': answered ? 24 : 16,
+                    'carbsGrams': 42,
+                    'fatGrams': answered ? 11 : 10,
+                    'fiberGrams': 3,
+                  },
+                ],
+                'confidence': answered ? .95 : .72,
+                'assumptions': answered
+                    ? 'Chicken filling confirmed by user'
+                    : 'The filling is hidden',
+                'clarifications': answered
+                    ? <Object>[]
+                    : [
+                        {
+                          'question': 'What is inside the dumplings?',
+                          'options': ['Chicken', 'Buff', 'Pork', 'Vegetable'],
+                          'reason': 'The filling changes calories and protein.',
+                        },
+                      ],
+              }),
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    await scanner(tester, state, service);
+    expect(find.text('What is inside the dumplings?'), findsOneWidget);
+    await tester.tap(find.text('Chicken'));
+    await tester.pump();
+    await tester.tap(find.text('Update my estimate'));
+    await tester.pumpAndSettle();
+
+    expect(calls, 2);
+    expect(find.text('Review your meal'), findsOneWidget);
+    expect(find.text('Chicken momo'), findsWidgets);
+    await tester.pumpWidget(const SizedBox());
+    await service.dispose();
+  });
   for (final brightness in Brightness.values) {
     testWidgets(
       'Ambiguity custom choice, portion scaling and logging in ${brightness.name}',

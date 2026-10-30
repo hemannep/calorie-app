@@ -29,19 +29,25 @@ class HealthActivityData {
   final int activeMinutes;
   final int activeCalories;
   final double motionKm;
+
   /// Basal (resting) energy burned in kcal today from HealthKit / Health Connect.
   final int basalCalories;
+
   /// Flights of stairs climbed (iOS HealthKit).
   final int floorsClimbed;
+
   /// Average resting heart rate in bpm (0 if unavailable).
   final int heartRateAvg;
   final bool isAuthorized;
   final bool isAvailable;
   final String? errorMessage;
+
   /// Whether activeMinutes came directly from the health app (true) or was estimated from steps (false).
   final bool rawActiveMinutes;
+
   /// Whether activeCalories came directly from the health app (true) or was estimated from steps (false).
   final bool rawActiveCalories;
+
   /// Whether motionKm came directly from the health app (true) or was estimated from steps (false).
   final bool rawDistance;
 
@@ -501,27 +507,18 @@ class HealthService extends ChangeNotifier {
         hasSensorPerm = await _requestSensorPermission();
       }
       if (!hasHealthConnectPerm && !hasSensorPerm) {
-        return const HealthActivityData(
-          isAuthorized: false,
-          isAvailable: true,
-        );
+        return const HealthActivityData(isAuthorized: false, isAvailable: true);
       }
     } else if (Platform.isIOS) {
       if (!isConnectedPref) {
-        return const HealthActivityData(
-          isAuthorized: false,
-          isAvailable: true,
-        );
+        return const HealthActivityData(isAuthorized: false, isAvailable: true);
       }
       hasHealthConnectPerm = true;
     }
 
     final startTime = DateTime(date.year, date.month, date.day, 0, 0, 0);
     if (startTime.isAfter(now)) {
-      return const HealthActivityData(
-        isAuthorized: true,
-        isAvailable: true,
-      );
+      return const HealthActivityData(isAuthorized: true, isAvailable: true);
     }
     final endTime = isSameDay
         ? now
@@ -657,8 +654,9 @@ class HealthService extends ChangeNotifier {
       final motionKm = double.parse(
         (totalMotionMeters / 1000.0).toStringAsFixed(2),
       );
-      final avgHeartRate =
-          heartRateCount > 0 ? (heartRateSum / heartRateCount).round() : 0;
+      final avgHeartRate = heartRateCount > 0
+          ? (heartRateSum / heartRateCount).round()
+          : 0;
 
       return HealthActivityData(
         steps: totalSteps,
@@ -701,8 +699,9 @@ class HealthService extends ChangeNotifier {
         motionKm: totalMotionMeters / 1000.0,
         basalCalories: totalBasalCalories,
         floorsClimbed: totalFloorsClimbed,
-        heartRateAvg:
-            heartRateCount > 0 ? (heartRateSum / heartRateCount).round() : 0,
+        heartRateAvg: heartRateCount > 0
+            ? (heartRateSum / heartRateCount).round()
+            : 0,
         isAuthorized: authorized,
         isAvailable: true,
         errorMessage: e.toString(),

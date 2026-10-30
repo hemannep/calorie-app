@@ -5,11 +5,17 @@ import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/ui.dart';
 import '../data/models.dart';
+import '../services/calorie_plan_service.dart';
 import 'onboarding_plan_preparation.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key, required this.state});
+  const OnboardingScreen({
+    super.key,
+    required this.state,
+    this.caloriePlanService,
+  });
   final AppState state;
+  final CaloriePlanService? caloriePlanService;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -19,21 +25,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     with SingleTickerProviderStateMixin {
   static const _totalSteps = 9;
   int step = 0, direction = 1;
-  bool saving = false, changingStep = false, exiting = false;
+  bool saving = false,
+      calculating = false,
+      changingStep = false,
+      exiting = false;
+  bool aiPlanApplied = false;
+  String aiPlanExplanation = '';
   final profile = BodyProfile();
   final form = GlobalKey<FormState>();
   final scroll = ScrollController();
   final name = TextEditingController();
   final age = TextEditingController(text: '28');
   final height = TextEditingController(text: '172');
+  final heightFeet = TextEditingController(text: '5');
+  final heightInches = TextEditingController(text: '8');
   final weight = TextEditingController(text: '70');
+  final targetWeight = TextEditingController(text: '65');
+  bool heightInMetric = true;
   late final AnimationController page;
+  late final CaloriePlanService caloriePlanService;
+  late final bool ownsCaloriePlanService;
 
   @override
   void initState() {
     super.initState();
     name.text = widget.state.profile.name;
     profile.name = widget.state.profile.name;
+    ownsCaloriePlanService = widget.caloriePlanService == null;
+    caloriePlanService = widget.caloriePlanService ?? CaloriePlanService();
     page = AnimationController(
       vsync: this,
       value: 1,
@@ -49,7 +68,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     name.dispose();
     age.dispose();
     height.dispose();
+    heightFeet.dispose();
+    heightInches.dispose();
     weight.dispose();
+    targetWeight.dispose();
+    if (ownsCaloriePlanService) caloriePlanService.dispose();
     super.dispose();
   }
 
@@ -81,17 +104,29 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (mounted) setState(() => changingStep = false);
   }
 
-  void next() {
-    if (saving || changingStep) return;
+  Future<void> next() async {
+    if (saving || calculating || changingStep) return;
     if (step == 4) {
       if (!form.currentState!.validate()) return;
       profile
         ..name = name.text.trim().isEmpty ? 'Friend' : name.text.trim()
         ..age = int.parse(age.text.trim())
-        ..height = double.parse(height.text.trim())
-        ..weight = double.parse(weight.text.trim());
+        ..height = _heightInCentimeters()
+        ..weight = double.parse(weight.text.trim())
+        ..targetWeight = profile.goal == 'Lose weight'
+            ? double.parse(targetWeight.text.trim())
+            : null;
     }
-    if (step == 6) profile.calculateTargets();
+    if (step == 6) {
+      setState(() => calculating = true);
+      final result = await caloriePlanService.calculate(profile);
+      if (!mounted) return;
+      setState(() {
+        calculating = false;
+        aiPlanApplied = result.usedGemini;
+        aiPlanExplanation = result.explanation;
+      });
+    }
     if (step == 8) {
       complete();
     } else {
@@ -115,7 +150,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       if (!mounted) return;
       setState(() => saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save your plan. Try again.')),
+        const SnackBar(
+          content: LocalizedText('Could not save your plan. Try again.'),
+        ),
       );
     }
   }
@@ -214,7 +251,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 child: step > 0 && step != 7
                     ? IconButton.filledTonal(
                         onPressed: saving || changingStep ? null : previous,
-                        tooltip: 'Previous step',
+                        tooltip: context.l10n.translate('Previous step'),
                         style: IconButton.styleFrom(
                           backgroundColor: context.kayleoSurfaces.soft,
                         ),
@@ -244,9 +281,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               const SizedBox(width: 18),
               Semantics(
-                label: 'Step ${step + 1} of $_totalSteps',
+                label: context.l10n.translate(
+                  'Step ${step + 1} of $_totalSteps',
+                ),
                 excludeSemantics: true,
-                child: Text(
+                child: LocalizedText(
                   step < 3 ? '0${step + 1}' : '${step - 2} / 6',
                   style: TextStyle(
                     color: context.kayleoMuted,
@@ -278,7 +317,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           width: double.infinity,
           child: FilledButton(
             key: const Key('onboarding-continue'),
-            onPressed: saving || changingStep ? null : next,
+            onPressed: saving || calculating || changingStep ? null : next,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
               shape: const StadiumBorder(),
@@ -292,8 +331,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               children: [
                 const SizedBox(width: 22),
                 Expanded(
-                  child: Text(
-                    saving
+                  child: LocalizedText(
+                    calculating
+                        ? 'Personalizing with Kayleo…'
+                        : saving
                         ? 'Saving your plan…'
                         : step == 8
                         ? 'Let’s start your day'
@@ -306,7 +347,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                 ),
                 const SizedBox(width: 4),
-                saving
+                saving || calculating
                     ? const Icon(Icons.more_horiz_rounded, size: 18)
                     : const Icon(Icons.arrow_forward_rounded, size: 18),
               ],
@@ -320,14 +361,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ? null
                 : () => complete(demo: true),
             style: TextButton.styleFrom(foregroundColor: context.kayleoMuted),
-            child: const Text(
+            child: const LocalizedText(
               'Explore with sample data',
               style: TextStyle(fontSize: 12),
             ),
           )
         else ...[
           const SizedBox(height: 12),
-          Text(
+          LocalizedText(
             'Your plan is always yours to adjust.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: context.kayleoMuted),
@@ -364,7 +405,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           _ => 'Your plan.\nYour pace.',
         }),
         const SizedBox(height: 12),
-        Text(
+        LocalizedText(
           switch (step) {
             3 => 'Choose a direction. We’ll help you find a starting point.',
             4 => 'A few details help us estimate your daily energy needs.',
@@ -410,7 +451,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       const SizedBox(height: 14),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
+        child: LocalizedText(
           [
             'Take a photo. Review the foods and portions.\nMake every detail your own.',
             'Say what you ate, in your own words.\nA simpler way to start your meal log.',
@@ -426,7 +467,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
       const SizedBox(height: 24),
       Semantics(
-        label: 'Introduction ${step + 1} of 3',
+        label: context.l10n.translate('Introduction ${step + 1} of 3'),
         excludeSemantics: true,
         child: Row(
           key: const Key('onboarding-intro-progress'),
@@ -453,7 +494,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     ],
   );
 
-  Widget _eyebrow(String text) => Text(
+  Widget _eyebrow(String text) => LocalizedText(
     text,
     style: TextStyle(
       color: context.kayleoPrimary,
@@ -463,7 +504,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     ),
   );
 
-  Widget _heading(String text, {bool centered = false}) => Text(
+  Widget _heading(String text, {bool centered = false}) => LocalizedText(
     text,
     textAlign: centered ? TextAlign.center : TextAlign.start,
     style: TextStyle(
@@ -579,9 +620,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           textCapitalization: TextCapitalization.words,
           textInputAction: TextInputAction.next,
           maxLength: 24,
-          decoration: const InputDecoration(
-            labelText: 'What should we call you?',
-            hintText: 'Your first name',
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('What should we call you?'),
+            hintText: context.l10n.translate('Your first name'),
             counterText: '',
           ),
         ),
@@ -591,8 +632,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             controller: age,
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Age',
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('Age'),
               suffixText: 'years',
             ),
             validator: (value) {
@@ -610,12 +651,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               fontSize: 13,
               color: context.kayleoText,
             ),
-            decoration: const InputDecoration(labelText: 'Sex for calculation'),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('Sex for calculation'),
+            ),
             items: ['Prefer not to say', 'Female', 'Male']
                 .map(
                   (value) => DropdownMenuItem(
                     value: value,
-                    child: Text(value, overflow: TextOverflow.ellipsis),
+                    child: LocalizedText(
+                      value,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 )
                 .toList(),
@@ -623,17 +669,23 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
         const SizedBox(height: 22),
+        _heightUnitSelector(),
+        const SizedBox(height: 14),
         _adaptiveFields(
-          _numberField(height, 'Height (cm)', 'cm', 100, 250),
-          _numberField(weight, 'Weight (kg)', 'kg', 30, 300),
+          _heightField(),
+          _numberField(weight, 'Weight', 'kg', 30, 300),
         ),
+        if (profile.goal == 'Lose weight') ...[
+          const SizedBox(height: 24),
+          _weightGoalFields(),
+        ],
         const SizedBox(height: 24),
         _note(
           Icons.lock_outline_rounded,
           'Used to estimate your starting targets. Your details stay editable.',
         ),
         const SizedBox(height: 14),
-        Text(
+        LocalizedText(
           'For adults 18+. If sex is unspecified, the calculation uses a midpoint. Estimates do not account for pregnancy or medical needs.',
           style: TextStyle(
             fontSize: 11,
@@ -663,7 +715,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 Icon(Icons.wb_sunny_outlined, color: lime, size: 18),
                 SizedBox(width: 10),
                 Expanded(
-                  child: Text(
+                  child: LocalizedText(
                     'YOUR DAILY STARTING POINT',
                     style: TextStyle(
                       color: lime,
@@ -676,7 +728,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ],
             ),
             const SizedBox(height: 18),
-            Text(
+            LocalizedText(
               number(profile.calorieTarget),
               style: const TextStyle(
                 color: Colors.white,
@@ -687,7 +739,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
             ),
             const SizedBox(height: 5),
-            Text(
+            LocalizedText(
               'calories per day',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: .7),
@@ -756,7 +808,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(
+                      LocalizedText(
                         '${value}g',
                         style: const TextStyle(
                           fontSize: 23,
@@ -764,7 +816,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           letterSpacing: -.8,
                         ),
                       ),
-                      Text(
+                      LocalizedText(
                         label,
                         style: TextStyle(
                           fontSize: 11,
@@ -782,19 +834,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       Row(
         children: [
           const Expanded(
-            child: Text(
+            child: LocalizedText(
               'Built around you',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
             ),
           ),
           TextButton(
             onPressed: () => goTo(3),
-            child: const Text('Edit answers', style: TextStyle(fontSize: 12)),
+            child: const LocalizedText(
+              'Edit answers',
+              style: TextStyle(fontSize: 12),
+            ),
           ),
         ],
       ),
       const SizedBox(height: 4),
       _summaryRow(Icons.flag_outlined, 'Your direction', profile.goal),
+      if (profile.goal == 'Lose weight' && profile.targetWeight != null)
+        _summaryRow(
+          Icons.trending_down_rounded,
+          'Your goal',
+          '${profile.targetWeight!.toStringAsFixed(profile.targetWeight! % 1 == 0 ? 0 : 1)} kg in ${profile.goalDurationMonths} months',
+        ),
+      if (profile.goal == 'Lose weight' && profile.targetWeight != null)
+        _summaryRow(
+          Icons.local_fire_department_outlined,
+          'Starting deficit',
+          'About ${profile.maintenance - profile.calorieTarget} cal/day',
+        ),
       _summaryRow(
         Icons.directions_walk_rounded,
         'Your routine',
@@ -804,13 +871,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       const SizedBox(height: 14),
       _note(
         Icons.tune_rounded,
-        'These are estimates, not strict rules. Adjust your targets anytime in Your space.',
+        aiPlanApplied
+            ? 'Kayleo refined this estimate within its safety guardrails. Adjust your targets anytime in Your space.'
+            : 'These are estimates, not strict rules. Adjust your targets anytime in Your space.',
       ),
+      if (aiPlanApplied && aiPlanExplanation.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        _note(Icons.auto_awesome_rounded, aiPlanExplanation),
+      ],
       Center(
         child: TextButton.icon(
           onPressed: _showCalculation,
           icon: const Icon(Icons.info_outline_rounded, size: 16),
-          label: const Text(
+          label: const LocalizedText(
             'How we estimate your targets',
             style: TextStyle(fontSize: 11),
           ),
@@ -832,11 +905,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             spacing: 12,
             runSpacing: 4,
             children: [
-              Text(
+              LocalizedText(
                 label,
                 style: TextStyle(fontSize: 12, color: context.kayleoMuted),
               ),
-              Text(
+              LocalizedText(
                 value,
                 style: const TextStyle(
                   fontSize: 12,
@@ -861,20 +934,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          LocalizedText(
             'A starting point, explained.',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 16),
-          Text(
+          LocalizedText(
             'We estimate resting energy from your age, height, weight and sex, then account for your activity. Your estimated maintenance is ${number(profile.maintenance)} calories per day.',
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Your selected goal adjusts the calorie target. Protein is based on body weight; the remaining energy is shared between fats and carbohydrates.',
+          LocalizedText(
+            profile.goal == 'Lose weight' && profile.targetWeight != null
+                ? 'Your target of ${profile.targetWeight!.toStringAsFixed(profile.targetWeight! % 1 == 0 ? 0 : 1)} kg over ${profile.goalDurationMonths} months suggests a starting deficit of about ${profile.plannedDailyDeficit} calories per day. We cap ambitious deficits and apply a minimum calorie intake; the timeline is a guide, not a guarantee.'
+                : 'Your selected goal adjusts the calorie target. Protein is based on body weight; the remaining energy is shared between fats and carbohydrates. When available, Kayleo refines this starting point within conservative limits around the formula estimate.',
           ),
           const SizedBox(height: 12),
-          Text(
+          LocalizedText(
             'These general estimates do not account for pregnancy or medical needs. Your targets can be changed in Your space.',
             style: TextStyle(color: context.kayleoMuted, height: 1.6),
           ),
@@ -883,7 +958,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             width: double.infinity,
             child: FilledButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Got it'),
+              child: const LocalizedText('Got it'),
             ),
           ),
         ],
@@ -949,7 +1024,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      LocalizedText(
                         title,
                         style: TextStyle(
                           fontSize: 14,
@@ -960,7 +1035,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      LocalizedText(
                         subtitle,
                         style: TextStyle(
                           fontSize: 11,
@@ -1003,7 +1078,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         Icon(icon, size: 17, color: context.kayleoPrimary),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
+          child: LocalizedText(
             text,
             style: TextStyle(
               fontSize: 11,
@@ -1033,6 +1108,198 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     },
   );
 
+  Widget _heightUnitSelector() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      LocalizedText(
+        'Height unit',
+        style: TextStyle(
+          color: context.kayleoMuted,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      const SizedBox(height: 8),
+      SizedBox(
+        width: double.infinity,
+        child: SegmentedButton<bool>(
+          key: const Key('height-unit-selector'),
+          segments: const [
+            ButtonSegment(value: true, label: LocalizedText('Centimeters')),
+            ButtonSegment(value: false, label: LocalizedText('Feet & inches')),
+          ],
+          selected: {heightInMetric},
+          showSelectedIcon: false,
+          onSelectionChanged: (selection) => _changeHeightUnit(selection.first),
+        ),
+      ),
+    ],
+  );
+
+  Widget _weightGoalFields() => Container(
+    key: const Key('weight-goal-section'),
+    width: double.infinity,
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: context.kayleoSurfaces.soft.withValues(alpha: .55),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const LocalizedText(
+          'Set a weight goal',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 5),
+        LocalizedText(
+          'We’ll use this to create a gradual calorie-deficit starting point.',
+          style: TextStyle(
+            fontSize: 11,
+            height: 1.5,
+            color: context.kayleoMuted,
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          key: const Key('target-weight'),
+          controller: targetWeight,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('Target weight'),
+            suffixText: 'kg',
+          ),
+          validator: (value) {
+            final target = double.tryParse(value?.trim() ?? '');
+            final current = double.tryParse(weight.text.trim());
+            if (target == null ||
+                !target.isFinite ||
+                target < 30 ||
+                target > 300) {
+              return 'Enter 30–300 kg';
+            }
+            if (current != null && target >= current) {
+              return 'Must be below current weight';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        LocalizedText(
+          'I’d like to work toward it in',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: context.kayleoMuted,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<int>(
+            key: const Key('goal-duration'),
+            segments: const [
+              ButtonSegment(value: 3, label: LocalizedText('3 mo')),
+              ButtonSegment(value: 6, label: LocalizedText('6 mo')),
+              ButtonSegment(value: 12, label: LocalizedText('12 mo')),
+            ],
+            selected: {profile.goalDurationMonths},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) =>
+                setState(() => profile.goalDurationMonths = selection.first),
+          ),
+        ),
+        const SizedBox(height: 12),
+        LocalizedText(
+          'Your calorie target will respect a conservative deficit and minimum intake, even if the selected timeline is ambitious.',
+          style: TextStyle(
+            fontSize: 10,
+            height: 1.5,
+            color: context.kayleoMuted,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _heightField() {
+    if (heightInMetric) {
+      return _numberField(height, 'Height', 'cm', 100, 250);
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextFormField(
+            key: const Key('height-feet'),
+            controller: heightFeet,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('Height'),
+              suffixText: 'ft',
+            ),
+            validator: (_) => _imperialHeightError(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextFormField(
+            key: const Key('height-inches'),
+            controller: heightInches,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('Inches'),
+              suffixText: 'in',
+            ),
+            validator: (_) => _imperialHeightError(showRange: false),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _changeHeightUnit(bool metric) {
+    if (metric == heightInMetric) return;
+    if (metric) {
+      final feet = int.tryParse(heightFeet.text.trim());
+      final inches = int.tryParse(heightInches.text.trim());
+      if (feet != null && inches != null && inches >= 0 && inches <= 11) {
+        height.text = ((feet * 12 + inches) * 2.54).round().toString();
+      }
+    } else {
+      final centimeters = double.tryParse(height.text.trim());
+      if (centimeters != null && centimeters.isFinite) {
+        final totalInches = (centimeters / 2.54).round();
+        heightFeet.text = (totalInches ~/ 12).toString();
+        heightInches.text = (totalInches % 12).toString();
+      }
+    }
+    setState(() => heightInMetric = metric);
+  }
+
+  double _heightInCentimeters() {
+    if (heightInMetric) return double.parse(height.text.trim());
+    return (int.parse(heightFeet.text.trim()) * 12 +
+            int.parse(heightInches.text.trim())) *
+        2.54;
+  }
+
+  String? _imperialHeightError({bool showRange = true}) {
+    final feet = int.tryParse(heightFeet.text.trim());
+    final inches = int.tryParse(heightInches.text.trim());
+    if (feet == null || inches == null || inches < 0 || inches > 11) {
+      return showRange ? 'Enter a valid height' : null;
+    }
+    final centimeters = (feet * 12 + inches) * 2.54;
+    if (centimeters < 100 || centimeters > 250) {
+      return showRange ? '3 ft 4 in–8 ft 2 in' : null;
+    }
+    return null;
+  }
+
   Widget _numberField(
     TextEditingController controller,
     String label,
@@ -1043,7 +1310,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     controller: controller,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     textInputAction: TextInputAction.next,
-    decoration: InputDecoration(labelText: label, suffixText: unit),
+    decoration: InputDecoration(
+      labelText: context.l10n.translate(label),
+      suffixText: unit,
+    ),
     validator: (value) {
       final number = double.tryParse(value?.trim() ?? '');
       return number == null || !number.isFinite || number < min || number > max
@@ -1108,7 +1378,7 @@ class _IntroArtwork extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    LocalizedText(
                       'Your meal, a little clearer.',
                       style: TextStyle(
                         fontSize: 13,
@@ -1117,7 +1387,7 @@ class _IntroArtwork extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
+                    LocalizedText(
                       'You review every detail',
                       style: TextStyle(
                         fontSize: 11,
@@ -1142,7 +1412,7 @@ class _IntroArtwork extends StatelessWidget {
       children: [
         _pill('IN YOUR OWN WORDS'),
         const Spacer(),
-        const Text(
+        const LocalizedText(
           '“Rice, vegetables\nand lentils for lunch.”',
           style: TextStyle(
             fontSize: 23,
@@ -1198,7 +1468,7 @@ class _IntroArtwork extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
+        LocalizedText(
           'A NOTE TO YOUR DIARY',
           style: TextStyle(
             fontSize: 9,
@@ -1217,7 +1487,7 @@ class _IntroArtwork extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
+                child: LocalizedText(
                   'A bowl of greens\nand grilled chicken',
                   style: TextStyle(
                     fontSize: 17,
@@ -1245,7 +1515,7 @@ class _IntroArtwork extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
+              child: LocalizedText(
                 'Ready for your review',
                 style: TextStyle(
                   fontSize: 12,
@@ -1271,7 +1541,7 @@ class _IntroArtwork extends StatelessWidget {
       color: lime,
       borderRadius: BorderRadius.circular(99),
     ),
-    child: Text(
+    child: LocalizedText(
       text,
       style: const TextStyle(
         color: forest,
@@ -1305,7 +1575,7 @@ class _OnboardingIdentity extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        const LocalizedText(
                           'Good food.\nReal life.\nYour rhythm.',
                           style: TextStyle(
                             color: Colors.white,
@@ -1316,7 +1586,7 @@ class _OnboardingIdentity extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        Text(
+                        LocalizedText(
                           'A little clarity,\none meal at a time.',
                           style: TextStyle(
                             fontSize: 15,
@@ -1337,7 +1607,7 @@ class _OnboardingIdentity extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Text(
+                  const LocalizedText(
                     'YOUR DAY, IN BALANCE.',
                     style: TextStyle(
                       color: lime,

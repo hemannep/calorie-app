@@ -46,11 +46,53 @@ class _CommunityRoomScreenState extends State<CommunityRoomScreen>
           widget.service.available;
       return Scaffold(
         appBar: AppBar(
-          title: Text(widget.group.name),
+          titleSpacing: 4,
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: widget.group.color.withValues(alpha: .14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  widget.group.icon,
+                  size: 19,
+                  color: widget.group.color,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LocalizedText(
+                      widget.group.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    LocalizedText(
+                      widget.group.category,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: context.kayleoMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           actions: [
             if (joined)
               PopupMenuButton<String>(
-                tooltip: 'Circle options',
+                tooltip: context.l10n.translate('Circle options'),
                 onSelected: (_) async {
                   if (await socialConfirm(
                         context,
@@ -69,19 +111,55 @@ class _CommunityRoomScreenState extends State<CommunityRoomScreen>
                 itemBuilder: (_) => [
                   const PopupMenuItem(
                     value: 'leave',
-                    child: Text('Leave circle'),
+                    child: LocalizedText('Leave circle'),
                   ),
                 ],
               ),
           ],
           bottom: joined
-              ? TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(text: 'Chat'),
-                    Tab(text: 'Streaks'),
-                    Tab(text: 'Challenge'),
-                  ],
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(52),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: context.kayleoSurfaces.soft,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        dividerColor: Colors.transparent,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicator: BoxDecoration(
+                          color: context.kayleoSurfaces.card,
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        labelStyle: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        unselectedLabelColor: context.kayleoMuted,
+                        tabs: const [
+                          Tab(
+                            child: _RoomTab(
+                              Icons.chat_bubble_outline_rounded,
+                              'Chat',
+                            ),
+                          ),
+                          Tab(
+                            child: _RoomTab(
+                              Icons.local_fire_department_outlined,
+                              'Streaks',
+                            ),
+                          ),
+                          Tab(
+                            child: _RoomTab(Icons.flag_outlined, 'Challenge'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 )
               : null,
         ),
@@ -111,6 +189,37 @@ class _CommunityRoomScreenState extends State<CommunityRoomScreen>
       );
     },
   );
+}
+
+class _RoomTab extends StatelessWidget {
+  const _RoomTab(this.icon, this.label);
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    // Three tabs are intentionally kept visible at once. At accessibility text
+    // sizes, dropping the decorative icon leaves the label readable instead of
+    // squeezing or overflowing the tab strip on compact phones.
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (textScale < 1.5) ...[
+          Icon(icon, size: 15),
+          const SizedBox(width: 5),
+        ],
+        Flexible(
+          child: LocalizedText(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class CommunityLeaderboard extends StatefulWidget {
@@ -156,7 +265,7 @@ class _CommunityLeaderboardState extends State<CommunityLeaderboard> {
                       size: 32,
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    const LocalizedText(
                       'Consistency deserves\na little celebration.',
                       style: TextStyle(
                         fontSize: 24,
@@ -166,7 +275,7 @@ class _CommunityLeaderboardState extends State<CommunityLeaderboard> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
+                    LocalizedText(
                       'Ranked by consecutive days logging a meal. Keep showing up at your pace. Streaks sync when each member opens Kayleo; tied streaks share a rank.',
                       style: TextStyle(
                         fontSize: 12,
@@ -190,12 +299,12 @@ class _CommunityLeaderboardState extends State<CommunityLeaderboard> {
                       ),
                       const SizedBox(width: 10),
                       const Expanded(
-                        child: Text(
+                        child: LocalizedText(
                           'Your current streak',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
-                      Text(
+                      LocalizedText(
                         '${widget.state.streak} days',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
@@ -204,7 +313,7 @@ class _CommunityLeaderboardState extends State<CommunityLeaderboard> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              const LocalizedText(
                 'Circle streaks · top 100',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
@@ -219,7 +328,7 @@ class _CommunityLeaderboardState extends State<CommunityLeaderboard> {
                 _row(docs, i),
                 const SizedBox(height: 10),
               ],
-              Text(
+              LocalizedText(
                 'Streaks reflect member logs, not verified competition scores. No rankings by weight loss or calorie restriction.',
                 style: TextStyle(
                   color: context.kayleoMuted,
@@ -249,7 +358,7 @@ class _CommunityLeaderboardState extends State<CommunityLeaderboard> {
         children: [
           SizedBox(
             width: 35,
-            child: Text(
+            child: LocalizedText(
               '#$rank',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
@@ -260,7 +369,7 @@ class _CommunityLeaderboardState extends State<CommunityLeaderboard> {
           SocialAvatar(name, radius: 20),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
+            child: LocalizedText(
               own ? '$name · you' : name,
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
@@ -272,7 +381,10 @@ class _CommunityLeaderboardState extends State<CommunityLeaderboard> {
             size: 20,
           ),
           const SizedBox(width: 4),
-          Text('$streak', style: const TextStyle(fontWeight: FontWeight.w800)),
+          LocalizedText(
+            '$streak',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
         ],
       ),
     );
@@ -305,7 +417,7 @@ class _Challenge extends StatelessWidget {
               children: [
                 const Icon(Icons.wb_sunny_outlined, color: lime, size: 36),
                 const SizedBox(height: 18),
-                const Text(
+                const LocalizedText(
                   'THE SHOW-UP CLUB',
                   style: TextStyle(
                     color: lime,
@@ -315,7 +427,7 @@ class _Challenge extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                const LocalizedText(
                   '7 days.\nOne gentle habit.',
                   style: TextStyle(
                     color: Colors.white,
@@ -326,7 +438,7 @@ class _Challenge extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
+                const LocalizedText(
                   'Log a meal each day this week. Share a check-in, cheer someone on, and let small steps add up.',
                   style: TextStyle(color: Colors.white70, height: 1.7),
                 ),
@@ -339,7 +451,7 @@ class _Challenge extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 const SizedBox(height: 12),
-                Text(
+                LocalizedText(
                   '$complete of 7 days · ${DateFormat('MMM d').format(monday)} week',
                   style: const TextStyle(
                     color: lime,
@@ -361,8 +473,8 @@ class _Challenge extends StatelessWidget {
                     ? context.kayleoPrimary
                     : context.kayleoMuted,
               ),
-              title: Text(DateFormat('EEEE').format(day)),
-              trailing: Text(
+              title: LocalizedText(DateFormat('EEEE').format(day)),
+              trailing: LocalizedText(
                 day.isAfter(today)
                     ? 'Coming up'
                     : state.mealsFor(day).isEmpty
@@ -372,7 +484,7 @@ class _Challenge extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 14),
-          const Text(
+          const LocalizedText(
             'Your checklist is personal and updates from your diary. There’s no calorie target to compete for. Use the Chat tab to share a check-in.',
             style: TextStyle(fontSize: 12, height: 1.7),
           ),
@@ -425,17 +537,31 @@ class _CommunityConversationState extends State<CommunityConversation> {
     children: [
       Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        color: context.kayleoSurfaces.soft,
-        child: Text(
-          widget.isGroup
-              ? 'Be kind. Share ideas, meals, and little wins. Your private diary stays yours.'
-              : 'Just the two of you. Choose what to share in Friends → sharing controls.',
-          style: TextStyle(
-            fontSize: 11,
-            height: 1.5,
-            color: context.kayleoMuted,
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: context.kayleoSurfaces.soft.withValues(alpha: .6),
+        child: Row(
+          children: [
+            Icon(
+              widget.isGroup
+                  ? Icons.lock_outline_rounded
+                  : Icons.shield_outlined,
+              size: 14,
+              color: context.kayleoMuted,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: LocalizedText(
+                widget.isGroup
+                    ? 'Circle chat · Your private calorie diary and weights remain private.'
+                    : 'Direct message · End-to-end private between you two.',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: context.kayleoMuted,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       Expanded(
@@ -486,7 +612,7 @@ class _CommunityConversationState extends State<CommunityConversation> {
                 if (snapshot.data!.metadata.isFromCache)
                   const Padding(
                     padding: EdgeInsets.all(6),
-                    child: Text(
+                    child: LocalizedText(
                       'Showing cached messages · reconnect to sync',
                       style: TextStyle(fontSize: 10),
                     ),
@@ -495,23 +621,63 @@ class _CommunityConversationState extends State<CommunityConversation> {
                   child: ListView.builder(
                     controller: scroll,
                     reverse: true,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     itemCount:
                         docs.length + (hasOlder && live.length >= 100 ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index == docs.length) {
-                        return TextButton(
-                          onPressed: loadingOlder
-                              ? null
-                              : () => _loadOlder(docs.last),
-                          child: Text(
-                            loadingOlder ? 'Loading…' : 'Load earlier messages',
+                        return Center(
+                          child: TextButton(
+                            onPressed: loadingOlder
+                                ? null
+                                : () => _loadOlder(docs.last),
+                            child: LocalizedText(
+                              loadingOlder
+                                  ? 'Loading…'
+                                  : 'Load earlier messages',
+                            ),
                           ),
                         );
                       }
-                      return KeyedSubtree(
-                        key: ValueKey(docs[index].id),
-                        child: _message(docs[index], byId),
+                      final doc = docs[index];
+                      final stamp = (doc.data()['createdAt'] as Timestamp?)
+                          ?.toDate()
+                          .toLocal();
+
+                      // Check if we need to show a date separator above this message
+                      // (Since ListView is reverse: true, earlier chronological message is at index + 1)
+                      bool showDateHeader = false;
+                      if (stamp != null) {
+                        if (index == docs.length - 1) {
+                          showDateHeader = true;
+                        } else {
+                          final prevStamp =
+                              (docs[index + 1].data()['createdAt']
+                                      as Timestamp?)
+                                  ?.toDate()
+                                  .toLocal();
+                          if (prevStamp != null) {
+                            showDateHeader =
+                                stamp.year != prevStamp.year ||
+                                stamp.month != prevStamp.month ||
+                                stamp.day != prevStamp.day;
+                          }
+                        }
+                      }
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (showDateHeader && stamp != null)
+                            _dateHeader(stamp),
+                          KeyedSubtree(
+                            key: ValueKey(doc.id),
+                            child: _message(doc, byId),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -537,9 +703,16 @@ class _CommunityConversationState extends State<CommunityConversation> {
       SafeArea(
         top: false,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: context.kayleoSurfaces.card,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .04),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
             border: Border(
               top: BorderSide(color: context.kayleoSurfaces.border),
             ),
@@ -549,37 +722,89 @@ class _CommunityConversationState extends State<CommunityConversation> {
             children: [
               IconButton(
                 onPressed: sending ? null : _share,
-                tooltip: 'Share a meal or daily check-in',
-                icon: const Icon(Icons.add_circle_outline_rounded),
+                tooltip: context.l10n.translate(
+                  'Share a meal or daily check-in',
+                ),
+                icon: Icon(
+                  Icons.add_circle_rounded,
+                  color: context.kayleoPrimary,
+                  size: 26,
+                ),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
               ),
+              const SizedBox(width: 8),
               Expanded(
-                child: TextField(
-                  controller: text,
-                  minLines: 1,
-                  maxLines: 4,
-                  maxLength: 2000,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    hintText: 'Say something kind…',
-                    counterText: '',
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: context.kayleoSurfaces.soft,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: TextField(
+                    controller: text,
+                    minLines: 1,
+                    maxLines: 4,
+                    maxLength: 2000,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: context.l10n.translate(
+                        widget.isGroup
+                            ? 'Message #${widget.room}…'
+                            : 'Message…',
+                      ),
+                      hintStyle: TextStyle(
+                        fontSize: 14,
+                        color: context.kayleoMuted,
+                      ),
+                      counterText: '',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
-              IconButton.filled(
-                onPressed: sending ? null : _send,
-                tooltip: 'Send message',
-                icon: sending
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.arrow_upward_rounded),
+              const SizedBox(width: 8),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: text,
+                builder: (context, val, _) {
+                  final canSend =
+                      val.text.trim().isNotEmpty || attachment != null;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    decoration: BoxDecoration(
+                      color: canSend
+                          ? context.kayleoPrimary
+                          : context.kayleoSurfaces.soft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      // Keep the control callable while empty and let _send's
+                      // guard no-op. This avoids a stale disabled button during
+                      // the frame in which keyboard input updates the field.
+                      onPressed: sending ? null : _send,
+                      tooltip: context.l10n.translate('Send message'),
+                      iconSize: 18,
+                      color: canSend ? Colors.white : context.kayleoMuted,
+                      icon: sending
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -587,21 +812,65 @@ class _CommunityConversationState extends State<CommunityConversation> {
       ),
     ],
   );
+  Widget _dateHeader(DateTime date) {
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    final yesterday = now.subtract(const Duration(days: 1));
+    final isYesterday =
+        date.year == yesterday.year &&
+        date.month == yesterday.month &&
+        date.day == yesterday.day;
+
+    final String text = isToday
+        ? 'Today'
+        : isYesterday
+        ? 'Yesterday'
+        : DateFormat('EEEE, MMM d').format(date);
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: context.kayleoSurfaces.soft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: LocalizedText(
+          text,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: context.kayleoMuted,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _draftBar(String title, VoidCallback clear) => Container(
-    color: context.kayleoSurfaces.soft,
-    padding: const EdgeInsets.only(left: 20),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    decoration: BoxDecoration(
+      color: context.kayleoSurfaces.soft,
+      border: Border(top: BorderSide(color: context.kayleoSurfaces.border)),
+    ),
     child: Row(
       children: [
+        Icon(Icons.reply_rounded, size: 16, color: context.kayleoPrimary),
+        const SizedBox(width: 8),
         Expanded(
-          child: Text(
+          child: LocalizedText(
             title,
-            style: const TextStyle(fontSize: 12),
-            maxLines: 2,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
         IconButton(
-          tooltip: 'Remove attachment or reply',
+          tooltip: context.l10n.translate('Cancel'),
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
           onPressed: clear,
           icon: const Icon(Icons.close_rounded, size: 18),
         ),
@@ -616,200 +885,329 @@ class _CommunityConversationState extends State<CommunityConversation> {
     final data = doc.data();
     final own = data['authorId'] == widget.service.uid;
     final name = data['authorName'] as String;
+    final photo = data['authorPhoto'] as String?;
     final stamp = data['createdAt'] as Timestamp?;
     final card = data['attachment'] as Map?;
     final parent = data['replyTo'] as String?;
+    final body = (data['body'] as String?)?.trim() ?? '';
+    final timeStr = stamp == null
+        ? (doc.metadata.hasPendingWrites ? 'Sending…' : 'Syncing…')
+        : DateFormat('h:mm a').format(stamp.toDate().toLocal());
+
+    final bubbleBg = own ? context.kayleoPrimary : context.kayleoSurfaces.card;
+    final bubbleTextColor = own ? Colors.white : context.kayleoText;
+    final metaColor = own
+        ? Colors.white.withValues(alpha: .75)
+        : context.kayleoMuted;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Panel(
-        padding: 16,
-        color: own ? context.kayleoSurfaces.soft : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                SocialAvatar(name, radius: 17),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        own ? '$name · you' : name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        doc.metadata.hasPendingWrites
-                            ? 'Sending…'
-                            : stamp == null
-                            ? 'Syncing…'
-                            : DateFormat('MMM d, h:mm a')
-                                  .format(stamp.toDate().toLocal()),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: own
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!own) ...[
+            SocialAvatar(name, radius: 13, photoBase64: photo),
+            const SizedBox(width: 6),
+          ],
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width * 0.76,
+              ),
+              child: Column(
+                crossAxisAlignment: own
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  if (!own && widget.isGroup)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 3, bottom: 2),
+                      child: LocalizedText(
+                        name,
                         style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
                           color: context.kayleoMuted,
-                          fontSize: 10,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  tooltip: 'Message options',
-                  onSelected: (value) async {
-                    if (value == 'delete') {
-                      if (await socialConfirm(
-                            context,
-                            'Delete your message?',
-                            'This removes the message for everyone in this conversation.',
-                            'Delete',
-                          ) &&
-                          mounted) {
-                        await socialAction(
-                          context,
-                          () => widget.service.deleteMessage(
-                            widget.room,
-                            doc.id,
-                            group: widget.isGroup,
-                          ),
-                        );
-                      }
-                    } else if (value == 'report') {
-                      final ok = await socialAction(
-                        context,
-                        () => widget.service.report(
-                          widget.room,
-                          doc.id,
-                          group: widget.isGroup,
-                        ),
-                        success: 'Report submitted. This message is hidden for this visit.',
-                      );
-                      if (ok && mounted) setState(() => hidden.add(doc.id));
-                    } else {
-                      setState(() => hidden.add(doc.id));
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'hide',
-                      child: Text('Hide for this visit'),
                     ),
-                    if (own)
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete message'),
-                      )
-                    else
-                      const PopupMenuItem(
-                        value: 'report',
-                        child: Text('Report message'),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: bubbleBg,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(16),
+                        topRight: const Radius.circular(16),
+                        bottomLeft: Radius.circular(own ? 16 : 4),
+                        bottomRight: Radius.circular(own ? 4 : 16),
                       ),
-                  ],
-                ),
-              ],
-            ),
-            if (parent != null)
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: context.kayleoPrimary, width: 3),
-                  ),
-                ),
-                child: Text(
-                  byId[parent] == null
-                      ? 'Reply to an earlier message'
-                      : '${byId[parent]!.data()['authorName']}: ${byId[parent]!.data()['body']}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: context.kayleoMuted, fontSize: 11),
-                ),
-              ),
-            if ((data['body'] as String).isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: SelectableText(
-                  data['body'] as String,
-                  style: const TextStyle(fontSize: 13, height: 1.7),
-                ),
-              ),
-            if (card != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: context.kayleoBackground,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.restaurant_outlined,
-                          size: 18,
-                          color: context.kayleoPrimary,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'SHARED MEAL',
-                          style: TextStyle(
-                            fontSize: 9,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.w800,
+                      border: own
+                          ? null
+                          : Border.all(
+                              color: context.kayleoSurfaces.border.withValues(
+                                alpha: .5,
+                              ),
+                            ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: own ? .08 : .04,
                           ),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      card['title'] as String,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: own
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: [
+                        if (parent != null)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: own
+                                  ? Colors.black.withValues(alpha: .15)
+                                  : context.kayleoSurfaces.soft,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border(
+                                left: BorderSide(
+                                  color: own
+                                      ? Colors.white
+                                      : context.kayleoPrimary,
+                                  width: 3,
+                                ),
+                              ),
+                            ),
+                            child: LocalizedText(
+                              byId[parent] == null
+                                  ? 'Reply to an earlier message'
+                                  : '${byId[parent]!.data()['authorName']}: ${byId[parent]!.data()['body']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: own
+                                    ? Colors.white.withValues(alpha: .85)
+                                    : context.kayleoMuted,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        if (body.isNotEmpty)
+                          SelectableText(
+                            body,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.28,
+                              color: bubbleTextColor,
+                            ),
+                          ),
+                        if (card != null)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(top: 6),
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                              color: own
+                                  ? Colors.white.withValues(alpha: .15)
+                                  : context.kayleoSurfaces.soft,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.restaurant_outlined,
+                                      size: 15,
+                                      color: own
+                                          ? Colors.white
+                                          : context.kayleoPrimary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    LocalizedText(
+                                      'SHARED MEAL',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        letterSpacing: 1.2,
+                                        fontWeight: FontWeight.w800,
+                                        color: own
+                                            ? Colors.white
+                                            : context.kayleoPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                LocalizedText(
+                                  card['title'] as String,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: bubbleTextColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                LocalizedText(
+                                  '${card['calories']} kcal · P ${card['protein']}g · C ${card['carbs']}g · F ${card['fat']}g',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: metaColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            LocalizedText(
+                              timeStr,
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w500,
+                                color: metaColor,
+                              ),
+                            ),
+                            if (own) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                doc.metadata.hasPendingWrites
+                                    ? Icons.access_time_rounded
+                                    : Icons.done_all_rounded,
+                                size: 12,
+                                color: metaColor,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${card['calories']} kcal · P ${card['protein']}g · C ${card['carbs']}g · F ${card['fat']}g',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: context.kayleoMuted,
-                        height: 1.6,
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _MessageCheers(
+                        key: ValueKey(doc.id),
+                        service: widget.service,
+                        room: widget.room,
+                        message: doc.id,
+                        group: widget.isGroup,
                       ),
-                    ),
-                  ],
-                ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          minimumSize: const Size(40, 28),
+                        ),
+                        onPressed: () => setState(() {
+                          replyId = doc.id;
+                          replyName = name;
+                        }),
+                        icon: Icon(
+                          Icons.reply_rounded,
+                          size: 15,
+                          color: context.kayleoMuted,
+                        ),
+                        label: LocalizedText(
+                          'Reply',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: context.kayleoMuted,
+                          ),
+                        ),
+                      ),
+                      PopupMenuButton<String>(
+                        tooltip: context.l10n.translate('Message options'),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 28,
+                        ),
+                        splashRadius: 16,
+                        iconSize: 15,
+                        icon: Icon(
+                          Icons.more_horiz_rounded,
+                          color: context.kayleoMuted,
+                        ),
+                        onSelected: (value) async {
+                          if (value == 'delete') {
+                            if (await socialConfirm(
+                                  context,
+                                  'Delete your message?',
+                                  'This removes the message for everyone in this conversation.',
+                                  'Delete',
+                                ) &&
+                                mounted) {
+                              await socialAction(
+                                context,
+                                () => widget.service.deleteMessage(
+                                  widget.room,
+                                  doc.id,
+                                  group: widget.isGroup,
+                                ),
+                              );
+                            }
+                          } else if (value == 'report') {
+                            final ok = await socialAction(
+                              context,
+                              () => widget.service.report(
+                                widget.room,
+                                doc.id,
+                                group: widget.isGroup,
+                              ),
+                              success: 'Report submitted. This message is hidden for this visit.',
+                            );
+                            if (ok && mounted) {
+                              setState(() => hidden.add(doc.id));
+                            }
+                          } else {
+                            setState(() => hidden.add(doc.id));
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'hide',
+                            child: LocalizedText('Hide for this visit'),
+                          ),
+                          if (own)
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: LocalizedText('Delete message'),
+                            )
+                          else
+                            const PopupMenuItem(
+                              value: 'report',
+                              child: LocalizedText('Report message'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              children: [
-                TextButton.icon(
-                  onPressed: () => setState(() {
-                    replyId = doc.id;
-                    replyName = name;
-                  }),
-                  icon: const Icon(Icons.reply_rounded, size: 16),
-                  label: const Text('Reply', style: TextStyle(fontSize: 11)),
-                ),
-                _MessageCheers(
-                  key: ValueKey(doc.id),
-                  service: widget.service,
-                  room: widget.room,
-                  message: doc.id,
-                  group: widget.isGroup,
-                ),
-              ],
             ),
+          ),
+          if (own) ...[
+            const SizedBox(width: 6),
+            SocialAvatar(name, radius: 13, photoBase64: photo),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -884,15 +1282,17 @@ class _CommunityConversationState extends State<CommunityConversation> {
           children: [
             const Padding(
               padding: EdgeInsets.all(20),
-              child: Text(
+              child: LocalizedText(
                 'Share a little of your day',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.wb_sunny_outlined),
-              title: const Text('Daily check-in'),
-              subtitle: const Text('A moment to reflect and encourage'),
+              title: const LocalizedText('Daily check-in'),
+              subtitle: const LocalizedText(
+                'A moment to reflect and encourage',
+              ),
               onTap: () => Navigator.pop(context, 'check-in'),
             ),
             Expanded(
@@ -907,8 +1307,8 @@ class _CommunityConversationState extends State<CommunityConversation> {
                         for (final meal in meals)
                           ListTile(
                             leading: const Icon(Icons.restaurant_outlined),
-                            title: Text(meal.name),
-                            subtitle: Text(
+                            title: LocalizedText(meal.name),
+                            subtitle: LocalizedText(
                               '${mealNutrition(meal).calories.round()} kcal · share a nutrition card',
                             ),
                             onTap: () => Navigator.pop(context, meal),
@@ -969,8 +1369,11 @@ class _MessageCheersState extends State<_MessageCheers> {
     builder: (context, snapshot) {
       final docs = snapshot.data?.docs ?? [];
       final active = docs.any((doc) => doc.id == widget.service.uid);
-      return TextButton.icon(
-        onPressed: busy || snapshot.hasError
+      final count = docs.length;
+
+      return InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: busy || snapshot.hasError
             ? null
             : () async {
                 setState(() => busy = true);
@@ -985,14 +1388,34 @@ class _MessageCheersState extends State<_MessageCheers> {
                 );
                 if (mounted) setState(() => busy = false);
               },
-        icon: Icon(
-          active ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-          size: 16,
-          color: active ? KayleoColors.protein : null,
-        ),
-        label: Text(
-          '${docs.isEmpty ? '' : '${docs.length}${docs.length == 100 ? '+' : ''} '}Cheer',
-          style: const TextStyle(fontSize: 11),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 5),
+          decoration: BoxDecoration(
+            color: active
+                ? KayleoColors.protein.withValues(alpha: .12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                active ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                size: 14,
+                color: active ? KayleoColors.protein : context.kayleoMuted,
+              ),
+              const SizedBox(width: 4),
+              LocalizedText(
+                count == 0 ? 'Cheer' : '$count${count >= 100 ? '+' : ''}',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: active ? KayleoColors.protein : context.kayleoMuted,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     },

@@ -80,7 +80,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                   ),
                   const SizedBox(width: 10),
                   const Expanded(
-                    child: Text(
+                    child: LocalizedText(
                       'Grow together',
                       style: TextStyle(
                         color: Colors.white,
@@ -104,7 +104,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                       children: [
                         Icon(Icons.lock_outline_rounded, color: lime, size: 12),
                         SizedBox(width: 4),
-                        Text(
+                        LocalizedText(
                           'INVITE ONLY',
                           style: TextStyle(
                             color: Colors.white70,
@@ -119,7 +119,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                 ],
               ),
               const SizedBox(height: 8),
-              const Text(
+              const LocalizedText(
                 'Connect with someone you trust, chat privately, and keep each other moving forward.',
                 style: TextStyle(
                   color: Colors.white70,
@@ -144,7 +144,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                             )
                           : null,
                       icon: const Icon(Icons.qr_code_2_rounded, size: 16),
-                      label: const Text('My invite'),
+                      label: const LocalizedText('My invite'),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -158,70 +158,10 @@ class _FriendsPanelState extends State<FriendsPanel> {
                       ),
                       onPressed: service.ready && !busy ? _connect : null,
                       icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
-                      label: Text(busy ? 'Connecting…' : 'Add friend'),
+                      label: LocalizedText(busy ? 'Connecting…' : 'Add friend'),
                     ),
                   ),
                 ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        Panel(
-          padding: 13,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.visibility_outlined, size: 17),
-                  SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      'Shared with friends',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'You decide what appears in your shared 7-day view.',
-                style: TextStyle(color: context.kayleoMuted, fontSize: 11),
-              ),
-              const SizedBox(height: 4),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                visualDensity: const VisualDensity(vertical: -4),
-                title: const Text('Nutrition summaries'),
-                value: service.sharesNutrition,
-                onChanged: service.ready
-                    ? (value) => socialAction(
-                        context,
-                        () => service.sharing(nutrition: value),
-                      )
-                    : null,
-              ),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                visualDensity: const VisualDensity(vertical: -4),
-                title: const Text('Activity summaries'),
-                value: service.sharesActivity,
-                onChanged: service.ready
-                    ? (value) => socialAction(
-                        context,
-                        () => service.sharing(activity: value),
-                      )
-                    : null,
-              ),
-              Text(
-                'Only summaries are shared. Weight and diary details stay private.',
-                style: TextStyle(color: context.kayleoMuted, fontSize: 9),
               ),
             ],
           ),
@@ -262,7 +202,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              const LocalizedText(
                 'Your friends',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
@@ -317,7 +257,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      LocalizedText(
                         name,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
@@ -325,7 +265,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      LocalizedText(
                         'Chat & progress',
                         style: TextStyle(
                           color: context.kayleoMuted,
@@ -336,7 +276,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Open chat with $name',
+                  tooltip: context.l10n.translate('Open chat with $name'),
                   onPressed: openRoom,
                   icon: const Icon(Icons.arrow_forward_rounded),
                 ),
@@ -353,12 +293,12 @@ class _FriendsPanelState extends State<FriendsPanel> {
     final raw = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Connect a friend'),
+        title: const LocalizedText('Connect a friend'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            const LocalizedText(
               'Paste their full invite code, or scan their Kayleo QR. This connects both of you immediately.',
             ),
             const SizedBox(height: 16),
@@ -367,9 +307,9 @@ class _FriendsPanelState extends State<FriendsPanel> {
               maxLength: 128,
               autocorrect: false,
               textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                labelText: 'Friend invite code',
-                hintText: 'K-…',
+              decoration: InputDecoration(
+                labelText: context.l10n.translate('Friend invite code'),
+                hintText: context.l10n.translate('K-…'),
               ),
             ),
             const SizedBox(height: 8),
@@ -384,18 +324,18 @@ class _FriendsPanelState extends State<FriendsPanel> {
                 }
               },
               icon: const Icon(Icons.qr_code_scanner_rounded),
-              label: const Text('Scan friend QR'),
+              label: const LocalizedText('Scan friend QR'),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: const LocalizedText('Cancel'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: const Text('Connect'),
+            child: const LocalizedText('Connect'),
           ),
         ],
       ),
@@ -404,6 +344,12 @@ class _FriendsPanelState extends State<FriendsPanel> {
     await Future<void>.delayed(const Duration(milliseconds: 250));
     controller.dispose();
     if (!mounted || raw == null) return;
+    final sharingConfirmed = await showFriendSharingSettings(
+      context,
+      widget.service,
+      connecting: true,
+    );
+    if (!mounted || !sharingConfirmed) return;
     setState(() => busy = true);
     await socialAction(
       context,
@@ -452,7 +398,7 @@ class FriendInviteDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        LocalizedText(
                           'Your friend pass',
                           style: TextStyle(
                             fontSize: 19,
@@ -461,7 +407,7 @@ class FriendInviteDialog extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: 2),
-                        Text(
+                        LocalizedText(
                           'One scan connects both of you',
                           style: TextStyle(fontSize: 10),
                         ),
@@ -469,7 +415,7 @@ class FriendInviteDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Close invite',
+                    tooltip: context.l10n.translate('Close invite'),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close_rounded),
                   ),
@@ -490,7 +436,7 @@ class FriendInviteDialog extends StatelessWidget {
                       children: [
                         Icon(Icons.lock_outline_rounded, color: lime, size: 13),
                         SizedBox(width: 5),
-                        Text(
+                        LocalizedText(
                           'PRIVATE INVITE',
                           style: TextStyle(
                             color: lime,
@@ -524,7 +470,7 @@ class FriendInviteDialog extends StatelessWidget {
                         ),
                       ),
                     const SizedBox(height: 14),
-                    const Text(
+                    const LocalizedText(
                       'Scan with Kayleo',
                       style: TextStyle(
                         color: Colors.white,
@@ -533,7 +479,7 @@ class FriendInviteDialog extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    const LocalizedText(
                       'or enter the invite code below',
                       style: TextStyle(color: Colors.white60, fontSize: 10),
                     ),
@@ -566,7 +512,7 @@ class FriendInviteDialog extends StatelessWidget {
                     ),
                     IconButton(
                       visualDensity: VisualDensity.compact,
-                      tooltip: 'Copy invite code',
+                      tooltip: context.l10n.translate('Copy invite code'),
                       onPressed: () => socialAction(
                         context,
                         () => Clipboard.setData(
@@ -593,11 +539,11 @@ class FriendInviteDialog extends StatelessWidget {
                     );
                   }),
                   icon: const Icon(Icons.ios_share_rounded, size: 17),
-                  label: const Text('Share friend pass'),
+                  label: const LocalizedText('Share friend pass'),
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+              LocalizedText(
                 'Only share this with someone you trust.',
                 style: TextStyle(color: context.kayleoMuted, fontSize: 10),
               ),
@@ -618,7 +564,7 @@ class FriendInviteDialog extends StatelessWidget {
                   }
                 },
                 icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Create a new code'),
+                label: const LocalizedText('Create a new code'),
               ),
             ],
           ),
@@ -657,7 +603,7 @@ class CommunityInviteDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        LocalizedText(
                           group.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -666,7 +612,7 @@ class CommunityInviteDialog extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const Text(
+                        const LocalizedText(
                           'Private community invite',
                           style: TextStyle(fontSize: 10),
                         ),
@@ -674,7 +620,7 @@ class CommunityInviteDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Close community invite',
+                    tooltip: context.l10n.translate('Close community invite'),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close_rounded),
                   ),
@@ -707,7 +653,7 @@ class CommunityInviteDialog extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    const LocalizedText(
                       'Scan to join this community',
                       style: TextStyle(
                         color: Colors.white,
@@ -742,7 +688,7 @@ class CommunityInviteDialog extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Copy community code',
+                      tooltip: context.l10n.translate('Copy community code'),
                       onPressed: () => socialAction(
                         context,
                         () => Clipboard.setData(ClipboardData(text: code)),
@@ -767,11 +713,11 @@ class CommunityInviteDialog extends StatelessWidget {
                     );
                   }),
                   icon: const Icon(Icons.ios_share_rounded, size: 17),
-                  label: const Text('Share community invite'),
+                  label: const LocalizedText('Share community invite'),
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+              LocalizedText(
                 'Only people with this code or QR can join.',
                 style: TextStyle(color: context.kayleoMuted, fontSize: 10),
               ),
@@ -803,12 +749,12 @@ class _CommunityJoinDialogState extends State<CommunityJoinDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Join a private community'),
+    title: const LocalizedText('Join a private community'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        const LocalizedText(
           'Enter its private code or scan the creator’s QR.',
           style: TextStyle(fontSize: 12),
         ),
@@ -817,9 +763,9 @@ class _CommunityJoinDialogState extends State<CommunityJoinDialog> {
           controller: code,
           autocorrect: false,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-            labelText: 'Community invite code',
-            hintText: 'C-…',
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('Community invite code'),
+            hintText: context.l10n.translate('C-…'),
           ),
         ),
         const SizedBox(height: 10),
@@ -838,14 +784,14 @@ class _CommunityJoinDialogState extends State<CommunityJoinDialog> {
                   }
                 },
           icon: const Icon(Icons.qr_code_scanner_rounded),
-          label: const Text('Scan community QR'),
+          label: const LocalizedText('Scan community QR'),
         ),
       ],
     ),
     actions: [
       TextButton(
         onPressed: busy ? null : () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: const LocalizedText('Cancel'),
       ),
       FilledButton(
         onPressed: busy
@@ -860,7 +806,7 @@ class _CommunityJoinDialogState extends State<CommunityJoinDialog> {
                 setState(() => busy = false);
                 if (success) Navigator.pop(this.context, group);
               },
-        child: Text(busy ? 'Joining…' : 'Join'),
+        child: LocalizedText(busy ? 'Joining…' : 'Join'),
       ),
     ],
   );
@@ -935,13 +881,15 @@ class _FriendQRScannerState extends State<FriendQRScanner>
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(widget.community ? 'Scan community QR' : 'Scan friend QR'),
+      title: LocalizedText(
+        widget.community ? 'Scan community QR' : 'Scan friend QR',
+      ),
     ),
     body: Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(20),
-          child: Text(
+          child: LocalizedText(
             widget.community
                 ? 'Scan a private Kayleo community QR to join.'
                 : 'Scan your friend’s Kayleo QR to connect both accounts.',
@@ -987,17 +935,114 @@ class _FriendQRScannerState extends State<FriendQRScanner>
         if (error != null)
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Text(error!, textAlign: TextAlign.center),
+            child: LocalizedText(error!, textAlign: TextAlign.center),
           ),
         Padding(
           padding: const EdgeInsets.all(16),
           child: TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Enter a code instead'),
+            child: const LocalizedText('Enter a code instead'),
           ),
         ),
       ],
     ),
+  );
+}
+
+Future<bool> showFriendSharingSettings(
+  BuildContext context,
+  CommunityService service, {
+  bool connecting = false,
+}) async {
+  var nutrition = service.sharesNutrition;
+  var activity = service.sharesActivity;
+  final save = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        icon: const Icon(Icons.shield_outlined),
+        title: LocalizedText(
+          connecting ? 'Choose sharing access' : 'Sharing settings',
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LocalizedText(
+                connecting
+                    ? 'Before connecting, choose what your friends can see. These choices apply to this friend and your existing friends.'
+                    : 'Choose what all of your connected friends can see in the Together tab.',
+                style: const TextStyle(fontSize: 13, height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const LocalizedText('Nutrition summaries'),
+                subtitle: const LocalizedText(
+                  'Calories and macros from the last 7 days',
+                ),
+                value: nutrition,
+                onChanged: (value) => setDialogState(() => nutrition = value),
+              ),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const LocalizedText('Activity summaries'),
+                subtitle: const LocalizedText(
+                  'Logged movement minutes from the last 7 days',
+                ),
+                value: activity,
+                onChanged: (value) => setDialogState(() => activity = value),
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.kayleoSurfaces.soft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 17,
+                      color: context.kayleoPrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: LocalizedText(
+                        'Weight, diary notes, meal details, and photos always stay private.',
+                        style: TextStyle(fontSize: 11, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const LocalizedText('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: LocalizedText(connecting ? 'Save & connect' : 'Save'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (save != true || !context.mounted) return false;
+  if (nutrition == service.sharesNutrition &&
+      activity == service.sharesActivity) {
+    return true;
+  }
+  return socialAction(
+    context,
+    () => service.sharing(nutrition: nutrition, activity: activity),
+    success: connecting ? null : 'Sharing settings updated',
   );
 }
 
@@ -1023,8 +1068,9 @@ class _FriendRoomScreenState extends State<FriendRoomScreen>
     length: 2,
     vsync: this,
   );
-  late Stream<DocumentSnapshot<Map<String, dynamic>>> _friendshipStream =
-      widget.service.friendship(widget.pair);
+  late Stream<DocumentSnapshot<Map<String, dynamic>>> _friendshipStream = widget
+      .service
+      .friendship(widget.pair);
 
   @override
   void didUpdateWidget(FriendRoomScreen oldWidget) {
@@ -1048,12 +1094,49 @@ class _FriendRoomScreenState extends State<FriendRoomScreen>
           final connected = snapshot.hasData && snapshot.data!.exists;
           return Scaffold(
             appBar: AppBar(
-              title: Text(widget.name),
+              titleSpacing: 0,
+              title: Row(
+                children: [
+                  SocialAvatar(widget.name, radius: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        LocalizedText(
+                          widget.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        LocalizedText(
+                          connected ? 'Direct Message' : 'Offline',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: context.kayleoMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               actions: [
                 if (connected)
                   PopupMenuButton<String>(
-                    tooltip: 'Friend options',
-                    onSelected: (_) async {
+                    tooltip: context.l10n.translate('Friend options'),
+                    onSelected: (value) async {
+                      if (value == 'sharing') {
+                        await showFriendSharingSettings(
+                          context,
+                          widget.service,
+                        );
+                        return;
+                      }
                       if (await socialConfirm(
                             context,
                             'Remove ${widget.name}?',
@@ -1071,19 +1154,70 @@ class _FriendRoomScreenState extends State<FriendRoomScreen>
                     },
                     itemBuilder: (_) => [
                       const PopupMenuItem(
+                        value: 'sharing',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.visibility_outlined),
+                          title: LocalizedText('Sharing settings'),
+                        ),
+                      ),
+                      const PopupMenuItem(
                         value: 'remove',
-                        child: Text('Remove friend'),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.person_remove_outlined),
+                          title: LocalizedText('Remove friend'),
+                        ),
                       ),
                     ],
                   ),
               ],
               bottom: connected
-                  ? TabBar(
-                      controller: _tabController,
-                      tabs: const [
-                        Tab(text: 'Chat'),
-                        Tab(text: 'Together'),
-                      ],
+                  ? PreferredSize(
+                      preferredSize: const Size.fromHeight(48),
+                      child: Container(
+                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: context.kayleoSurfaces.soft,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: TabBar(
+                          controller: _tabController,
+                          dividerColor: Colors.transparent,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          indicator: BoxDecoration(
+                            color: context.kayleoSurfaces.card,
+                            borderRadius: BorderRadius.circular(11),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: .04),
+                                blurRadius: 6,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          labelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          unselectedLabelColor: context.kayleoMuted,
+                          tabs: [
+                            _FriendRoomTab(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              label: 'Chat',
+                            ),
+                            _FriendRoomTab(
+                              icon: Icons.insights_rounded,
+                              label: 'Together',
+                            ),
+                          ],
+                        ),
+                      ),
                     )
                   : null,
             ),
@@ -1117,6 +1251,35 @@ class _FriendRoomScreenState extends State<FriendRoomScreen>
           );
         },
       );
+}
+
+class _FriendRoomTab extends StatelessWidget {
+  const _FriendRoomTab({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (textScale < 1.5) ...[
+          Icon(icon, size: 15),
+          const SizedBox(width: 6),
+        ],
+        Flexible(
+          child: LocalizedText(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class FriendProgressPanel extends StatefulWidget {
@@ -1173,7 +1336,7 @@ class _FriendProgressPanelState extends State<FriendProgressPanel> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    const LocalizedText(
                       'A LITTLE ACCOUNTABILITY',
                       style: TextStyle(
                         fontSize: 10,
@@ -1182,7 +1345,7 @@ class _FriendProgressPanelState extends State<FriendProgressPanel> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Text(
+                    const LocalizedText(
                       'Two journeys.\nMore encouragement.',
                       style: TextStyle(
                         fontSize: 25,
@@ -1203,14 +1366,14 @@ class _FriendProgressPanelState extends State<FriendProgressPanel> {
                 ),
               ),
               const SizedBox(height: 18),
-              Text(
+              LocalizedText(
                 updated == null
                     ? 'Waiting for sync confirmation'
                     : 'Friend synced ${DateFormat('MMM d, h:mm a').format(updated.toDate().toLocal())}',
                 style: TextStyle(color: context.kayleoMuted, fontSize: 12),
               ),
               const SizedBox(height: 8),
-              Text(
+              LocalizedText(
                 'Compare routines at your own pace. Different bodies have different goals. Dates follow each person’s device.',
                 style: TextStyle(
                   color: context.kayleoMuted,
@@ -1239,7 +1402,7 @@ class _FriendProgressPanelState extends State<FriendProgressPanel> {
       ),
       const SizedBox(width: 4),
       Flexible(
-        child: Text(
+        child: LocalizedText(
           '$name · $streak days',
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
@@ -1257,7 +1420,7 @@ class _FriendProgressPanelState extends State<FriendProgressPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          LocalizedText(
             DateFormat('EEEE, MMM d').format(date),
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
@@ -1297,7 +1460,7 @@ class _FriendProgressPanelState extends State<FriendProgressPanel> {
   ) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(
+      LocalizedText(
         name,
         style: TextStyle(
           color: context.kayleoPrimary,
@@ -1306,17 +1469,17 @@ class _FriendProgressPanelState extends State<FriendProgressPanel> {
       ),
       const SizedBox(height: 8),
       if (nutrition == null)
-        Text(
+        LocalizedText(
           'Nutrition is private',
           style: TextStyle(color: context.kayleoMuted, fontSize: 12),
         )
       else ...[
-        Text(
+        LocalizedText(
           '${nutrition['calories']} kcal',
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
-        Text(
+        LocalizedText(
           'P ${nutrition['protein']}g · C ${nutrition['carbs']}g · F ${nutrition['fat']}g',
           style: TextStyle(
             color: context.kayleoMuted,
@@ -1326,7 +1489,7 @@ class _FriendProgressPanelState extends State<FriendProgressPanel> {
         ),
       ],
       const SizedBox(height: 8),
-      Text(
+      LocalizedText(
         activity == null
             ? 'Activity is private'
             : '${activity['minutes']} min movement',

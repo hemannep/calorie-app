@@ -21,11 +21,12 @@ class WaterPanel extends StatelessWidget {
         ),
       );
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTimedSnackBar(
+        context,
         SnackBar(
-          content: Text(state.storageError ?? '$ml ml added'),
+          content: LocalizedText(state.storageError ?? '$ml ml added'),
           action: SnackBarAction(
-            label: 'Undo',
+            label: context.l10n.translate('Undo'),
             onPressed: () => state.removeDrink(entry.id),
           ),
         ),
@@ -34,7 +35,9 @@ class WaterPanel extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceFirst('FormatException: ', '')),
+            content: LocalizedText(
+              e.toString().replaceFirst('FormatException: ', ''),
+            ),
           ),
         );
       }
@@ -52,7 +55,7 @@ class WaterPanel extends StatelessWidget {
           Row(
             children: [
               const Expanded(
-                child: Text(
+                child: LocalizedText(
                   'Hydration',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
@@ -73,7 +76,7 @@ class WaterPanel extends StatelessWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Details', style: TextStyle(fontSize: 11)),
+                    LocalizedText('Details', style: TextStyle(fontSize: 11)),
                     SizedBox(width: 3),
                     Icon(Icons.arrow_forward_rounded, size: 14),
                   ],
@@ -102,14 +105,14 @@ class WaterPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    LocalizedText(
                       '${(ml / 1000).toStringAsFixed(2)} L',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    Text(
+                    LocalizedText(
                       ml >= goal
                           ? 'Daily goal reached'
                           : '${goal - ml} ml left of ${(goal / 1000).toStringAsFixed(1)} L',
@@ -139,7 +142,7 @@ class WaterPanel extends StatelessWidget {
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       icon: const Icon(Icons.add_rounded, size: 15),
-                      label: Text(
+                      label: LocalizedText(
                         '$amount ml',
                         style: const TextStyle(fontSize: 11),
                       ),
@@ -234,7 +237,7 @@ class _HydrationDetailsState extends State<HydrationDetails> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          LocalizedText(
             '${widget.state.waterFor(widget.date)} / ${widget.state.profile.waterTarget} ml',
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
           ),
@@ -244,7 +247,9 @@ class _HydrationDetailsState extends State<HydrationDetails> {
             controller: amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: editing == null ? 'Drink amount' : 'Edit drink amount',
+              labelText: context.l10n.translate(
+                editing == null ? 'Drink amount' : 'Edit drink amount',
+              ),
             ),
           ),
           Wrap(
@@ -252,7 +257,7 @@ class _HydrationDetailsState extends State<HydrationDetails> {
             children: [
               for (final u in ['ml', 'US fl oz'])
                 ChoiceChip(
-                  label: Text(u),
+                  label: LocalizedText(u),
                   selected: unit == u,
                   onSelected: saving
                       ? null
@@ -273,36 +278,36 @@ class _HydrationDetailsState extends State<HydrationDetails> {
           const SizedBox(height: 8),
           FilledButton(
             onPressed: saving ? null : () => commit(),
-            child: Text(editing == null ? 'Log water' : 'Save drink'),
+            child: LocalizedText(editing == null ? 'Log water' : 'Save drink'),
           ),
           if (editing != null)
             TextButton(
               onPressed: () => setState(() => editing = null),
-              child: const Text('Cancel edit'),
+              child: const LocalizedText('Cancel edit'),
             ),
           if (error != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Text(
+              child: LocalizedText(
                 error!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
           const SizedBox(height: 24),
-          const Text(
+          const LocalizedText(
             'Today’s drinks',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
           if (widget.state.drinksFor(widget.date).isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('No water logged yet.'),
+              child: LocalizedText('No water logged yet.'),
             ),
           for (final entry in widget.state.drinksFor(widget.date))
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('${entry.ml} ml'),
-              subtitle: Text(DateFormat('h:mm a').format(entry.time)),
+              title: LocalizedText('${entry.ml} ml'),
+              subtitle: LocalizedText(DateFormat('h:mm a').format(entry.time)),
               onTap: saving
                   ? null
                   : () => setState(() {
@@ -311,18 +316,19 @@ class _HydrationDetailsState extends State<HydrationDetails> {
                       unit = 'ml';
                     }),
               trailing: IconButton(
-                tooltip: 'Delete drink',
+                tooltip: context.l10n.translate('Delete drink'),
                 icon: const Icon(Icons.delete_outline),
                 onPressed: saving
                     ? null
                     : () async {
                         await widget.state.removeDrink(entry.id);
                         if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        showTimedSnackBar(
+                          context,
                           SnackBar(
-                            content: const Text('Drink removed'),
+                            content: const LocalizedText('Drink removed'),
                             action: SnackBarAction(
-                              label: 'Undo',
+                              label: context.l10n.translate('Undo'),
                               onPressed: () => widget.state.restoreDrink(entry),
                             ),
                           ),
@@ -334,15 +340,17 @@ class _HydrationDetailsState extends State<HydrationDetails> {
           TextField(
             controller: goal,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Daily goal (ml)'),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('Daily goal (ml)'),
+            ),
           ),
           const SizedBox(height: 12),
           OutlinedButton(
             onPressed: saving ? null : () => commit(goalOnly: true),
-            child: const Text('Update hydration goal'),
+            child: const LocalizedText('Update hydration goal'),
           ),
           const SizedBox(height: 12),
-          Text(
+          LocalizedText(
             'Set a goal that fits your routine. Log water throughout the day; the goal is not a reason to drink it all at once.',
             style: TextStyle(fontSize: 12, color: context.kayleoMuted),
           ),

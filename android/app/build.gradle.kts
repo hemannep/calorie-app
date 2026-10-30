@@ -10,7 +10,9 @@ plugins {
 android {
     namespace = "com.example.calorie_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Use the NDK already installed by the Android SDK. The newer default would
+    // invoke the currently broken Android CLI installer during every build.
+    ndkVersion = "28.1.13356709"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true

@@ -69,18 +69,34 @@ Future<void> showLogger(
     initialDate: initialDate,
     openCamera: openCamera || (mode == 'Voice' && meal == null),
   );
+  final themedFlow = ListenableBuilder(
+    listenable: state,
+    child: flow,
+    builder: (context, child) {
+      final platformBrightness = MediaQuery.platformBrightnessOf(context);
+      final brightness = switch (state.appearance) {
+        'dark' => Brightness.dark,
+        'system' => platformBrightness,
+        _ => Brightness.light,
+      };
+      return Theme(
+        data: kayleoTheme(brightness: brightness),
+        child: child!,
+      );
+    },
+  );
   if (meal == null && ((openCamera && mode == 'Photo') || mode == 'Voice')) {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          body: flow,
+          body: themedFlow,
         ),
       ),
     );
   } else {
-    await openSheet<void>(context, flow);
+    await openSheet<void>(context, themedFlow);
   }
 }
 
@@ -131,7 +147,7 @@ class CaptureScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        const LocalizedText(
                           'Snap a meal',
                           style: TextStyle(
                             color: Colors.white,
@@ -149,7 +165,7 @@ class CaptureScreen extends StatelessWidget {
                             foregroundColor: forest,
                           ),
                           icon: const Icon(Icons.camera_alt_outlined, size: 19),
-                          label: const Text('Log a meal with a photo'),
+                          label: const LocalizedText('Log a meal with a photo'),
                         ),
                       ],
                     ),
@@ -216,7 +232,7 @@ class CaptureScreen extends StatelessWidget {
             Icon(Icons.info_outline_rounded, color: context.kayleoPrimary),
             SizedBox(width: 14),
             Expanded(
-              child: Text(
+              child: LocalizedText(
                 'You’re in control of every estimate. Review portions, ingredients, and preparation before saving.',
                 style: TextStyle(
                   fontSize: 12,
@@ -256,7 +272,7 @@ class _CaptureAction extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                LocalizedText(
                   title,
                   style: const TextStyle(
                     fontSize: 13,
@@ -264,7 +280,7 @@ class _CaptureAction extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: KayleoSpacing.xs),
-                Text(
+                LocalizedText(
                   subtitle,
                   style: TextStyle(fontSize: 10, color: context.kayleoMuted),
                 ),
@@ -909,7 +925,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
           if (stage == 3) _success(),
           if (error != null) ...[
             const SizedBox(height: KayleoSpacing.lg),
-            Text(
+            LocalizedText(
               error!,
               style: const TextStyle(
                 color: KayleoColors.error,
@@ -949,14 +965,14 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 child: Row(
                   children: [
                     IconButton(
-                      tooltip: 'Close',
+                      tooltip: context.l10n.translate('Close'),
                       onPressed: () => Navigator.pop(context),
                       color: Colors.white70,
                       icon: const Icon(Icons.close_rounded, size: 22),
                     ),
                     if (stage > 0 && stage < 3)
                       IconButton(
-                        tooltip: 'Back to input',
+                        tooltip: context.l10n.translate('Back to input'),
                         onPressed: () => setState(() {
                           stage = 0;
                           error = null;
@@ -969,7 +985,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                       TextButton(
                         onPressed: () =>
                             FocusManager.instance.primaryFocus?.unfocus(),
-                        child: const Text('Done'),
+                        child: const LocalizedText('Done'),
                       )
                     else
                       const Brand(light: true, size: 20),
@@ -1024,7 +1040,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                             if (stage == 3) _success(),
                             if (error != null) ...[
                               const SizedBox(height: 16),
-                              Text(
+                              LocalizedText(
                                 error!,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
@@ -1065,7 +1081,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
           ),
         ),
         const SizedBox(height: 16),
-        Text(
+        LocalizedText(
           voice
               ? (listening ? 'Listening…' : 'Tell Kayleo')
               : 'What did you eat?',
@@ -1079,7 +1095,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
           ),
         ),
         const SizedBox(height: 10),
-        Text(
+        LocalizedText(
           voice
               ? (listening
                     ? 'Speak naturally — your words appear below.'
@@ -1110,7 +1126,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
         ),
         if (!voice) ...[
           const SizedBox(height: 14),
-          Text(
+          LocalizedText(
             'QUICK START',
             style: TextStyle(
               color: Colors.white.withValues(alpha: .42),
@@ -1126,7 +1142,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
             children: [
               for (final example in ['Two eggs and toast', 'Chicken rice bowl'])
                 ActionChip(
-                  label: Text(example),
+                  label: LocalizedText(example),
                   avatar: const Icon(Icons.add_rounded, size: 14),
                   backgroundColor: Colors.white.withValues(alpha: .045),
                   side: BorderSide(color: Colors.white.withValues(alpha: .1)),
@@ -1167,7 +1183,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                   child: Row(
                     children: [
                       IconButton(
-                        tooltip: 'Close',
+                        tooltip: context.l10n.translate('Close'),
                         color: Colors.white,
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close_rounded),
@@ -1191,7 +1207,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            LocalizedText(
                               listening ? 'Listening…' : 'Tell Kayleo',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
@@ -1202,7 +1218,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            Text(
+                            LocalizedText(
                               listening
                                   ? 'Tell me what was on your plate.'
                                   : 'Tap and tell Kayleo what you ate',
@@ -1229,8 +1245,12 @@ class _LoggingFlowState extends State<LoggingFlow> {
                                 fontSize: 14,
                               ),
                               decoration: InputDecoration(
-                                labelText: 'Your words (you can edit them)',
-                                hintText: 'For example: rice and chicken curry',
+                                labelText: context.l10n.translate(
+                                  'Your words (you can edit them)',
+                                ),
+                                hintText: context.l10n.translate(
+                                  'For example: rice and chicken curry',
+                                ),
                                 fillColor: Colors.white.withValues(alpha: .07),
                                 labelStyle: const TextStyle(
                                   color: Color(0xCCFFFFFF),
@@ -1242,7 +1262,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            const Text(
+                            const LocalizedText(
                               'TRY SAYING',
                               style: TextStyle(
                                 fontSize: 9,
@@ -1262,7 +1282,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                                   'Two eggs and avocado toast',
                                 ])
                                   ActionChip(
-                                    label: Text(
+                                    label: LocalizedText(
                                       example,
                                       style: const TextStyle(
                                         color: Colors.white,
@@ -1285,7 +1305,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                             ),
                             if (error != null) ...[
                               const SizedBox(height: 14),
-                              Text(
+                              LocalizedText(
                                 error!,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
@@ -1296,7 +1316,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                               ),
                             ],
                             const SizedBox(height: 18),
-                            const Text(
+                            const LocalizedText(
                               'Speech recognition uses your device. Review your words before continuing.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -1351,7 +1371,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                               ),
                               shape: const StadiumBorder(),
                             ),
-                            child: Text(
+                            child: LocalizedText(
                               label,
                               style: const TextStyle(fontSize: 13),
                             ),
@@ -1390,7 +1410,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                     children: [
                       Icon(icon, size: 15),
                       const SizedBox(width: 5),
-                      Text(
+                      LocalizedText(
                         m == 'Photo' ? 'Camera' : m,
                         style: TextStyle(fontSize: 11),
                       ),
@@ -1476,7 +1496,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                           ),
                           key: const Key('sample-plate-camera'),
                           onPressed: openCamera,
-                          tooltip: 'Take photo',
+                          tooltip: context.l10n.translate('Take photo'),
                           icon: Icon(Icons.camera_alt_outlined),
                         ),
                       ),
@@ -1492,7 +1512,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 child: OutlinedButton.icon(
                   onPressed: pickPhoto,
                   icon: Icon(Icons.photo_library_outlined, size: 16),
-                  label: Text('Choose photo'),
+                  label: LocalizedText('Choose photo'),
                 ),
               ),
               const SizedBox(width: KayleoSpacing.md),
@@ -1500,14 +1520,14 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 child: OutlinedButton.icon(
                   onPressed: openCamera,
                   icon: Icon(Icons.camera_alt_outlined, size: 16),
-                  label: Text('Take photo'),
+                  label: LocalizedText('Take photo'),
                 ),
               ),
             ],
           ),
           const SizedBox(height: KayleoSpacing.lg),
           if (photo == null) ...[
-            Text(
+            LocalizedText(
               'Try a sample meal',
               style: TextStyle(fontSize: 11, color: _secondary),
             ),
@@ -1518,7 +1538,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
               children: ['Chicken bowl', 'Rice & curry', 'Chicken momo']
                   .map(
                     (s) => ChoiceChip(
-                      label: Text(s, style: TextStyle(fontSize: 11)),
+                      label: LocalizedText(s, style: TextStyle(fontSize: 11)),
                       selected: sample == s,
                       selectedColor: _surfaces.soft,
                       side: BorderSide(color: _surfaces.border),
@@ -1528,17 +1548,17 @@ class _LoggingFlowState extends State<LoggingFlow> {
                   .toList(),
             ),
             const SizedBox(height: KayleoSpacing.md),
-            Text(
+            LocalizedText(
               'These sample plates use preset descriptions to demonstrate meal estimates. For your own photo, describe the food after capture.',
               style: TextStyle(color: _secondary, fontSize: 10, height: 1.6),
             ),
           ] else ...[
-            Text(
+            LocalizedText(
               'What’s in your photo?',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
-            Text(
+            LocalizedText(
               foodService.geminiConfigured
                   ? 'Kayleo can identify the visible foods and estimate calories. You’ll review everything before saving.'
                   : 'Add a description of the foods on your plate so Kayleo can estimate calories.',
@@ -1548,9 +1568,10 @@ class _LoggingFlowState extends State<LoggingFlow> {
             TextField(
               controller: description,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText:
-                    'For example: 1 cup of rice and home-style chicken curry',
+              decoration: InputDecoration(
+                hintText: context.l10n.translate(
+                  'For example: 1 cup of rice and home-style chicken curry',
+                ),
               ),
             ),
           ],
@@ -1562,12 +1583,12 @@ class _LoggingFlowState extends State<LoggingFlow> {
           controller: description,
           maxLines: 4,
           decoration: InputDecoration(
-            labelText: 'Describe your meal',
-            hintText: 'What did you eat?',
+            labelText: context.l10n.translate('Describe your meal'),
+            hintText: context.l10n.translate('What did you eat?'),
           ),
         ),
         const SizedBox(height: KayleoSpacing.lg),
-        Text(
+        LocalizedText(
           'TRY AN EXAMPLE',
           style: TextStyle(
             fontSize: 9,
@@ -1587,7 +1608,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
               '8 chicken momo',
             ])
               ActionChip(
-                label: Text(example, style: TextStyle(fontSize: 10)),
+                label: LocalizedText(example, style: TextStyle(fontSize: 10)),
                 side: BorderSide(color: _surfaces.border),
                 onPressed: () => setState(() => description.text = example),
               ),
@@ -1638,9 +1659,12 @@ class _LoggingFlowState extends State<LoggingFlow> {
           textColor: _scheme.onSurface,
         ),
         const SizedBox(height: 18),
-        Text(q.question, style: Theme.of(context).textTheme.headlineSmall),
+        LocalizedText(
+          q.question,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
         const SizedBox(height: KayleoSpacing.md),
-        Text(
+        LocalizedText(
           q.portion
               ? 'Choose a serving, or enter a measured amount and the share you ate.'
               : 'Hidden cooking oil can meaningfully change the estimate.',
@@ -1665,7 +1689,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
+                      child: LocalizedText(
                         q.options[i],
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
@@ -1696,14 +1720,14 @@ class _LoggingFlowState extends State<LoggingFlow> {
               nextQuestion(custom: true);
             },
             icon: const Icon(Icons.edit_outlined),
-            label: const Text('Enter a custom amount'),
+            label: const LocalizedText('Enter a custom amount'),
           ),
         TextButton(
           onPressed: () {
             answer = 0;
             nextQuestion();
           },
-          child: Text('Not sure — use a standard serving'),
+          child: LocalizedText('Not sure — use a standard serving'),
         ),
       ],
     );
@@ -1734,7 +1758,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
       children: [
         if (missingFoods.isNotEmpty) ...[
           Panel(
-            child: Text(
+            child: LocalizedText(
               'Not included: ${missingFoods.join(', ')}. Search Open Food Facts and USDA again when online, add a food below, or enter its label nutrition. No values were invented.',
             ),
           ),
@@ -1744,12 +1768,12 @@ class _LoggingFlowState extends State<LoggingFlow> {
           _KayleoStatus(isEditing ? 'Review your changes' : 'Ready to add'),
           const SizedBox(height: KayleoSpacing.md),
           if (m.input == 'Photo + description')
-            Text(
+            LocalizedText(
               'Estimated from your description. Your photo is saved with the meal.',
               style: TextStyle(fontSize: 11, color: _secondary),
             )
           else if (m.input == 'Photo demo')
-            Text(
+            LocalizedText(
               'Sample meal estimate from a preset description.',
               style: TextStyle(fontSize: 11, color: _secondary),
             ),
@@ -1759,7 +1783,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
           Panel(
             color: _surfaces.soft,
             border: false,
-            child: Text(
+            child: LocalizedText(
               'No nutrition match is available yet. Add foods below or enter nutrition from a label.',
               style: TextStyle(fontSize: 12, color: _scheme.onSurface),
             ),
@@ -1777,7 +1801,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    LocalizedText(
                       'Estimated total',
                       style: TextStyle(color: _secondary, fontSize: 11),
                     ),
@@ -1820,7 +1844,9 @@ class _LoggingFlowState extends State<LoggingFlow> {
         const SizedBox(height: KayleoSpacing.card),
         TextField(
           controller: title,
-          decoration: const InputDecoration(labelText: 'Meal name'),
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('Meal name'),
+          ),
         ),
         const SizedBox(height: KayleoSpacing.lg),
         Wrap(
@@ -1829,7 +1855,10 @@ class _LoggingFlowState extends State<LoggingFlow> {
           children: ['Breakfast', 'Lunch', 'Dinner', 'Snack']
               .map(
                 (category) => ChoiceChip(
-                  label: Text(category, style: TextStyle(fontSize: 11)),
+                  label: LocalizedText(
+                    category,
+                    style: TextStyle(fontSize: 11),
+                  ),
                   selected: m.category == category,
                   selectedColor: _surfaces.soft,
                   side: BorderSide(color: _surfaces.border),
@@ -1872,7 +1901,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 }
               },
               icon: Icon(Icons.calendar_today_outlined, size: 15),
-              label: Text(
+              label: LocalizedText(
                 DateFormat('d MMM yyyy').format(m.time),
                 style: TextStyle(fontSize: 11),
               ),
@@ -1896,7 +1925,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 }
               },
               icon: Icon(Icons.schedule_rounded, size: 15),
-              label: Text(
+              label: LocalizedText(
                 DateFormat('h:mm a').format(m.time),
                 style: TextStyle(fontSize: 11),
               ),
@@ -1910,17 +1939,17 @@ class _LoggingFlowState extends State<LoggingFlow> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const IconBox(Icons.edit_outlined),
-            title: Text(
+            title: LocalizedText(
               'Your nutrition entry',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
-            subtitle: Text(
+            subtitle: LocalizedText(
               '${number(m.manual!.calories)} kcal · entered by you',
               style: TextStyle(fontSize: 11),
             ),
             trailing: IconButton(
               onPressed: () => setState(() => m.manual = null),
-              tooltip: 'Remove manual nutrition',
+              tooltip: context.l10n.translate('Remove manual nutrition'),
               icon: Icon(Icons.close_rounded, size: 18),
             ),
             onTap: quickAdd,
@@ -1929,14 +1958,14 @@ class _LoggingFlowState extends State<LoggingFlow> {
         TextButton.icon(
           onPressed: quickAdd,
           icon: Icon(Icons.edit_note_rounded, size: 17),
-          label: Text(
+          label: LocalizedText(
             'Enter nutrition from a label',
             style: TextStyle(fontSize: 11),
           ),
         ),
         Padding(
           padding: EdgeInsets.only(top: 6, bottom: KayleoSpacing.md),
-          child: Text(
+          child: LocalizedText(
             'Check for missing foods and hidden ingredients. Portions are assumed unless you specified or confirmed them.',
             style: TextStyle(fontSize: 10, color: _secondary, height: 1.7),
           ),
@@ -1949,14 +1978,14 @@ class _LoggingFlowState extends State<LoggingFlow> {
             size: 18,
             color: _scheme.primary,
           ),
-          title: Text(
+          title: LocalizedText(
             'How did we calculate this?',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           ),
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(
+              child: LocalizedText(
                 '${m.assumptions}\n\nEach item uses nutrient values per 100 g × portion grams ÷ 100. These are practical estimates, and regional recipes use illustrative values. Hidden oil, brands, and preparation can change the result.',
                 style: TextStyle(fontSize: 11, color: _secondary, height: 1.8),
               ),
@@ -1965,7 +1994,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
             for (final item in m.items)
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
+                child: LocalizedText(
                   '${mealItemFood(item).name}: ${mealItemFood(item).source}',
                   style: TextStyle(fontSize: 10, color: _secondary),
                 ),
@@ -1975,8 +2004,10 @@ class _LoggingFlowState extends State<LoggingFlow> {
         TextField(
           controller: notes,
           maxLines: 2,
-          decoration: const InputDecoration(
-            labelText: 'A note for next time (optional)',
+          decoration: InputDecoration(
+            labelText: context.l10n.translate(
+              'A note for next time (optional)',
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -1984,11 +2015,11 @@ class _LoggingFlowState extends State<LoggingFlow> {
           contentPadding: EdgeInsets.zero,
           value: saveUsual,
           onChanged: (v) => setState(() => saveUsual = v),
-          title: Text(
+          title: LocalizedText(
             'Remember this as a usual meal',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           ),
-          subtitle: Text(
+          subtitle: LocalizedText(
             'Log it again in a tap from Saved meals.',
             style: TextStyle(fontSize: 10, color: _secondary),
           ),
@@ -2014,7 +2045,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
           ),
         ),
         const SizedBox(height: 12),
-        Text(
+        LocalizedText(
           '${value.round()}g',
           style: TextStyle(
             color: _scheme.onSurface,
@@ -2023,7 +2054,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
           ),
         ),
         const SizedBox(height: 3),
-        Text(label, style: TextStyle(fontSize: 10, color: _secondary)),
+        LocalizedText(label, style: TextStyle(fontSize: 10, color: _secondary)),
       ],
     ),
   );
@@ -2069,7 +2100,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      LocalizedText(
                         '$countLabel${food.name}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
@@ -2077,12 +2108,12 @@ class _LoggingFlowState extends State<LoggingFlow> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      LocalizedText(
                         amountLabel,
                         style: TextStyle(fontSize: 10, color: _secondary),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      LocalizedText(
                         '${itemNutrition(item).calories.round()} kcal',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
@@ -2090,12 +2121,12 @@ class _LoggingFlowState extends State<LoggingFlow> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      LocalizedText(
                         food.source,
                         style: TextStyle(fontSize: 10, color: _secondary),
                       ),
                       if (food.sourceUrl.isNotEmpty)
-                        Text(
+                        LocalizedText(
                           food.sourceUrl,
                           style: TextStyle(fontSize: 10, color: _secondary),
                         ),
@@ -2104,25 +2135,28 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 ),
                 IconButton(
                   onPressed: () => _stepMealItem(item, -1),
-                  tooltip: 'Decrease ${food.name}',
+                  tooltip: context.l10n.translate('Decrease ${food.name}'),
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
+                  icon: const Icon(
+                    Icons.remove_circle_outline_rounded,
+                    size: 18,
+                  ),
                 ),
                 IconButton(
                   onPressed: () => _stepMealItem(item, 1),
-                  tooltip: 'Increase ${food.name}',
+                  tooltip: context.l10n.translate('Increase ${food.name}'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
                 ),
                 IconButton(
                   onPressed: () => editItem(item),
-                  tooltip: 'Edit ${food.name}',
+                  tooltip: context.l10n.translate('Edit ${food.name}'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.edit_outlined, size: 17),
                 ),
                 IconButton(
                   onPressed: () => setState(() => meal!.items.remove(item)),
-                  tooltip: 'Remove ${food.name}',
+                  tooltip: context.l10n.translate('Remove ${food.name}'),
                   visualDensity: VisualDensity.compact,
                   icon: Icon(Icons.close_rounded, size: 17, color: _secondary),
                 ),
@@ -2138,10 +2172,9 @@ class _LoggingFlowState extends State<LoggingFlow> {
     final food = mealItemFood(item);
     final currentUnit =
         (item.portion?['unit'] as String?) ?? food.nutritionBasisUnit;
-    final currentShare =
-        ((item.portion?['share'] as num?) ?? 1.0).toDouble();
-    final currentQty =
-        ((item.portion?['quantity'] as num?) ?? item.grams).toDouble();
+    final currentShare = ((item.portion?['share'] as num?) ?? 1.0).toDouble();
+    final currentQty = ((item.portion?['quantity'] as num?) ?? item.grams)
+        .toDouble();
     final step = portionStepForUnit(currentUnit);
     final minVal = step >= 25 ? 10.0 : 0.25;
     final nextQty = (currentQty + delta * step).clamp(minVal, 3000.0);
@@ -2190,7 +2223,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
       controllers: [...controllers, name],
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Enter your nutrition'),
+        title: LocalizedText('Enter your nutrition'),
         content: SizedBox(
           width: 360,
           child: SingleChildScrollView(
@@ -2201,7 +2234,9 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 children: [
                   TextFormField(
                     controller: name,
-                    decoration: const InputDecoration(labelText: 'Meal name'),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.translate('Meal name'),
+                    ),
                     validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Enter a name' : null,
                   ),
@@ -2215,12 +2250,14 @@ class _LoggingFlowState extends State<LoggingFlow> {
                           decimal: true,
                         ),
                         decoration: InputDecoration(
-                          labelText: [
-                            'Calories (kcal)',
-                            'Protein (g)',
-                            'Carbs (g)',
-                            'Fat (g)',
-                          ][i],
+                          labelText: context.l10n.translate(
+                            [
+                              'Calories (kcal)',
+                              'Protein (g)',
+                              'Carbs (g)',
+                              'Fat (g)',
+                            ][i],
+                          ),
                         ),
                         validator: (v) {
                           final n = double.tryParse(v ?? '');
@@ -2241,7 +2278,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: LocalizedText('Cancel'),
           ),
           FilledButton(
             onPressed: () {
@@ -2249,7 +2286,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 Navigator.pop(context, true);
               }
             },
-            child: Text('Use these values'),
+            child: LocalizedText('Use these values'),
           ),
         ],
       ),
@@ -2281,13 +2318,13 @@ class _LoggingFlowState extends State<LoggingFlow> {
           const SizedBox(height: KayleoSpacing.page),
           const IconBox(Icons.check_rounded, size: 76, color: lime),
           const SizedBox(height: KayleoSpacing.xl),
-          Text(
+          LocalizedText(
             !isEditing ? 'Your meal is added.' : 'Your meal is updated.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: KayleoSpacing.md),
-          Text(
+          LocalizedText(
             '${meal!.name}\n${number(mealNutrition(meal!).calories)} estimated kcal',
             textAlign: TextAlign.center,
             style: TextStyle(color: _secondary, height: 1.8),
@@ -2305,7 +2342,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 ),
                 const SizedBox(width: KayleoSpacing.md),
                 Flexible(
-                  child: Text(
+                  child: LocalizedText(
                     '${number(total.calories)} / ${number(widget.state.profile.calorieTarget)} kcal on ${DateFormat('d MMM').format(meal!.time)}',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
@@ -2318,7 +2355,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
             ),
           ),
           const SizedBox(height: 26),
-          Text(
+          LocalizedText(
             'Your food story, one meal at a time.',
             style: TextStyle(fontSize: 12, color: _secondary),
           ),
@@ -2358,7 +2395,7 @@ class _LoggingFlowState extends State<LoggingFlow> {
                 stage == 2 ? Icons.check_rounded : Icons.arrow_forward_rounded,
                 size: 18,
               ),
-        label: Text(
+        label: LocalizedText(
           busy
               ? 'Preparing your estimate…'
               : stage == 0
@@ -2383,7 +2420,7 @@ class _KayleoStatus extends StatelessWidget {
     children: [
       const KayleoDot(size: 8),
       const SizedBox(width: KayleoSpacing.sm),
-      Text(
+      LocalizedText(
         label,
         style: TextStyle(
           fontSize: 12,
@@ -2427,7 +2464,7 @@ class _CaptureEyebrow extends StatelessWidget {
         Icon(icon, size: 12, color: active ? lime : Colors.white54),
         const SizedBox(width: 6),
         Flexible(
-          child: Text(
+          child: LocalizedText(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -2507,7 +2544,7 @@ class _CaptureMealComposerState extends State<_CaptureMealComposer> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
+              child: LocalizedText(
                 widget.voice ? 'LIVE TRANSCRIPT' : 'MEAL DESCRIPTION',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -2525,7 +2562,7 @@ class _CaptureMealComposerState extends State<_CaptureMealComposer> {
                   ? const SizedBox.shrink()
                   : Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: Text(
+                      child: LocalizedText(
                         '${value.text.length}',
                         style: const TextStyle(
                           color: Colors.white30,
@@ -2555,9 +2592,11 @@ class _CaptureMealComposerState extends State<_CaptureMealComposer> {
               height: 1.55,
             ),
             decoration: InputDecoration(
-              hintText: widget.voice
-                  ? 'Your words will appear here…'
-                  : 'e.g. two eggs, avocado toast and coffee',
+              hintText: context.l10n.translate(
+                widget.voice
+                    ? 'Your words will appear here…'
+                    : 'e.g. two eggs, avocado toast and coffee',
+              ),
               hintStyle: const TextStyle(
                 color: Colors.white30,
                 fontSize: 14,
@@ -2773,7 +2812,7 @@ class _VoiceControlState extends State<_VoiceControl>
                       color: lime,
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    LocalizedText(
                       widget.listening ? 'STOP' : 'TAP TO SPEAK',
                       style: const TextStyle(
                         color: Colors.white60,
@@ -2820,9 +2859,9 @@ class _FoodPickerState extends State<FoodPicker> {
           TextField(
             autofocus: true,
             onChanged: (v) => setState(() => search = v),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               prefixIcon: Icon(Icons.search_rounded),
-              hintText: 'Search rice, momo, eggs…',
+              hintText: context.l10n.translate('Search rice, momo, eggs…'),
             ),
           ),
           const SizedBox(height: 14),
@@ -2846,7 +2885,7 @@ class _FoodPickerState extends State<FoodPicker> {
                         (c) => Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: ChoiceChip(
-                            label: Text(
+                            label: LocalizedText(
                               c,
                               style: const TextStyle(fontSize: 10),
                             ),
@@ -2870,7 +2909,7 @@ class _FoodPickerState extends State<FoodPicker> {
               subtitle: 'Try a simpler name, or go back and enter your own calories and macros.',
             ),
           if (matches.length == 80)
-            Text(
+            LocalizedText(
               'Showing the first 80 matches. Search to narrow the list.',
               style: TextStyle(fontSize: 11, color: context.kayleoMuted),
             ),
@@ -2882,18 +2921,18 @@ class _FoodPickerState extends State<FoodPicker> {
                     ? Icons.ramen_dining_rounded
                     : Icons.restaurant_rounded,
               ),
-              title: Text(
+              title: LocalizedText(
                 f.name,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              subtitle: Text(
+              subtitle: LocalizedText(
                 '1 ${f.unit} · ${f.servingGrams.round()} g',
                 style: TextStyle(fontSize: 10, color: context.kayleoMuted),
               ),
-              trailing: Text(
+              trailing: LocalizedText(
                 '${(f.per100g.calories * f.servingGrams / 100).round()} kcal',
                 style: TextStyle(
                   fontSize: 11,

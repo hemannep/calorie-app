@@ -133,7 +133,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    for (final route in ['Today', 'Diary', 'Progress', 'You']) {
+    for (final route in ['Today', 'Community', 'Progress', 'You']) {
       await tester.tap(find.text(route).last);
       await tester.pumpAndSettle();
       expect(

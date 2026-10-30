@@ -28,4 +28,41 @@ void main() {
       expect(restored.profile.bmi, closeTo(23.53, .01));
     },
   );
+
+  test('weight-loss target and timeline determine a capped deficit', () {
+    final gradual = BodyProfile(
+      weight: 80,
+      targetWeight: 74,
+      goalDurationMonths: 6,
+      goal: 'Lose weight',
+    );
+    gradual.calculateTargets();
+    expect(gradual.plannedDailyDeficit, closeTo(253, 1));
+    expect(
+      gradual.calorieTarget,
+      gradual.maintenance - gradual.plannedDailyDeficit,
+    );
+
+    final ambitious = BodyProfile(
+      weight: 100,
+      targetWeight: 60,
+      goalDurationMonths: 3,
+      goal: 'Lose weight',
+    );
+    expect(ambitious.plannedDailyDeficit, 750);
+    final restored = BodyProfile.fromJson(ambitious.toJson());
+    expect(restored.targetWeight, 60);
+    expect(restored.goalDurationMonths, 3);
+  });
+
+  test('legacy profiles default to a three-month goal timeline', () {
+    final profile = BodyProfile.fromJson({
+      'goal': 'Lose weight',
+      'weight': 70,
+      'targetWeight': 65,
+    });
+
+    expect(profile.goalDurationMonths, 3);
+    expect(profile.plannedDailyDeficit, greaterThan(0));
+  });
 }

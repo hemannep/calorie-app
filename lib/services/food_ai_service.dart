@@ -114,6 +114,18 @@ class DetectedPlateItem {
   final double fiberGrams;
 }
 
+class MealClarification {
+  const MealClarification({
+    required this.question,
+    required this.options,
+    required this.reason,
+  });
+
+  final String question;
+  final List<String> options;
+  final String reason;
+}
+
 class FoodNutrition {
   const FoodNutrition({
     required this.id,
@@ -127,6 +139,7 @@ class FoodNutrition {
     this.servingGrams = 100,
     this.details = '',
     this.plateItems = const [],
+    this.clarifications = const [],
   });
   final String id, name, source, sourceUrl, unit, barcode;
 
@@ -136,6 +149,7 @@ class FoodNutrition {
   final double servingGrams;
   final String details;
   final List<DetectedPlateItem> plateItems;
+  final List<MealClarification> clarifications;
   bool get complete => values.take(4).every((n) => n != null);
   Food toFood(List<double?> completed) => Food(
     id: id,
@@ -202,6 +216,7 @@ class FoodAIService {
     } catch (_) {}
     return '';
   }
+
   final FoodDetector _detector;
   final http.Client _client;
   final bool _ownsClient;
@@ -261,9 +276,7 @@ class FoodAIService {
     if (_closed) return Future.error(StateError('Scanner closed'));
     if (!geminiConfigured) {
       return Future.error(
-        StateError(
-          'Kayleo photo analysis is not available right now.',
-        ),
+        StateError('Kayleo photo analysis is not available right now.'),
       );
     }
     if (image.isEmpty || image.length > 10 * 1024 * 1024) {
@@ -276,8 +289,7 @@ class FoodAIService {
       final key = _photoSignature(image);
       final cached = _photoCache[key];
       if (cached != null &&
-          DateTime.now().difference(cached.time) <
-              const Duration(minutes: 2)) {
+          DateTime.now().difference(cached.time) < const Duration(minutes: 2)) {
         return cached.future;
       }
       final future = _analyzeMealPhotoImpl(image, isMockClient: false);
@@ -297,15 +309,50 @@ class FoodAIService {
     return _analyzeMealPhotoImpl(image, isMockClient: true);
   }
 
+  /// Refines the structured first-pass photo result using the user's
+  /// description as authoritative context. Avoiding a second vision pass keeps
+  /// corrections fast while preserving the evidence extracted from the photo.
+  Future<FoodNutrition> refineMealPhoto(
+    Uint8List image, {
+    required String correction,
+    required FoodNutrition previous,
+  }) {
+    final clean = correction.trim();
+    if (clean.length < 2 || clean.length > 500) {
+      return Future.error(
+        const FormatException('Describe the correction in 2–500 characters.'),
+      );
+    }
+    if (!geminiConfigured) {
+      return Future.error(
+        StateError('Kayleo photo analysis is not available right now.'),
+      );
+    }
+    if (image.isEmpty || image.length > 10 * 1024 * 1024) {
+      return Future.error(
+        const FormatException('Choose an image under 10 MB.'),
+      );
+    }
+    return _analyzeMealPhotoImpl(
+      image,
+      isMockClient: _client.runtimeType.toString() == 'MockClient',
+      userCorrection: clean,
+      previous: previous,
+    );
+  }
+
   Future<FoodNutrition> _analyzeMealPhotoImpl(
     Uint8List rawImage, {
     required bool isMockClient,
+    String? userCorrection,
+    FoodNutrition? previous,
   }) async {
-    final image = !isMockClient && rawImage.length > 95 * 1024
+    final isCorrection = userCorrection != null;
+    final image = !isCorrection && !isMockClient && rawImage.length > 95 * 1024
         ? await _downscaleFast(rawImage)
         : rawImage;
     final mimeType = _imageMimeType(image);
-    final encodedImage = base64Encode(image);
+    final encodedImage = isCorrection ? '' : base64Encode(image);
     final uri = Uri.https(
       'generativelanguage.googleapis.com',
       '/v1beta/interactions',
@@ -319,6 +366,9 @@ class FoodAIService {
         'items',
         'confidence',
         'assumptions',
+        'clarificationQuestion',
+        'clarificationOptions',
+        'clarificationReason',
       ],
       'properties': {
         'classification': {
@@ -387,27 +437,72 @@ class FoodAIService {
           'type': 'string',
           'description': 'One short note about uncertain cooking method, ingredients, scale, or portion.',
         },
+        'clarificationQuestion': {
+          'type': 'string',
+          'description': 'The single most important nutrition-changing question, or an empty string when none is needed.',
+        },
+        'clarificationOptions': {
+          'type': 'string',
+          'description': 'Two to five short choices separated by |, or an empty string when no question is needed.',
+        },
+        'clarificationReason': {
+          'type': 'string',
+          'description': 'Why the answer changes nutrition, or an empty string when no question is needed.',
+        },
       },
     };
+    final previousItems =
+        previous?.plateItems
+            .map(
+              (item) =>
+                  '${item.name} (${item.portion}, ${item.grams.round()}g, '
+                  '${item.calories.round()} kcal)',
+            )
+            .join(', ') ??
+        '';
+    final correctionContext = userCorrection == null
+        ? ''
+        : ' The photo was already analyzed. Its first structured result was '
+              '"${previous?.name ?? 'meal'}" with '
+              '${previousItems.isEmpty ? 'no item breakdown' : previousItems}. '
+              'The user says: "$userCorrection". Treat the user correction as '
+              'authoritative for food identity, toppings, cheese type, cooking '
+              'method, quantity, and ingredients. Return '
+              'the complete corrected meal, including both previously correct '
+              'items and corrected or newly specified items. Do not add an '
+              'ingredient solely because it is common in the dish. Do not ask '
+              'again about details the user answered.';
     final request = <String, dynamic>{
       'model': _geminiModel,
       'input': [
         {
           'type': 'text',
-          'text':
-              'Act as a careful meal-photo estimator for a calorie diary. '
-              'Look across the whole image before deciding. If any edible food '
-              'or drink is visible, classification must be food, even when the '
-              'dish, portion, or preparation is uncertain. Recognize regional '
-              'foods, including South Asian and Nepali meals, by their most likely '
-              'common name. Estimate each visible item separately, including oils '
-              'and sauces only when visually plausible. Nutrition is for each '
-              'photographed portion, not per 100 g. Do not invent hidden sides or '
-              'ingredients. Use unclear only for a severely blurred, dark, blocked, '
-              'or distant image. Use not_food only when no edible item is visible. '
-              'The user will review every estimate before saving.',
+          'text': isCorrection
+              ? 'Correct an existing structured meal estimate for a calorie diary. '
+                    'Return classification="food" and recalculate the complete '
+                    'meal portions and nutrition.$correctionContext'
+              : 'Act as a careful meal-photo estimator for a calorie diary. '
+                    'Look across the whole image before deciding. If any edible food '
+                    'or drink is visible, classification must be food, even when the '
+                    'dish, portion, or preparation is uncertain. Recognize regional '
+                    'foods, including South Asian and Nepali meals, by their most likely '
+                    'common name. Estimate each visible item separately, including oils '
+                    'and sauces only when visually plausible. Nutrition is for each '
+                    'photographed portion, not per 100 g. Do not invent hidden sides or '
+                    'ingredients. Use unclear only for a severely blurred, dark, blocked, '
+                    'or distant image. Use not_food only when no edible item is visible. '
+                    'When a hidden filling, meat type, cooking fat, dairy type, or '
+                    'similar detail cannot be identified visually and would materially '
+                    'change calories or macros, return the single most important short '
+                    'clarification and put 2–5 dish-specific choices in '
+                    'clarificationOptions separated by |. For covered dumplings, ask whether the '
+                    'filling is chicken, buff, pork, vegetable, or another plausible '
+                    'type. Otherwise return empty clarification strings. Do not ask '
+                    'about minor details with negligible nutrition impact. '
+                    'The user will review every estimate before saving.',
         },
-        {'type': 'image', 'data': encodedImage, 'mime_type': mimeType},
+        if (!isCorrection)
+          {'type': 'image', 'data': encodedImage, 'mime_type': mimeType},
       ],
       'response_format': {
         'type': 'text',
@@ -429,14 +524,22 @@ class FoodAIService {
           .timeout(const Duration(seconds: 10));
     }
 
-    const fastLivePrompt =
-        'Food photo estimator. If any edible food or drink is visible, '
-        'classification="food" (use "unclear" only if unreadable, "not_food" '
-        'only if no food/drink). Recognize regional, South Asian, and Nepali '
-        'dishes. List 1-4 visible items on the plate separately with portion '
-        '(e.g. "2 pieces", "1 bowl", "1.5 cups") and portion nutrition (not per 100g). '
-        'Keep text concise (<5 words). Return compact single-line JSON: '
-        '{"classification":"food","mealName":"...","items":[{"name":"...","portion":"1 bowl","grams":250,"calories":320,"proteinGrams":14,"carbsGrams":45,"fatGrams":8,"fiberGrams":5}],"confidence":0.9,"assumptions":"..."}';
+    final fastLivePrompt = isCorrection
+        ? 'Correct this structured meal using the authoritative user details. '
+              'Recalculate the complete meal and return classification="food". '
+              '$correctionContext Return compact single-line JSON: '
+        : 'Food photo estimator. If any edible food or drink is visible, '
+              'classification="food" (use "unclear" only if unreadable, "not_food" '
+              'only if no food/drink). Recognize regional, South Asian, and Nepali '
+              'dishes. List 1-4 visible items on the plate separately with portion '
+              '(e.g. "2 pieces", "1 bowl", "1.5 cups") and portion nutrition (not per 100g). '
+              'If a visually hidden ingredient materially changes nutrition, return '
+              'one clarification question and pipe-separated likely options; otherwise '
+              'return empty clarification strings. '
+              'Keep text concise (<5 words). Return compact single-line JSON: ';
+    final fastLivePromptWithShape =
+        '$fastLivePrompt'
+        '{"classification":"food","mealName":"...","items":[{"name":"...","portion":"1 bowl","grams":250,"calories":320,"proteinGrams":14,"carbsGrams":45,"fatGrams":8,"fiberGrams":5}],"confidence":0.9,"assumptions":"...","clarificationQuestion":"","clarificationOptions":"","clarificationReason":""}';
 
     Future<http.Response> sendLegacy(
       String model, {
@@ -453,7 +556,7 @@ class FoodAIService {
             headers: {
               'Content-Type': 'application/json',
               'x-goog-api-key': _geminiApiKey,
-              if (!isMockClient) 'Connection': 'close',
+              if (!isMockClient && !isCorrection) 'Connection': 'close',
             },
             body: jsonEncode({
               'contents': [
@@ -462,25 +565,27 @@ class FoodAIService {
                     {
                       'text': isMockClient
                           ? (request['input'] as List).first['text']
-                          : fastLivePrompt,
+                          : fastLivePromptWithShape,
                     },
-                    {
-                      'inlineData': {
-                        'mimeType': mimeType,
-                        'data': encodedImage,
+                    if (!isCorrection)
+                      {
+                        'inlineData': {
+                          'mimeType': mimeType,
+                          'data': encodedImage,
+                        },
                       },
-                    },
                   ],
                 },
               ],
               'generationConfig': {
                 'temperature': 0.1,
+                'maxOutputTokens': 1200,
                 if (model.startsWith('gemini-3')) ...{
                   'mediaResolution': 'MEDIA_RESOLUTION_LOW',
                   'thinkingConfig': {'thinkingLevel': 'MINIMAL'},
                 },
                 'responseMimeType': 'application/json',
-                if (isMockClient) 'responseJsonSchema': schema,
+                'responseJsonSchema': schema,
               },
             }),
           )
@@ -533,12 +638,10 @@ class FoodAIService {
               _geminiModel != 'gemini-3-flash-preview')
           ? _geminiModel
           : 'gemini-3.1-flash-lite';
-      final candidates = <String>[
+      final candidates = <String>{
         primaryModel,
-        'gemini-3.1-flash-lite',
-        'gemini-3.1-flash-lite',
-        'gemini-3.1-flash-lite',
-      ];
+        if (_geminiFallbackModel.trim().isNotEmpty) _geminiFallbackModel,
+      }.toList();
       const retryDelays = <Duration>[
         Duration(milliseconds: 450),
         Duration(milliseconds: 900),
@@ -549,17 +652,20 @@ class FoodAIService {
       for (var attempt = 0; attempt < candidates.length; attempt++) {
         final candidate = candidates[attempt];
         usedModel = candidate;
-        final freshClient = http.Client();
+        final freshClient = isCorrection ? null : http.Client();
         try {
           final res = await sendLegacy(
             candidate,
-            overrideClient: freshClient,
+            overrideClient: freshClient ?? _client,
+            timeout: isCorrection
+                ? const Duration(seconds: 7)
+                : const Duration(seconds: 12),
           );
           lastResponse = res;
           if (res.statusCode >= 200 && res.statusCode < 300) {
             break;
           }
-          if (res.statusCode == 401 || res.statusCode == 403) {
+          if (res.statusCode != 429 && res.statusCode < 500) {
             break;
           }
         } on TimeoutException catch (e) {
@@ -567,7 +673,7 @@ class FoodAIService {
         } catch (e) {
           lastError = e;
         } finally {
-          freshClient.close();
+          freshClient?.close();
         }
         if (attempt < retryDelays.length) {
           await Future<void>.delayed(retryDelays[attempt]);
@@ -591,9 +697,7 @@ class FoodAIService {
       );
     }
     if (response.statusCode == 429) {
-      throw StateError(
-        'Kayleo is busy right now. Try again in a moment.',
-      );
+      throw StateError('Kayleo is busy right now. Try again in a moment.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       var detail = '';
@@ -630,9 +734,8 @@ class FoodAIService {
     Object? text = interaction['output_text'] ?? interaction['outputText'];
     if (usedLegacyApi) {
       final candidates = envelope['candidates'];
-      final content = candidates is List &&
-              candidates.isNotEmpty &&
-              candidates.first is Map
+      final content =
+          candidates is List && candidates.isNotEmpty && candidates.first is Map
           ? (candidates.first as Map)['content']
           : null;
       final parts = content is Map ? content['parts'] : null;
@@ -672,7 +775,9 @@ class FoodAIService {
         name.length > 100 ||
         rawItems is! List ||
         rawItems.isEmpty) {
-      throw const FormatException('Kayleo couldn’t estimate the full nutrition for this meal.');
+      throw const FormatException(
+        'Kayleo couldn’t estimate the full nutrition for this meal.',
+      );
     }
     var serving = 0.0,
         calories = 0.0,
@@ -683,7 +788,11 @@ class FoodAIService {
     final items = <String>[];
     final plateItems = <DetectedPlateItem>[];
     for (final raw in rawItems.take(8)) {
-      if (raw is! Map) throw const FormatException('Kayleo couldn’t read one of the food items.');
+      if (raw is! Map) {
+        throw const FormatException(
+          'Kayleo couldn’t read one of the food items.',
+        );
+      }
       final item = Map<String, dynamic>.from(raw);
       final itemName = item['name']?.toString().trim() ?? '';
       final portion = item['portion']?.toString().trim() ?? '';
@@ -723,15 +832,68 @@ class FoodAIService {
       );
     }
     if (serving < 1 || calories <= 0) {
-      throw const FormatException('Kayleo couldn’t estimate calories for this meal.');
+      throw const FormatException(
+        'Kayleo couldn’t estimate calories for this meal.',
+      );
     }
     final factor = 100 / serving;
     final notes = data['assumptions']?.toString().trim() ?? '';
+    final clarifications = <MealClarification>[];
+    final clarificationQuestion =
+        data['clarificationQuestion']?.toString().trim() ?? '';
+    final clarificationReason =
+        data['clarificationReason']?.toString().trim() ?? '';
+    final clarificationOptions =
+        (data['clarificationOptions']?.toString() ?? '')
+            .split('|')
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty && value.length <= 60)
+            .toSet()
+            .take(5)
+            .toList();
+    if (clarificationQuestion.length >= 4 &&
+        clarificationQuestion.length <= 160 &&
+        clarificationOptions.length >= 2) {
+      clarifications.add(
+        MealClarification(
+          question: clarificationQuestion,
+          options: clarificationOptions,
+          reason: clarificationReason,
+        ),
+      );
+    }
+    final rawClarifications = data['clarifications'];
+    if (clarifications.isEmpty && rawClarifications is List) {
+      for (final raw in rawClarifications.take(3)) {
+        if (raw is! Map) continue;
+        final question = raw['question']?.toString().trim() ?? '';
+        final reason = raw['reason']?.toString().trim() ?? '';
+        final rawOptions = raw['options'];
+        if (question.length < 4 ||
+            question.length > 160 ||
+            rawOptions is! List) {
+          continue;
+        }
+        final options = rawOptions
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty && value.length <= 60)
+            .toSet()
+            .take(5)
+            .toList();
+        if (options.length < 2) continue;
+        clarifications.add(
+          MealClarification(
+            question: question,
+            options: options,
+            reason: reason,
+          ),
+        );
+      }
+    }
     final details = [
       if (items.isNotEmpty) 'On your plate: ${items.join(', ')}',
       if (notes.isNotEmpty) notes,
-      if (confidence != null)
-        'Confidence: ${(confidence * 100).round()}%',
+      if (confidence != null) 'Confidence: ${(confidence * 100).round()}%',
     ].join(' · ');
     return FoodNutrition(
       id: 'kayleo:${DateTime.now().microsecondsSinceEpoch}',
@@ -749,6 +911,7 @@ class FoodAIService {
       servingGrams: serving,
       details: details,
       plateItems: plateItems,
+      clarifications: clarifications,
     );
   }
 
@@ -767,7 +930,6 @@ class FoodAIService {
     }
     return 'image/jpeg';
   }
-
 
   /// Search both providers independently so an outage cannot hide other results.
   Future<FoodSearchResults> searchAll(String query) async {

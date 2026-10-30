@@ -10,6 +10,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,6 +26,10 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.time.LocalDate
 import java.util.Calendar
+import kotlin.concurrent.thread
+import kotlin.math.PI
+import kotlin.math.exp
+import kotlin.math.sin
 
 class MainActivity : FlutterFragmentActivity(), SensorEventListener {
     private var channel: MethodChannel? = null
@@ -45,6 +52,9 @@ class MainActivity : FlutterFragmentActivity(), SensorEventListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingAction = intent?.getStringExtra("widget_action")
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.setOnExitAnimationListener { it.remove() }
+        }
         initSensors()
     }
 
@@ -266,6 +276,11 @@ class MainActivity : FlutterFragmentActivity(), SensorEventListener {
                     KayleoWidgetProvider.refreshAll(this)
                     result.success(null)
                 }
+                "playSplashSound" -> {
+                    val kind = (call.arguments as? String) ?: "chime"
+                    playSplashTone(kind)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -344,8 +359,61 @@ class MainActivity : FlutterFragmentActivity(), SensorEventListener {
                         }
                     }
                 }
+                "playSplashSound" -> {
+                    val kind = (call.arguments as? String) ?: "chime"
+                    playSplashTone(kind)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun playSplashTone(kind: String) {
+        thread(isDaemon = true) {
+            try {
+                val sampleRate = 24000
+                val durationMs = if (kind == "tick") 28 else 520
+                val numSamples = (sampleRate * durationMs) / 1000
+                val pcm = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val sample = if (kind == "tick") {
+                        val env = exp(-t * 140.0) * (1.0 - exp(-t * 900.0))
+                        sin(2.0 * PI * 520.0 * t) * env * 0.16
+                    } else {
+                        // Warm 2-step botanical chime (F5 -> A5/C6 gentle bell harmonic)
+                        val note1Env = exp(-t * 9.5) * (1.0 - exp(-t * 260.0))
+                        val note1 = (sin(2.0 * PI * 698.46 * t) + 0.35 * sin(2.0 * PI * 1396.91 * t)) * note1Env
+                        val t2 = (t - 0.085).coerceAtLeast(0.0)
+                        val note2Env = if (t >= 0.085) exp(-t2 * 6.5) * (1.0 - exp(-t2 * 240.0)) else 0.0
+                        val note2 = (sin(2.0 * PI * 880.0 * t2) + 0.45 * sin(2.0 * PI * 1046.50 * t2)) * note2Env
+                        (note1 * 0.45 + note2 * 0.55) * 0.22
+                    }
+                    pcm[i] = (sample.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).toInt().toShort()
+                }
+                val track = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(pcm.size * 2)
+                    .setTransferMode(AudioTrack.MODE_STATIC)
+                    .build()
+                track.write(pcm, 0, pcm.size)
+                track.play()
+                Thread.sleep(durationMs.toLong() + 40L)
+                track.release()
+            } catch (_: Exception) {}
         }
     }
 

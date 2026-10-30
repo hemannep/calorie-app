@@ -507,6 +507,7 @@ class CommunityService extends ChangeNotifier {
     await messages(room, group: group).add({
       'authorId': uid!,
       'authorName': _name(_state!),
+      'authorPhoto': _state!.profile.photoBase64,
       'body': text.trim(),
       'createdAt': FieldValue.serverTimestamp(),
       'attachment': attachment,

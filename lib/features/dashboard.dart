@@ -77,7 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Synced with $appName!'),
+            content: LocalizedText('Synced with $appName!'),
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
@@ -93,14 +93,16 @@ class _DashboardScreenState extends State<DashboardScreen>
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Connected to $appName! Activity data synced.'),
+            content: LocalizedText(
+              'Connected to $appName! Activity data synced.',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
+            content: LocalizedText(
               'Could not connect to $appName. Please check health permissions in device settings.',
             ),
             behavior: SnackBarBehavior.floating,
@@ -126,12 +128,12 @@ class _DashboardScreenState extends State<DashboardScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              const LocalizedText(
                 'Activity data source',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
-              Text(
+              LocalizedText(
                 'Kayleo reads activity from your phone’s health system. On Android, Health Connect combines supported sources such as Samsung Health, HONOR Health, Fitbit, and Google Fit. On iPhone, Kayleo uses Apple Health.',
                 style: TextStyle(fontSize: 12, color: context.kayleoMuted),
               ),
@@ -145,7 +147,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 onTap: () => Navigator.pop(context),
               ),
               const SizedBox(height: 12),
-              Text(
+              LocalizedText(
                 'To choose Samsung Health, HONOR Health, Google Fit, or another provider, enable that app’s Health Connect sharing and set its data priority in Health Connect settings.',
                 style: TextStyle(
                   fontSize: 11,
@@ -164,7 +166,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     if (!opened) await _connectHealth();
                   },
                   icon: const Icon(Icons.settings_outlined, size: 17),
-                  label: const Text('Manage health app sharing'),
+                  label: const LocalizedText('Manage health app sharing'),
                 ),
               ),
             ],
@@ -207,7 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 children: [
                   const Brand(size: 34),
                   const SizedBox(height: 3),
-                  Text(
+                  LocalizedText(
                     kayleoGreeting(today),
                     key: const Key('home-time-greeting'),
                     style: TextStyle(
@@ -239,7 +241,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         size: 23,
                       ),
                       const SizedBox(width: 5),
-                      Text(
+                      LocalizedText(
                         '${state.streak}',
                         style: const TextStyle(
                           fontSize: 16,
@@ -253,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             if (widget.onReminders != null)
               IconButton(
-                tooltip: 'Your reminders',
+                tooltip: context.l10n.translate('Your reminders'),
                 onPressed: widget.onReminders,
                 icon: const Icon(Icons.notifications_none_rounded, size: 23),
               ),
@@ -263,13 +265,13 @@ class _DashboardScreenState extends State<DashboardScreen>
         Row(
           children: [
             Expanded(
-              child: Text(
+              child: LocalizedText(
                 DateFormat('EEEE, d MMMM').format(date),
                 style: TextStyle(fontSize: 12, color: context.kayleoMuted),
               ),
             ),
             if (state.demo)
-              Text(
+              LocalizedText(
                 'Sample data',
                 style: TextStyle(fontSize: 10, color: context.kayleoMuted),
               ),
@@ -316,7 +318,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
+                      const LocalizedText(
                         'No meals logged yet',
                         style: TextStyle(
                           fontSize: 14,
@@ -324,7 +326,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      LocalizedText(
                         'Add your first meal to get started.',
                         style: TextStyle(
                           fontSize: 11,
@@ -346,7 +348,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   icon: const Icon(Icons.add_rounded, size: 17),
-                  label: const Text('Add food', style: TextStyle(fontSize: 12)),
+                  label: const LocalizedText(
+                    'Add food',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -401,7 +406,7 @@ class _LoggingHero extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
+                  child: LocalizedText(
                     'Search food, dish, or brand',
                     style: TextStyle(fontSize: 12, color: context.kayleoMuted),
                   ),
@@ -485,7 +490,7 @@ class _HealthSourceOption extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  LocalizedText(
                     title,
                     style: const TextStyle(
                       fontSize: 13,
@@ -493,7 +498,7 @@ class _HealthSourceOption extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
+                  LocalizedText(
                     subtitle,
                     style: TextStyle(fontSize: 11, color: context.kayleoMuted),
                   ),
@@ -557,7 +562,7 @@ class _LoggingTile extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Flexible(
-                child: Text(
+                child: LocalizedText(
                   label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -591,7 +596,7 @@ class _CalorieSummary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
+        LocalizedText(
           number(consumed ? nutrition.calories : remaining.abs()),
           style: const TextStyle(
             fontSize: 38,
@@ -601,7 +606,7 @@ class _CalorieSummary extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
+        LocalizedText(
           consumed
               ? 'Calories consumed'
               : remaining >= 0
@@ -610,7 +615,7 @@ class _CalorieSummary extends StatelessWidget {
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 14),
-        Text(
+        LocalizedText(
           '${number(nutrition.calories)} / ${number(target)} kcal · Tap to switch',
           style: TextStyle(fontSize: 11, color: context.kayleoMuted),
         ),
@@ -620,29 +625,29 @@ class _CalorieSummary extends StatelessWidget {
       progress: target > 0 ? nutrition.calories / target : 0,
       key: const Key('today-calorie-ring'),
       segmented: true,
-      size: 112,
-      stroke: 9,
+      size: 92,
+      stroke: 8,
       highlight: false,
       color: context.kayleoPrimary,
       track: context.kayleoSurfaces.soft,
       semanticLabel:
           '${number(nutrition.calories)} calories consumed of $target target',
       child: Container(
-        margin: const EdgeInsets.all(26),
+        margin: const EdgeInsets.all(21),
         decoration: BoxDecoration(
           color: context.kayleoBackground,
           shape: BoxShape.circle,
         ),
         child: Icon(
           Icons.local_fire_department_rounded,
-          size: 26,
+          size: 22,
           color: context.kayleoPrimary,
         ),
       ),
     );
     return Semantics(
       button: true,
-      label: 'Switch calorie display',
+      label: context.l10n.translate('Switch calorie display'),
       child: InkWell(
         key: const Key('calorie-display-toggle'),
         borderRadius: BorderRadius.circular(KayleoRadius.large),
@@ -719,8 +724,8 @@ class _MacroProgress extends StatelessWidget {
                         ? metric.amount(nutrition) /
                               metric.target(state.profile)
                         : 0,
-                    size: 50,
-                    stroke: 5,
+                    size: 44,
+                    stroke: 4.5,
                     highlight: false,
                     color: metric.color,
                     track: context.kayleoSurfaces.soft,
@@ -731,19 +736,19 @@ class _MacroProgress extends StatelessWidget {
                             metric.amount(nutrition) >
                                 metric.target(state.profile)
                         ? Padding(
-                            padding: const EdgeInsets.all(9),
+                            padding: const EdgeInsets.all(8),
                             child: FittedBox(
-                              child: Text(
+                              child: LocalizedText(
                                 '${number(metric.amount(nutrition))}g',
                                 style: const TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
                           )
                         : Container(
-                            margin: const EdgeInsets.all(13),
+                            margin: const EdgeInsets.all(11),
                             decoration: BoxDecoration(
                               color: metric.color.withValues(alpha: .08),
                               shape: BoxShape.circle,
@@ -751,7 +756,7 @@ class _MacroProgress extends StatelessWidget {
                             child: Icon(
                               metric.icon,
                               color: metric.color,
-                              size: 18,
+                              size: 16,
                             ),
                           ),
                   ),
@@ -959,7 +964,7 @@ class _RingsSegmentedControl extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: 'Today overview sections',
+      label: context.l10n.translate('Today overview sections'),
       child: Container(
         height: 44,
         padding: const EdgeInsets.all(4),
@@ -1056,7 +1061,7 @@ class _RingsSegmentedControl extends StatelessWidget {
                 children: [
                   Icon(segment.icon, size: 17, color: iconColor),
                   const SizedBox(width: 6),
-                  Text(
+                  LocalizedText(
                     segment.label,
                     maxLines: 1,
                     style: TextStyle(
@@ -1120,25 +1125,34 @@ class _StepSummary extends StatelessWidget {
     }
 
     const stepColor = Color(0xFF10B981);
-    final ring = KayleoRing(
-      progress: target > 0 ? steps / target : 0,
-      key: const Key('today-step-ring'),
-      size: 112,
-      stroke: 9,
-      highlight: false,
-      color: stepColor,
-      track: context.kayleoSurfaces.soft,
-      semanticLabel: '$steps steps taken of $target target',
-      child: Container(
-        margin: const EdgeInsets.all(23),
-        decoration: BoxDecoration(
-          color: context.kayleoBackground,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.directions_walk_rounded,
-          size: 24,
+    final ring = Semantics(
+      button: true,
+      label: context.l10n.translate('Set daily step target'),
+      child: InkWell(
+        key: const Key('step-goal-trigger'),
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: KayleoRing(
+          progress: target > 0 ? steps / target : 0,
+          key: const Key('today-step-ring'),
+          size: 92,
+          stroke: 8,
+          highlight: false,
           color: stepColor,
+          track: context.kayleoSurfaces.soft,
+          semanticLabel: '$steps steps taken of $target target',
+          child: Container(
+            margin: const EdgeInsets.all(21),
+            decoration: BoxDecoration(
+              color: context.kayleoBackground,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.directions_walk_rounded,
+              size: 21,
+              color: stepColor,
+            ),
+          ),
         ),
       ),
     );
@@ -1147,7 +1161,7 @@ class _StepSummary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
+        LocalizedText(
           number(steps),
           style: const TextStyle(
             fontSize: 38,
@@ -1157,69 +1171,63 @@ class _StepSummary extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
+        LocalizedText(
           reached ? 'Step goal reached!' : 'Steps today',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 14),
         if (isAuthorized)
-          InkWell(
+          Row(
             key: const Key('sync-health-button'),
-            onTap: onSelectHealthSource,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.sync_rounded, size: 13, color: stepColor),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    buildSubtitle(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: stepColor,
-                    ),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.sync_rounded, size: 13, color: stepColor),
+              const SizedBox(width: 4),
+              Flexible(
+                child: LocalizedText(
+                  buildSubtitle(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: stepColor,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           )
         else
-          InkWell(
+          Row(
             key: const Key('connect-health-button'),
-            onTap: onConnectHealth,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.link_off_rounded, size: 13, color: stepColor),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    'Not connected · Connect $appName',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: stepColor,
-                    ),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.link_off_rounded, size: 13, color: stepColor),
+              const SizedBox(width: 4),
+              Flexible(
+                child: LocalizedText(
+                  'Not connected · Connect $appName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: stepColor,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
       ],
     );
 
     return Semantics(
       button: true,
-      label: isAuthorized ? 'Set step goal' : 'Connect health and set goal',
+      label: isAuthorized ? 'Choose health data source' : 'Connect health app',
       child: InkWell(
-        key: const Key('step-goal-trigger'),
+        key: const Key('steps-health-trigger'),
         borderRadius: BorderRadius.circular(KayleoRadius.large),
-        onTap: onTap,
+        onTap: isAuthorized ? onSelectHealthSource : onConnectHealth,
         child: Panel(
           padding: 20,
           child: large
@@ -1331,8 +1339,8 @@ class _ActivityProgress extends StatelessWidget {
                       ring: KayleoRing(
                         key: m.key,
                         progress: m.progress,
-                        size: 50,
-                        stroke: 5,
+                        size: 44,
+                        stroke: 4.5,
                         highlight: false,
                         color: m.color,
                         track: context.kayleoSurfaces.soft,
@@ -1340,20 +1348,20 @@ class _ActivityProgress extends StatelessWidget {
                             '${m.label}: ${m.amount} of ${m.targetLabel}',
                         child: m.reached
                             ? Padding(
-                                padding: const EdgeInsets.all(9),
+                                padding: const EdgeInsets.all(8),
                                 child: Icon(
                                   Icons.check_rounded,
-                                  size: 20,
+                                  size: 18,
                                   color: m.color,
                                 ),
                               )
                             : Container(
-                                margin: const EdgeInsets.all(13),
+                                margin: const EdgeInsets.all(11),
                                 decoration: BoxDecoration(
                                   color: m.color.withValues(alpha: .08),
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(m.icon, color: m.color, size: 18),
+                                child: Icon(m.icon, color: m.color, size: 16),
                               ),
                       ),
                     ),
@@ -1366,8 +1374,8 @@ class _ActivityProgress extends StatelessWidget {
                       amount: '${activity.floorsClimbed}',
                       label: 'Floors',
                       ring: const SizedBox(
-                        width: 50,
-                        height: 50,
+                        width: 44,
+                        height: 44,
                         child: Icon(
                           Icons.stairs_rounded,
                           color: Color(0xFF9C27B0),
@@ -1447,7 +1455,7 @@ class _DashboardMetricCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          LocalizedText(
             amount,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1458,7 +1466,7 @@ class _DashboardMetricCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
-          Text(
+          LocalizedText(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1471,7 +1479,7 @@ class _DashboardMetricCard extends StatelessWidget {
             maintainState: true,
             child: Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(
+              child: LocalizedText(
                 'from steps',
                 style: TextStyle(
                   fontSize: 8,
@@ -1515,7 +1523,7 @@ class _ExtraStatChip extends StatelessWidget {
     children: [
       Icon(icon, color: color, size: 20),
       const SizedBox(height: 6),
-      Text(
+      LocalizedText(
         value,
         style: const TextStyle(
           fontSize: 13,
@@ -1524,7 +1532,7 @@ class _ExtraStatChip extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 2),
-      Text(
+      LocalizedText(
         label,
         style: TextStyle(
           fontSize: 9,
@@ -1590,7 +1598,7 @@ Future<void> showStepGoalDialog(BuildContext context, AppState state) async {
               ),
               const SizedBox(width: 10),
               const Expanded(
-                child: Text(
+                child: LocalizedText(
                   'Daily Step Goal',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
@@ -1604,7 +1612,7 @@ Future<void> showStepGoalDialog(BuildContext context, AppState state) async {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  LocalizedText(
                     'Set your daily step target. Steps will be tracked automatically from your health app.',
                     style: TextStyle(fontSize: 13, color: context.kayleoMuted),
                   ),
@@ -1614,8 +1622,8 @@ Future<void> showStepGoalDialog(BuildContext context, AppState state) async {
                     controller: controller,
                     keyboardType: TextInputType.number,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Target steps',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.translate('Target steps'),
                       suffixText: 'steps',
                     ),
                     validator: (val) {
@@ -1633,7 +1641,7 @@ Future<void> showStepGoalDialog(BuildContext context, AppState state) async {
                     children: [6000, 8000, 10000, 12000].map((preset) {
                       final selected = controller.text == '$preset';
                       return ChoiceChip(
-                        label: Text('$preset'),
+                        label: LocalizedText('$preset'),
                         selected: selected,
                         onSelected: (_) {
                           controller.text = '$preset';
@@ -1649,7 +1657,7 @@ Future<void> showStepGoalDialog(BuildContext context, AppState state) async {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
+              child: const LocalizedText('Cancel'),
             ),
             FilledButton(
               key: const Key('save-step-goal-button'),
@@ -1660,7 +1668,7 @@ Future<void> showStepGoalDialog(BuildContext context, AppState state) async {
                   if (ctx.mounted) Navigator.of(ctx).pop();
                 }
               },
-              child: const Text('Save goal'),
+              child: const LocalizedText('Save goal'),
             ),
           ],
         );
@@ -1711,14 +1719,14 @@ class MealRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              LocalizedText(
                 meal.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
               ),
               const SizedBox(height: 5),
-              Text(
+              LocalizedText(
                 '${meal.category}  ·  ${DateFormat('h:mm a').format(meal.time)}',
                 style: TextStyle(
                   fontSize: 10,
@@ -1732,12 +1740,12 @@ class MealRow extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
+            LocalizedText(
               '${number(mealNutrition(meal).calories)} kcal',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
             ),
             const SizedBox(height: KayleoSpacing.xs),
-            Text(
+            LocalizedText(
               '${mealNutrition(meal).protein.round()}g protein',
               style: TextStyle(
                 fontSize: 9,
@@ -1747,17 +1755,29 @@ class MealRow extends StatelessWidget {
           ],
         ),
         PopupMenuButton<String>(
-          tooltip: 'Meal options',
+          tooltip: context.l10n.translate('Meal options'),
           icon: Icon(
             Icons.more_horiz_rounded,
             size: 19,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'edit', child: Text('Edit meal')),
-            const PopupMenuItem(value: 'save', child: Text('Save as a usual')),
-            const PopupMenuItem(value: 'repeat', child: Text('Log again')),
-            const PopupMenuItem(value: 'delete', child: Text('Delete meal')),
+            const PopupMenuItem(
+              value: 'edit',
+              child: LocalizedText('Edit meal'),
+            ),
+            const PopupMenuItem(
+              value: 'save',
+              child: LocalizedText('Save as a usual'),
+            ),
+            const PopupMenuItem(
+              value: 'repeat',
+              child: LocalizedText('Log again'),
+            ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: LocalizedText('Delete meal'),
+            ),
           ],
           onSelected: (value) async {
             if (value == 'edit') {
@@ -1786,18 +1806,18 @@ class MealRow extends StatelessWidget {
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: Text('Delete this meal?'),
-                  content: Text(
+                  title: LocalizedText('Delete this meal?'),
+                  content: LocalizedText(
                     '“${meal.name}” will be removed from your diary.',
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Keep meal'),
+                      child: LocalizedText('Keep meal'),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: Text('Delete'),
+                      child: LocalizedText('Delete'),
                     ),
                   ],
                 ),
@@ -1809,7 +1829,7 @@ class MealRow extends StatelessWidget {
                     context,
                     'Meal removed',
                     action: SnackBarAction(
-                      label: 'Undo',
+                      label: context.l10n.translate('Undo'),
                       textColor: lime,
                       onPressed: () => state.saveMeal(meal),
                     ),

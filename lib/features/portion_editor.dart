@@ -110,6 +110,7 @@ double portionStepForUnit(String unit) {
       return 1;
   }
 }
+
 double consumedPortion(Food food, Map<String, dynamic> portion) {
   final quantity = (portion['quantity'] as num).toDouble(),
       share = (portion['share'] as num? ?? 1).toDouble();
@@ -227,7 +228,7 @@ class _PortionEditorState extends State<PortionEditor> {
             foregroundColor: dark ? forest : Colors.white,
           ),
           onPressed: save,
-          child: const Text('Update portion'),
+          child: const LocalizedText('Update portion'),
         ),
       ),
       child: Column(
@@ -252,7 +253,7 @@ class _PortionEditorState extends State<PortionEditor> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
+                    child: LocalizedText(
                       'Logging ${previewGrams.round()} ${food.nutritionBasisUnit}'
                       '${previewCalories != null ? ' · $previewCalories kcal' : ''}',
                       style: const TextStyle(
@@ -261,19 +262,14 @@ class _PortionEditorState extends State<PortionEditor> {
                       ),
                     ),
                   ),
-                  if (shared)
-                    Tag(
-                      'Shared',
-                      color: lime,
-                      textColor: forest,
-                    ),
+                  if (shared) Tag('Shared', color: lime, textColor: forest),
                 ],
               ),
             ),
           Row(
             children: [
               IconButton.outlined(
-                tooltip: 'Decrease amount',
+                tooltip: context.l10n.translate('Decrease amount'),
                 onPressed: () => _stepQuantity(-1),
                 icon: const Icon(Icons.remove_rounded),
               ),
@@ -289,8 +285,10 @@ class _PortionEditorState extends State<PortionEditor> {
                     fontWeight: FontWeight.w800,
                   ),
                   decoration: InputDecoration(
-                    labelText: shared ? 'Shared dish amount' : 'Amount eaten',
-                    hintText: '150 or 1/2',
+                    labelText: context.l10n.translate(
+                      shared ? 'Shared dish amount' : 'Amount eaten',
+                    ),
+                    hintText: context.l10n.translate('150 or 1/2'),
                     suffixText: unit,
                   ),
                   onChanged: (_) => setState(() => error = null),
@@ -298,14 +296,14 @@ class _PortionEditorState extends State<PortionEditor> {
               ),
               const SizedBox(width: 10),
               IconButton.outlined(
-                tooltip: 'Increase amount',
+                tooltip: context.l10n.translate('Increase amount'),
                 onPressed: () => _stepQuantity(1),
                 icon: const Icon(Icons.add_rounded),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          const Text(
+          const LocalizedText(
             'Unit',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
           ),
@@ -316,7 +314,7 @@ class _PortionEditorState extends State<PortionEditor> {
             children: [
               for (final value in portionUnits(food))
                 ChoiceChip(
-                  label: Text(value),
+                  label: LocalizedText(value),
                   selected: unit == value,
                   onSelected: (_) => setState(() {
                     final q = portionNumber(amount.text);
@@ -336,19 +334,19 @@ class _PortionEditorState extends State<PortionEditor> {
           if (unit != food.nutritionBasisUnit)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Text(
-                '1 $unit ≈ ${ portionFactor(food, unit).round() } ${food.nutritionBasisUnit}. Serving conversions are estimates.',
+              child: LocalizedText(
+                '1 $unit ≈ ${portionFactor(food, unit).round()} ${food.nutritionBasisUnit}. Serving conversions are estimates.',
                 style: TextStyle(fontSize: 12, color: context.kayleoMuted),
               ),
             ),
           const SizedBox(height: 16),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text(
+            title: const LocalizedText(
               'Shared dish total',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
-            subtitle: const Text(
+            subtitle: const LocalizedText(
               'Splitting with friends or family? Only count the share you ate.',
             ),
             value: shared,
@@ -368,7 +366,7 @@ class _PortionEditorState extends State<PortionEditor> {
                   ('3/4', '3/4 share'),
                 ])
                   ChoiceChip(
-                    label: Text(preset.$2),
+                    label: LocalizedText(preset.$2),
                     selected: fraction.text.trim() == preset.$1,
                     onSelected: (_) => setState(() {
                       fraction.text = preset.$1;
@@ -382,21 +380,21 @@ class _PortionEditorState extends State<PortionEditor> {
               key: const Key('portion-share'),
               controller: fraction,
               keyboardType: TextInputType.text,
-              decoration: const InputDecoration(
-                labelText: 'Fraction you ate',
-                hintText: '1/4 or 0.25',
+              decoration: InputDecoration(
+                labelText: context.l10n.translate('Fraction you ate'),
+                hintText: context.l10n.translate('1/4 or 0.25'),
               ),
               onChanged: (_) => setState(() => error = null),
             ),
             const SizedBox(height: 10),
-            Text(
+            LocalizedText(
               'For four equal servings, enter 1/4. For half the dish, enter 1/2.',
               style: TextStyle(fontSize: 12, color: context.kayleoMuted),
             ),
           ],
           const SizedBox(height: 16),
           if (error != null)
-            Text(
+            LocalizedText(
               error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),

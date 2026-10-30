@@ -17,6 +17,13 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+    if (project.name != "app") {
+        afterEvaluate {
+            extensions.findByType(com.android.build.api.dsl.CommonExtension::class.java)?.apply {
+                ndkVersion = "28.1.13356709"
+            }
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

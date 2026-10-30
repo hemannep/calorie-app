@@ -165,6 +165,12 @@ void main() {
       await tester.tap(find.byKey(const Key('logging-continue')));
       await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
+      while (find.text('Match your food').evaluate().isNotEmpty) {
+        await tester.tap(find.byType(ListTile).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Use this food'));
+        await tester.pumpAndSettle();
+      }
       expect(find.text('Kayleo sees'), findsOneWidget);
       await snapshot(tester, 'meal-review-mobile');
       await tester.tap(find.byKey(const Key('save-meal')));
@@ -195,7 +201,6 @@ void main() {
     );
     await snapshot(tester, 'today-desktop');
     for (final (label, name, title) in [
-      ('Diary', 'diary-desktop', 'Diary'),
       ('Scan food', 'capture-desktop', 'What’s on your plate?'),
       ('Progress', 'progress-desktop', 'Progress'),
       ('Saved meals', 'saved-meals-desktop', 'Your usuals, ready.'),
@@ -229,7 +234,7 @@ void main() {
     );
     await snapshot(tester, 'today-mobile');
     for (final (label, name) in [
-      ('Diary', 'diary-mobile'),
+      ('Community', 'community-mobile'),
       ('Progress', 'progress-mobile'),
       ('You', 'settings-mobile'),
     ]) {
@@ -293,6 +298,81 @@ void main() {
       tester.view.resetDevicePixelRatio();
     },
   );
+
+  testWidgets('Onboarding accepts height in feet and inches', (tester) async {
+    final s = await fresh(demo: false);
+    await prepare(
+      tester,
+      const Size(390, 844),
+      MaterialApp(
+        theme: kayleoTheme(),
+        home: OnboardingScreen(state: s),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const Key('onboarding-continue')));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('Feet & inches'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('height-feet')), '6');
+    await tester.enterText(find.byKey(const Key('height-inches')), '2');
+    await tester.tap(find.text('Centimeters'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextFormField>(find.widgetWithText(TextFormField, 'Height'))
+          .controller!
+          .text,
+      '188',
+    );
+    await tester.tap(find.text('Feet & inches'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('onboarding-continue')));
+    await tester.tap(find.byKey(const Key('onboarding-continue')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Find your\nrhythm.'), findsOneWidget);
+    expect(s.onboarded, isFalse);
+    await tester.pumpWidget(const SizedBox());
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+
+  testWidgets('Lose weight onboarding asks for target and timeline', (
+    tester,
+  ) async {
+    final s = await fresh(demo: false);
+    await prepare(
+      tester,
+      const Size(390, 844),
+      MaterialApp(
+        theme: kayleoTheme(),
+        home: OnboardingScreen(state: s),
+      ),
+    );
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const Key('onboarding-continue')));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text('Lose weight'));
+    await tester.tap(find.byKey(const Key('onboarding-continue')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('weight-goal-section')), findsOneWidget);
+    expect(find.byKey(const Key('target-weight')), findsOneWidget);
+    expect(find.text('3 mo'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('target-weight')), '75');
+    await tester.ensureVisible(find.byKey(const Key('onboarding-continue')));
+    await tester.tap(find.byKey(const Key('onboarding-continue')));
+    await tester.pumpAndSettle();
+    expect(find.text('Must be below current weight'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
 
   testWidgets(
     'Empty manual flow offers custom nutrition rather than inventing an estimate',
@@ -514,8 +594,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('You').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Community'));
-    await tester.tap(find.text('Community'));
+    await tester.tap(find.text('Community').last);
     await tester.pumpAndSettle();
     await snapshot(tester, 'community-mobile');
     await tester.pumpWidget(const SizedBox());
@@ -864,7 +943,7 @@ void main() {
       ),
     );
     await snapshot(tester, 'kayleo-large-text-today');
-    for (final tab in ['Diary', 'Progress', 'You']) {
+    for (final tab in ['Community', 'Progress', 'You']) {
       await tester.tap(find.text(tab).last);
       await tester.pumpAndSettle();
       await snapshot(tester, 'kayleo-large-text-${tab.toLowerCase()}');

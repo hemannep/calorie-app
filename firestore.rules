@@ -101,8 +101,9 @@ service cloud.firestore {
     }
     function validNumber(n) { return n >= 0 && n <= 100000; }
     function validMessage(data) {
-      return data.keys().hasOnly(['authorId', 'authorName', 'body', 'createdAt', 'attachment', 'replyTo'])
+      return data.keys().hasOnly(['authorId', 'authorName', 'authorPhoto', 'body', 'createdAt', 'attachment', 'replyTo'])
         && self(data.authorId) && validName(data.authorName)
+        && (data.authorPhoto == null || (data.authorPhoto is string && data.authorPhoto.size() <= 470000))
         && data.body is string && data.body.size() <= 2000 && (data.body.size() > 0 || data.attachment != null)
         && data.createdAt == request.time && validAttachment(data.attachment)
         && (data.replyTo == null || (data.replyTo is string && data.replyTo.size() <= 128));

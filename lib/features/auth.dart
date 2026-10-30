@@ -332,18 +332,18 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
         const SizedBox(height: KayleoSpacing.xl),
-        Text(
+        LocalizedText(
           'Verify your email.',
           style: Theme.of(context).textTheme.headlineMedium
               ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1.1),
         ),
         const SizedBox(height: KayleoSpacing.sm),
-        Text(
+        LocalizedText(
           'We sent a secure verification link to',
           style: TextStyle(color: context.kayleoMuted, height: 1.5),
         ),
         const SizedBox(height: 3),
-        Text(
+        LocalizedText(
           verificationRepository?.verificationEmail ?? email.text.trim(),
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
@@ -365,7 +365,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     color: context.kayleoSurfaces.soft,
                     shape: BoxShape.circle,
                   ),
-                  child: Text(
+                  child: LocalizedText(
                     number,
                     style: TextStyle(
                       color: context.kayleoPrimary,
@@ -376,7 +376,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(width: KayleoSpacing.md),
                 Expanded(
-                  child: Text(text, style: const TextStyle(fontSize: 13)),
+                  child: LocalizedText(
+                    text,
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
               ],
             ),
@@ -395,7 +398,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.check_rounded, size: 18),
-            label: Text(busy ? 'Checking…' : 'I’ve verified my email'),
+            label: LocalizedText(busy ? 'Checking…' : 'I’ve verified my email'),
           ),
         ),
         const SizedBox(height: KayleoSpacing.sm),
@@ -406,7 +409,7 @@ class _AuthScreenState extends State<AuthScreen> {
               child: TextButton(
                 key: const Key('verification-resend'),
                 onPressed: busy ? null : resendVerification,
-                child: const Text('Resend email'),
+                child: const LocalizedText('Resend email'),
               ),
             ),
             SizedBox(
@@ -416,7 +419,7 @@ class _AuthScreenState extends State<AuthScreen> {
             Flexible(
               child: TextButton(
                 onPressed: busy ? null : changeVerificationEmail,
-                child: const Text('Use another email'),
+                child: const LocalizedText('Use another email'),
               ),
             ),
           ],
@@ -466,7 +469,7 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  LocalizedText(
                     registering ? 'Create your space.' : 'Welcome back.',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
@@ -474,7 +477,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                   const SizedBox(height: KayleoSpacing.sm),
-                  Text(
+                  LocalizedText(
                     registering
                         ? 'A simple place for your everyday nutrition.'
                         : 'Continue your day in balance.',
@@ -493,7 +496,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: busy ? null : resetPassword,
-                        child: const Text('Forgot password?'),
+                        child: const LocalizedText('Forgot password?'),
                       ),
                     )
                   else
@@ -503,7 +506,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: busy ? null : submit,
-                      child: Text(
+                      child: LocalizedText(
                         busy
                             ? 'Please wait…'
                             : registering
@@ -525,7 +528,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ? null
                             : () => social(accountRepository!.signInWithGoogle),
                         icon: const Icon(Icons.g_mobiledata_rounded, size: 26),
-                        label: const Text('Continue with Google'),
+                        label: const LocalizedText('Continue with Google'),
                       ),
                     ),
                   if (_showApple) ...[
@@ -541,13 +544,13 @@ class _AuthScreenState extends State<AuthScreen> {
                                     .signInWithApple,
                               ),
                         icon: const Icon(Icons.apple),
-                        label: const Text('Sign in with Apple'),
+                        label: const LocalizedText('Sign in with Apple'),
                       ),
                     ),
                   ],
                   const SizedBox(height: KayleoSpacing.xl),
                   Center(
-                    child: Text(
+                    child: LocalizedText(
                       'Saved meal photos stay local · AI analysis is opt-in at build time',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -595,9 +598,9 @@ class _AuthScreenState extends State<AuthScreen> {
           textCapitalization: TextCapitalization.words,
           autofillHints: const [AutofillHints.name],
           textInputAction: TextInputAction.next,
-          decoration: const InputDecoration(
-            labelText: 'Your name',
-            hintText: 'How should we call you?',
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('Your name'),
+            hintText: context.l10n.translate('How should we call you?'),
             counterText: '',
           ),
           validator: (v) => v!.trim().isEmpty ? 'Enter your name' : null,
@@ -611,9 +614,9 @@ class _AuthScreenState extends State<AuthScreen> {
         keyboardType: TextInputType.emailAddress,
         textInputAction: TextInputAction.next,
         autofillHints: const [AutofillHints.email],
-        decoration: const InputDecoration(
-          labelText: 'Email address',
-          hintText: 'you@example.com',
+        decoration: InputDecoration(
+          labelText: context.l10n.translate('Email address'),
+          hintText: context.l10n.translate('you@example.com'),
           counterText: '',
         ),
         validator: (v) => DemoAuthRepository.validEmail(v!.trim())
@@ -634,11 +637,15 @@ class _AuthScreenState extends State<AuthScreen> {
             : TextInputAction.done,
         onFieldSubmitted: registering || busy ? null : (_) => submit(),
         decoration: InputDecoration(
-          labelText: 'Password',
-          hintText: registering ? 'At least 6 characters' : null,
+          labelText: context.l10n.translate('Password'),
+          hintText: registering
+              ? context.l10n.translate('At least 6 characters')
+              : null,
           counterText: '',
           suffixIcon: IconButton(
-            tooltip: obscure ? 'Show password' : 'Hide password',
+            tooltip: context.l10n.translate(
+              obscure ? 'Show password' : 'Hide password',
+            ),
             onPressed: busy ? null : () => setState(() => obscure = !obscure),
             icon: Icon(
               obscure
@@ -659,12 +666,14 @@ class _AuthScreenState extends State<AuthScreen> {
           textInputAction: TextInputAction.done,
           onFieldSubmitted: busy ? null : (_) => submit(),
           decoration: InputDecoration(
-            labelText: 'Confirm password',
+            labelText: context.l10n.translate('Confirm password'),
             counterText: '',
             suffixIcon: IconButton(
-              tooltip: confirmObscure
-                  ? 'Show confirmed password'
-                  : 'Hide confirmed password',
+              tooltip: context.l10n.translate(
+                confirmObscure
+                    ? 'Show confirmed password'
+                    : 'Hide confirmed password',
+              ),
               onPressed: busy
                   ? null
                   : () => setState(() => confirmObscure = !confirmObscure),
@@ -794,13 +803,13 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
           child: Icon(Icons.lock_reset_rounded, color: context.kayleoPrimary),
         ),
         const SizedBox(height: KayleoSpacing.lg),
-        Text(
+        LocalizedText(
           'Reset your password.',
           style: Theme.of(context).textTheme.headlineSmall
               ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -.7),
         ),
         const SizedBox(height: KayleoSpacing.sm),
-        Text(
+        LocalizedText(
           'Enter your account email and we’ll send a secure reset link.',
           style: TextStyle(color: context.kayleoMuted, height: 1.55),
         ),
@@ -813,9 +822,9 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.done,
           autofillHints: const [AutofillHints.email],
-          decoration: const InputDecoration(
-            labelText: 'Email address',
-            hintText: 'you@example.com',
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('Email address'),
+            hintText: context.l10n.translate('you@example.com'),
           ),
           validator: (value) => DemoAuthRepository.validEmail(value!.trim())
               ? null
@@ -832,7 +841,7 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
           child: FilledButton(
             key: const Key('send-reset-email'),
             onPressed: busy ? null : send,
-            child: Text(busy ? 'Sending…' : 'Send reset link'),
+            child: LocalizedText(busy ? 'Sending…' : 'Send reset link'),
           ),
         ),
         const SizedBox(height: KayleoSpacing.sm),
@@ -840,7 +849,7 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
           width: double.infinity,
           child: TextButton(
             onPressed: busy ? null : () => Navigator.pop(context),
-            child: const Text('Back to sign in'),
+            child: const LocalizedText('Back to sign in'),
           ),
         ),
       ],
@@ -859,14 +868,14 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
         child: const Icon(Icons.mark_email_read_outlined, color: forest),
       ),
       const SizedBox(height: KayleoSpacing.xl),
-      Text(
+      LocalizedText(
         'Check your email.',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.headlineSmall
             ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -.7),
       ),
       const SizedBox(height: KayleoSpacing.sm),
-      Text(
+      LocalizedText(
         'If an account exists for ${email.text.trim()}, a secure password reset link is on its way. Check spam if it doesn’t arrive.',
         textAlign: TextAlign.center,
         style: TextStyle(color: context.kayleoMuted, height: 1.55),
@@ -876,7 +885,7 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
         width: double.infinity,
         child: FilledButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Back to sign in'),
+          child: const LocalizedText('Back to sign in'),
         ),
       ),
       const SizedBox(height: KayleoSpacing.lg),
@@ -895,7 +904,7 @@ class _AuthModeSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: 'Account action',
+    label: context.l10n.translate('Account action'),
     child: Container(
       decoration: BoxDecoration(
         border: Border(
@@ -936,7 +945,7 @@ class _AuthModeSwitch extends StatelessWidget {
               ),
             ),
           ),
-          child: Text(
+          child: LocalizedText(
             label,
             style: TextStyle(
               fontSize: 13,
@@ -980,7 +989,7 @@ class _AuthMessage extends StatelessWidget {
           ),
           const SizedBox(width: KayleoSpacing.sm),
           Expanded(
-            child: Text(
+            child: LocalizedText(
               message,
               style: TextStyle(fontSize: 12, height: 1.45, color: color),
             ),
@@ -999,7 +1008,7 @@ class _OrDivider extends StatelessWidget {
       const Expanded(child: Divider()),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: KayleoSpacing.md),
-        child: Text(
+        child: LocalizedText(
           'OR',
           style: TextStyle(
             fontSize: 10,
@@ -1053,7 +1062,7 @@ class _AuthStory extends StatelessWidget {
     children: [
       const Brand(size: 36),
       const Spacer(),
-      Text(
+      LocalizedText(
         'Know your food.\nKeep your balance.',
         style: Theme.of(context).textTheme.displaySmall?.copyWith(
           fontWeight: FontWeight.w800,
@@ -1064,7 +1073,7 @@ class _AuthStory extends StatelessWidget {
       const SizedBox(height: KayleoSpacing.lg),
       ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
-        child: Text(
+        child: LocalizedText(
           'Thoughtful nutrition, made simple for real days.',
           style: TextStyle(
             fontSize: 16,

@@ -226,6 +226,8 @@ class BodyProfile {
     this.age = 28,
     this.height = 172,
     this.weight = 70,
+    this.targetWeight,
+    int goalDurationMonths = 3,
     this.sex = 'Prefer not to say',
     this.activity = 'Lightly active',
     this.goal = 'Feel healthier',
@@ -237,11 +239,18 @@ class BodyProfile {
     this.waterTarget = 2000,
     this.units = 'Metric',
     this.photoBase64,
-  });
+  }) : // A public parameter plus nullable backing field keeps hot-reloaded
+       // pre-migration instances safe while preserving the constructor API.
+       // ignore: prefer_initializing_formals
+       _goalDurationMonths = goalDurationMonths;
   String name, sex, activity, goal, diet, units;
   String? photoBase64;
   int age, calorieTarget, proteinTarget, carbTarget, fatTarget, waterTarget;
+  int? _goalDurationMonths;
+  int get goalDurationMonths => _goalDurationMonths ?? 3;
+  set goalDurationMonths(int value) => _goalDurationMonths = value;
   double height, weight;
+  double? targetWeight;
   double get bmi => weight / ((height / 100) * (height / 100));
   String get bmiCategory {
     if (age < 20) return 'Age-specific interpretation needed';
@@ -270,7 +279,7 @@ class BodyProfile {
 
   void calculateTargets() {
     final adjustment = goal == 'Lose weight'
-        ? -250
+        ? -plannedDailyDeficit
         : goal == 'Build muscle'
         ? 250
         : 0;
@@ -281,11 +290,20 @@ class BodyProfile {
         .round();
   }
 
+  int get plannedDailyDeficit {
+    final target = targetWeight;
+    if (goal != 'Lose weight' || target == null || target >= weight) return 250;
+    final days = goalDurationMonths.clamp(1, 24) * 30.44;
+    return (((weight - target) * 7700) / days).round().clamp(0, 750);
+  }
+
   Map<String, dynamic> toJson() => {
     'name': name,
     'age': age,
     'height': height,
     'weight': weight,
+    'targetWeight': targetWeight,
+    'goalDurationMonths': goalDurationMonths,
     'sex': sex,
     'activity': activity,
     'goal': goal,
@@ -303,6 +321,8 @@ class BodyProfile {
     age: j['age'] ?? 28,
     height: (j['height'] ?? 172).toDouble(),
     weight: (j['weight'] ?? 70).toDouble(),
+    targetWeight: (j['targetWeight'] as num?)?.toDouble(),
+    goalDurationMonths: (j['goalDurationMonths'] as num?)?.round() ?? 3,
     sex: j['sex'] ?? 'Prefer not to say',
     activity: j['activity'] ?? 'Lightly active',
     goal: j['goal'] ?? 'Feel healthier',

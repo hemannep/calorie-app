@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.3
   image_picker: ^1.2.0
@@ -41,6 +43,14 @@ dev_dependencies:
 dependency_overrides:
   pytorch_lite:
     path: packages/pytorch_lite
+  # Project-local Android migrations keep these plugins compatible with AGP 9
+  # Built-in Kotlin until their upstream releases complete the migration.
+  firebase_auth:
+    path: packages/firebase_auth
+  firebase_core:
+    path: packages/firebase_core
+  health:
+    path: packages/health
 
 flutter:
   uses-material-design: true

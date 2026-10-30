@@ -1,8 +1,9 @@
 import 'models.dart';
+import 'expanded_food_database.dart';
 
 // Generic reference values are rounded USDA SR-style values per 100 g.
 // Regional/composite recipes are illustrative, explicitly marked in the UI.
-const foods = <Food>[
+const _baseFoods = <Food>[
   Food(
     id: 'rice',
     name: 'Steamed rice',
@@ -2040,7 +2041,7 @@ const foods = <Food>[
   Food(
     id: 'x_sweet_lassi',
     name: 'Sweet lassi',
-    aliases: ['sweet lassi', 'lassi'],
+    aliases: ['sweet lassi'],
     per100g: Nutrients(75, 2.8, 12, 1.8),
     servingGrams: 250,
     unit: 'glass',
@@ -2670,7 +2671,7 @@ const foods = <Food>[
   Food(
     id: 'x_chicken_biryani',
     name: 'Chicken biryani',
-    aliases: ['chicken biryani', 'biryani'],
+    aliases: [],
     per100g: Nutrients(165, 8, 22, 5),
     servingGrams: 300,
     unit: 'plate',
@@ -2940,7 +2941,7 @@ const foods = <Food>[
   Food(
     id: 'x_samosa',
     name: 'Samosa',
-    aliases: ['samosa'],
+    aliases: [],
     per100g: Nutrients(262, 4.5, 31, 13),
     servingGrams: 60,
     unit: 'piece',
@@ -8482,6 +8483,10 @@ const foods = <Food>[
     category: 'Regional',
   ),
 ];
+
+// Keep app-specific matches stable, then fall back to the traceable USDA
+// catalog for its additional foods and regional aliases.
+const foods = <Food>[..._baseFoods, ...expandedFoods];
 
 Food foodById(String id) => foods.firstWhere((f) => f.id == id);
 Food mealItemFood(MealItem item) => item.snapshot ?? foodById(item.foodId);

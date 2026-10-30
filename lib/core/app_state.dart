@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/models.dart';
+import 'localization.dart';
 import 'milestones.dart';
 import '../data/food_database.dart';
 
@@ -11,7 +12,9 @@ class AppState extends ChangeNotifier {
   // Keep these legacy keys stable so the Kayleo rebrand preserves existing logs.
   static const storageKey = 'nouri_state_v1';
   static const recoveryKey = 'nouri_recovery_backup_v1';
-  AppState(this.storage, {this.recordKey = storageKey});
+  AppState(this.storage, {this.recordKey = storageKey}) {
+    AppLocalizations.setActiveLanguageCode(languageCode);
+  }
   final String recordKey;
   String? accountEmail;
   String? accountUid;
@@ -42,6 +45,7 @@ class AppState extends ChangeNotifier {
   bool onboarded = false, demo = false, premium = false, community = false;
   String? storageError;
   String appearance = 'light';
+  String languageCode = 'system';
   List<Meal> meals = [], templates = [];
   List<WeightEntry> weights = [];
   Map<String, int> water = {};
@@ -180,6 +184,12 @@ class AppState extends ChangeNotifier {
     if (['light', 'dark', 'system'].contains(savedAppearance)) {
       appearance = savedAppearance as String;
     }
+    final savedLanguage = j['languageCode'];
+    if (savedLanguage is String &&
+        AppLocalizations.isSupportedLanguageCode(savedLanguage)) {
+      languageCode = savedLanguage;
+      AppLocalizations.setActiveLanguageCode(languageCode);
+    }
     meals = (j['meals'] as List)
         .map((m) => Meal.fromJson(Map<String, dynamic>.from(m)))
         .toList();
@@ -221,6 +231,12 @@ class AppState extends ChangeNotifier {
         !p.weight.isFinite ||
         p.weight < 20 ||
         p.weight > 400 ||
+        (p.targetWeight != null &&
+            (!p.targetWeight!.isFinite ||
+                p.targetWeight! < 20 ||
+                p.targetWeight! > 400)) ||
+        p.goalDurationMonths < 1 ||
+        p.goalDurationMonths > 24 ||
         p.age < 13 ||
         p.age > 120 ||
         p.calorieTarget < 1 ||
@@ -334,6 +350,7 @@ class AppState extends ChangeNotifier {
     'celebratedMilestones': celebratedMilestones.toList(),
     'accountEmail': accountEmail,
     'appearance': appearance,
+    'languageCode': languageCode,
     'profile': profile.toJson(),
     'onboarded': onboarded,
     'demo': demo,
@@ -385,6 +402,15 @@ class AppState extends ChangeNotifier {
   Future<void> setAppearance(String value) async {
     if (!['light', 'dark', 'system'].contains(value)) return;
     appearance = value;
+    notifyListeners();
+    await persist();
+  }
+
+  Future<void> setLanguage(String value) async {
+    if (!AppLocalizations.isSupportedLanguageCode(value)) return;
+    languageCode = value;
+    AppLocalizations.setActiveLanguageCode(value);
+    notifyListeners();
     await persist();
   }
 

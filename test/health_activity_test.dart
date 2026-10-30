@@ -291,8 +291,8 @@ void main() {
         findsOneWidget,
       );
 
-      // Tap Connect button
-      await tester.tap(find.byKey(const Key('connect-health-button')));
+      // The entire Steps Today card connects health, not only the green text.
+      await tester.tap(find.byKey(const Key('steps-health-trigger')));
       await tester.pumpAndSettle();
 
       // SnackBar shows connected feedback

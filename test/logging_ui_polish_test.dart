@@ -177,6 +177,39 @@ void main() {
     await snapshot(t, 'milestones-polished');
     await t.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets('Weight-loss personalization is editable and shown in progress', (
+    t,
+  ) async {
+    final s = await fresh();
+    s.profile
+      ..goal = 'Lose weight'
+      ..weight = 80
+      ..targetWeight = 70
+      ..goalDurationMonths = 6;
+    await s.logWeight(
+      80,
+      date: DateTime.now().subtract(const Duration(days: 5)),
+    );
+    await s.logWeight(76);
+
+    await prepare(t, const Size(390, 980), page(EditProfileSheet(state: s)));
+    expect(
+      find.byKey(const Key('profile-height-unit-selector')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('profile-weight-goal-section')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('profile-goal-duration')), findsOneWidget);
+
+    await prepare(t, const Size(390, 1200), page(ProgressScreen(state: s)));
+    await t.ensureVisible(find.byKey(const Key('weight-goal-summary')));
+    await t.pumpAndSettle();
+    expect(find.text('Goal 70.0 kg'), findsOneWidget);
+    expect(find.text('6.0 kg to go'), findsOneWidget);
+    expect(find.byKey(const Key('weight-goal-progress')), findsOneWidget);
+  });
   testWidgets('Reminder UI enables, tests and disables device delivery', (
     t,
   ) async {

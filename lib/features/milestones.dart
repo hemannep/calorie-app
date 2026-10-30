@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/app_state.dart';
 import '../core/milestones.dart';
 import '../core/ui.dart';
+import 'widget_gallery.dart';
 
 final kayleoRouteObserver = RouteObserver<ModalRoute<dynamic>>();
 
@@ -163,7 +164,7 @@ class StreakSummary extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
+                  child: LocalizedText(
                     'A little, every day',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
@@ -192,7 +193,7 @@ class StreakSummary extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          LocalizedText(
                             '${state.streak}',
                             style: const TextStyle(
                               fontSize: 34,
@@ -200,7 +201,7 @@ class StreakSummary extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          Text(
+                          LocalizedText(
                             'day streak',
                             style: TextStyle(
                               fontSize: 12,
@@ -214,14 +215,14 @@ class StreakSummary extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
+                      LocalizedText(
                         '$best',
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      Text(
+                      LocalizedText(
                         'personal best',
                         style: TextStyle(
                           fontSize: 11,
@@ -268,7 +269,7 @@ class AchievementOverview extends StatelessWidget {
                       color: badgeColor('streak'),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    LocalizedText(
                       '${state.streak}',
                       style: const TextStyle(
                         fontSize: 32,
@@ -277,7 +278,7 @@ class AchievementOverview extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    const Text(
+                    const LocalizedText(
                       'Day streak',
                       style: TextStyle(
                         fontSize: 12,
@@ -306,7 +307,7 @@ class AchievementOverview extends StatelessWidget {
                       color: Color(0xFF9D8BCB),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    LocalizedText(
                       '${state.milestoneUnlocks.length}',
                       style: const TextStyle(
                         fontSize: 32,
@@ -315,7 +316,7 @@ class AchievementOverview extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    const Text(
+                    const LocalizedText(
                       'Milestones earned',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -324,7 +325,7 @@ class AchievementOverview extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 17),
-                    Text(
+                    LocalizedText(
                       'View your collection',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -373,7 +374,7 @@ class _StreakWeek extends StatelessWidget {
           Expanded(
             child: Column(
               children: [
-                Text(
+                LocalizedText(
                   ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i],
                   style: TextStyle(
                     fontSize: dotSize < 20 ? 8 : 10,
@@ -422,37 +423,64 @@ class MilestoneBadge extends StatelessWidget {
     final color = earned
         ? badgeColor(milestone.metric)
         : context.kayleoMuted.withValues(alpha: .33);
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CustomPaint(
-            size: Size.square(size),
-            painter: _BadgePainter(color, earned),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                badgeIcon(milestone.metric),
-                size: size * .26,
-                color: earned ? Colors.white : color,
-              ),
-              const SizedBox(height: 3),
-              Text(
-                '${milestone.target}',
-                style: TextStyle(
-                  fontSize: size * .23,
-                  height: 1,
-                  fontWeight: FontWeight.w800,
+    return Semantics(
+      label: context.l10n.translate(
+        '${milestone.title}, ${earned ? 'earned' : 'locked'}',
+      ),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CustomPaint(
+              size: Size.square(size),
+              painter: _BadgePainter(color, earned),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  badgeIcon(milestone.metric),
+                  size: size * .24,
                   color: earned ? Colors.white : color,
                 ),
+                SizedBox(height: size * .035),
+                LocalizedText(
+                  '${milestone.target}',
+                  style: TextStyle(
+                    fontSize: size * .20,
+                    height: 1,
+                    fontWeight: FontWeight.w800,
+                    color: earned ? Colors.white : color,
+                  ),
+                ),
+              ],
+            ),
+            if (earned)
+              Positioned(
+                right: size * .05,
+                bottom: size * .08,
+                child: Container(
+                  width: size * .25,
+                  height: size * .25,
+                  decoration: BoxDecoration(
+                    color: context.kayleoBackground,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: context.kayleoBackground,
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.check_rounded,
+                    size: size * .16,
+                    color: color,
+                  ),
+                ),
               ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -464,48 +492,211 @@ class _BadgePainter extends CustomPainter {
   final bool earned;
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path();
-    for (var i = 0; i < 6; i++) {
-      final angle = -math.pi / 2 + i * math.pi / 3;
-      final point = Offset(
-        size.width / 2 + math.cos(angle) * size.width * .46,
-        size.height / 2 + math.sin(angle) * size.height * .46,
+    final center = Offset(size.width / 2, size.height / 2);
+    final outer = size.shortestSide * .46;
+    if (earned) {
+      canvas.drawCircle(
+        center,
+        outer + size.width * .025,
+        Paint()
+          ..color = color.withValues(alpha: .18)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, size.width * .08),
       );
-      if (i == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
     }
-    path.close();
-    if (earned) canvas.drawShadow(path, color.withValues(alpha: .28), 8, false);
-    canvas.drawPath(
-      path,
+    canvas.drawCircle(
+      center,
+      outer,
       Paint()
         ..shader = LinearGradient(
           colors: earned
               ? [
-                  Color.lerp(color, Colors.white, .25)!,
+                  Color.lerp(color, Colors.white, .18)!,
                   color,
-                  Color.lerp(color, Colors.black, .12)!,
+                  Color.lerp(color, Colors.black, .16)!,
                 ]
-              : [color.withValues(alpha: .12), color.withValues(alpha: .06)],
+              : [color.withValues(alpha: .13), color.withValues(alpha: .05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ).createShader(Offset.zero & size),
     );
-    canvas.drawPath(
-      path,
+    canvas.drawCircle(
+      center,
+      outer - size.width * .065,
       Paint()
-        ..color = color.withValues(alpha: earned ? .5 : .25)
+        ..color = earned
+            ? Colors.white.withValues(alpha: .20)
+            : color.withValues(alpha: .14)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+        ..strokeWidth = 1.2,
     );
   }
 
   @override
   bool shouldRepaint(covariant _BadgePainter old) =>
       old.color != color || old.earned != earned;
+}
+
+class _MilestoneHero extends StatelessWidget {
+  const _MilestoneHero({required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
+      child: Column(
+        children: [
+          Semantics(
+            label: context.l10n.translate('${state.streak} day streak'),
+            child: ExcludeSemantics(
+              child: SizedBox(
+                width: 230,
+                height: 230,
+                child: KayleoStreakArtwork(
+                  streak: state.streak,
+                  background: context.kayleoBackground,
+                  showBrand: false,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          LocalizedText(
+            'DAY STREAK',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 2,
+              color: context.kayleoMuted,
+            ),
+          ),
+          const SizedBox(height: 8),
+          LocalizedText(
+            state.streak == 0
+                ? 'Log today to begin your streak.'
+                : 'Every day counts. Keep showing up for yourself.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.kayleoMuted,
+              fontSize: 12,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyStreakCard extends StatelessWidget {
+  const _WeeklyStreakCard({required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final start = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).subtract(Duration(days: today.weekday - 1));
+    final activeColor = badgeColor('streak');
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 13, 18, 13),
+      decoration: BoxDecoration(
+        color: context.kayleoSurfaces.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: context.kayleoSurfaces.border.withValues(alpha: .65),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: LocalizedText(
+                  'THIS WEEK',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+              LocalizedText(
+                '${math.max(state.streak, state.milestoneCounts['streak'] ?? 0)} best',
+                style: TextStyle(
+                  color: context.kayleoMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          Row(
+            children: [
+              for (var i = 0; i < 7; i++)
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      final date = start.add(Duration(days: i));
+                      final complete = state.mealsFor(date).isNotEmpty;
+                      final isToday = DateUtils.isSameDay(date, today);
+                      return Column(
+                        children: [
+                          LocalizedText(
+                            ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i],
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: isToday
+                                  ? context.kayleoText
+                                  : context.kayleoMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: complete
+                                  ? activeColor.withValues(alpha: .14)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: complete
+                                    ? activeColor.withValues(alpha: .42)
+                                    : context.kayleoSurfaces.border,
+                              ),
+                            ),
+                            child: Icon(
+                              complete
+                                  ? Icons.local_fire_department_rounded
+                                  : isToday
+                                  ? Icons.circle
+                                  : Icons.remove_rounded,
+                              size: complete ? 19 : 8,
+                              color: complete
+                                  ? activeColor
+                                  : context.kayleoMuted.withValues(alpha: .55),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class MilestonesScreen extends StatefulWidget {
@@ -540,10 +731,18 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
           .toList();
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Milestones'),
+          centerTitle: true,
+          title: const LocalizedText(
+            'MILESTONES',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.8,
+            ),
+          ),
           actions: [
             IconButton(
-              tooltip: 'Share your progress',
+              tooltip: context.l10n.translate('Share your progress'),
               icon: const Icon(Icons.ios_share_rounded),
               onPressed: () => _share(
                 context,
@@ -554,73 +753,71 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
           ],
         ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Small steps. Real progress.',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -.8,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'A collection of the habits you’re building.',
-                style: TextStyle(color: context.kayleoMuted, fontSize: 13),
-              ),
-              const SizedBox(height: 24),
               RepaintBoundary(
                 key: _overviewKey,
                 child: Container(
                   color: context.kayleoBackground,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      StreakSummary(state: state, onTap: () {}),
-                      const SizedBox(height: 16),
-                      Panel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'Your collection',
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                ),
-                                Text(
-                                  '${state.milestoneUnlocks.length}/${milestones.length}',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: LinearProgressIndicator(
-                                value:
-                                    state.milestoneUnlocks.length / milestones.length,
-                                minHeight: 6,
-                                color: context.kayleoPrimary,
-                                backgroundColor: context.kayleoSurfaces.soft,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _MilestoneHero(state: state),
+                      const SizedBox(height: 12),
+                      _WeeklyStreakCard(state: state),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const LocalizedText(
+                          'Your collection',
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        LocalizedText(
+                          'Small steps worth celebrating',
+                          style: TextStyle(
+                            color: context.kayleoMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  LocalizedText(
+                    '${state.milestoneUnlocks.length} / ${milestones.length}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: state.milestoneUnlocks.length / milestones.length,
+                  minHeight: 4,
+                  color: context.kayleoPrimary,
+                  backgroundColor: context.kayleoSurfaces.soft,
+                ),
+              ),
+              const SizedBox(height: 12),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -635,7 +832,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: Text(title),
+                          label: LocalizedText(title),
                           selected: filter == title,
                           showCheckmark: false,
                           onSelected: (_) => setState(() => filter = title),
@@ -644,7 +841,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
               if (visible.isEmpty)
                 const EmptyState(
                   icon: Icons.workspace_premium_outlined,
@@ -662,7 +859,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                   final width = (c.maxWidth - (columns - 1) * 12) / columns;
                   return Wrap(
                     spacing: 12,
-                    runSpacing: 26,
+                    runSpacing: 16,
                     children: [
                       for (final m in visible)
                         SizedBox(
@@ -686,23 +883,27 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                                   size: width.clamp(70, 110),
                                 ),
                                 const SizedBox(height: 10),
-                                Text(
+                                LocalizedText(
                                   m.title,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
                                     height: 1.3,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
+                                LocalizedText(
                                   state.milestoneUnlocks.containsKey(m.id)
                                       ? 'Earned'
                                       : '${(counts[m.metric] ?? 0).clamp(0, m.target)} / ${m.target}',
                                   style: TextStyle(
-                                    fontSize: 10,
-                                    color: context.kayleoMuted,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        state.milestoneUnlocks.containsKey(m.id)
+                                        ? badgeColor(m.metric)
+                                        : context.kayleoMuted,
                                   ),
                                 ),
                               ],
@@ -714,7 +915,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                 },
               ),
               const SizedBox(height: 30),
-              Text(
+              LocalizedText(
                 'Your own pace counts. Sample records don’t earn badges.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11, color: context.kayleoMuted),
@@ -766,7 +967,9 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
     final earned = widget.earned;
     final state = widget.state;
     final earnedDateStr = earned && state.milestoneUnlocks.containsKey(m.id)
-        ? DateFormat.yMMMd().format(DateTime.parse(state.milestoneUnlocks[m.id]!))
+        ? DateFormat.yMMMd().format(
+            DateTime.parse(state.milestoneUnlocks[m.id]!),
+          )
         : null;
 
     return SingleChildScrollView(
@@ -791,26 +994,24 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
                 children: [
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Brand(size: 20),
-                    ],
+                    children: [Brand(size: 20)],
                   ),
                   const SizedBox(height: 16),
                   MilestoneBadge(milestone: m, earned: earned, size: 140),
                   const SizedBox(height: 18),
-                  Text(
+                  LocalizedText(
                     m.title,
                     style: Theme.of(context).textTheme.headlineSmall,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  LocalizedText(
                     badgeRequirement(m),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: context.kayleoMuted),
                   ),
                   const SizedBox(height: 14),
-                  Text(
+                  LocalizedText(
                     earned
                         ? m.compliment
                         : '${widget.count.clamp(0, m.target)} of ${m.target} completed',
@@ -818,9 +1019,12 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
                   ),
                   if (earnedDateStr != null) ...[
                     const SizedBox(height: 10),
-                    Text(
+                    LocalizedText(
                       'Earned $earnedDateStr',
-                      style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.kayleoMuted,
+                      ),
                     ),
                   ],
                 ],
@@ -856,7 +1060,7 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
                       ),
                     )
                   : const Icon(Icons.ios_share_rounded),
-              label: Text(_sharing ? 'Sharing...' : 'Share milestone'),
+              label: LocalizedText(_sharing ? 'Sharing...' : 'Share milestone'),
             ),
           ],
         ],
@@ -878,12 +1082,14 @@ Future<void> _share(
     Uint8List? imageBytes;
     if (boundaryKey != null) {
       try {
-        final boundary = boundaryKey.currentContext?.findRenderObject()
-            as RenderRepaintBoundary?;
+        final boundary =
+            boundaryKey.currentContext?.findRenderObject()
+                as RenderRepaintBoundary?;
         if (boundary != null && boundary.attached) {
           final image = await boundary.toImage(pixelRatio: 3.0);
-          final byteData =
-              await image.toByteData(format: ui.ImageByteFormat.png);
+          final byteData = await image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
           imageBytes = byteData?.buffer.asUint8List();
         }
       } catch (e) {
@@ -910,12 +1116,7 @@ Future<void> _share(
       try {
         await SharePlus.instance.share(
           ShareParams(
-            files: [
-              XFile.fromData(
-                imageBytes,
-                mimeType: 'image/png',
-              ),
-            ],
+            files: [XFile.fromData(imageBytes, mimeType: 'image/png')],
             fileNameOverrides: [fileName],
             text: text,
             title: milestone != null
@@ -968,11 +1169,10 @@ Future<Uint8List> _generateMilestoneImage({
   );
 
   final glowPaint = Paint()
-    ..shader = ui.Gradient.radial(
-      const Offset(width / 2, 330),
-      260,
-      [color.withValues(alpha: isDark ? .28 : .18), Colors.transparent],
-    );
+    ..shader = ui.Gradient.radial(const Offset(width / 2, 330), 260, [
+      color.withValues(alpha: isDark ? .28 : .18),
+      Colors.transparent,
+    ]);
   canvas.drawCircle(const Offset(width / 2, 330), 260, glowPaint);
 
   final borderPaint = Paint()
@@ -1216,7 +1416,9 @@ class _MilestoneCelebrationScreenState
     final state = widget.state;
     final earned = widget.earned;
     final earnedDateStr = state.milestoneUnlocks.containsKey(m.id)
-        ? DateFormat.yMMMd().format(DateTime.parse(state.milestoneUnlocks[m.id]!))
+        ? DateFormat.yMMMd().format(
+            DateTime.parse(state.milestoneUnlocks[m.id]!),
+          )
         : null;
 
     return Scaffold(
@@ -1257,7 +1459,7 @@ class _MilestoneCelebrationScreenState
                     Align(
                       alignment: Alignment.centerLeft,
                       child: IconButton.filledTonal(
-                        tooltip: 'Close celebration',
+                        tooltip: context.l10n.translate('Close celebration'),
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close_rounded),
                       ),
@@ -1279,13 +1481,14 @@ class _MilestoneCelebrationScreenState
                           children: [
                             const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Brand(size: 22),
-                              ],
+                              children: [Brand(size: 22)],
                             ),
                             const SizedBox(height: 20),
                             TweenAnimationBuilder<double>(
-                              tween: Tween(begin: reduceMotion ? 1 : .7, end: 1),
+                              tween: Tween(
+                                begin: reduceMotion ? 1 : .7,
+                                end: 1,
+                              ),
                               duration: reduceMotion
                                   ? Duration.zero
                                   : const Duration(milliseconds: 650),
@@ -1299,7 +1502,7 @@ class _MilestoneCelebrationScreenState
                               ),
                             ),
                             const SizedBox(height: 24),
-                            Text(
+                            LocalizedText(
                               earned.length == 1
                                   ? 'MILESTONE UNLOCKED'
                                   : '${earned.length} MILESTONES UNLOCKED',
@@ -1311,7 +1514,7 @@ class _MilestoneCelebrationScreenState
                               ),
                             ),
                             const SizedBox(height: 12),
-                            Text(
+                            LocalizedText(
                               m.title,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
@@ -1321,7 +1524,7 @@ class _MilestoneCelebrationScreenState
                               ),
                             ),
                             const SizedBox(height: 10),
-                            Text(
+                            LocalizedText(
                               badgeRequirement(m),
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -1330,7 +1533,7 @@ class _MilestoneCelebrationScreenState
                               ),
                             ),
                             const SizedBox(height: 18),
-                            Text(
+                            LocalizedText(
                               m.compliment,
                               textAlign: TextAlign.center,
                               style: const TextStyle(fontSize: 14, height: 1.6),
@@ -1381,7 +1584,7 @@ class _MilestoneCelebrationScreenState
                                 ),
                               )
                             : const Icon(Icons.ios_share_rounded, size: 19),
-                        label: Text(
+                        label: LocalizedText(
                           _sharing
                               ? 'Sharing milestone...'
                               : 'Share your milestone',
@@ -1398,7 +1601,7 @@ class _MilestoneCelebrationScreenState
                                 builder: (_) => MilestonesScreen(state: state),
                               ),
                             ),
-                        child: const Text('View all milestones'),
+                        child: const LocalizedText('View all milestones'),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1408,7 +1611,7 @@ class _MilestoneCelebrationScreenState
                         unawaited(state.persist());
                         Navigator.pop(context);
                       },
-                      child: const Text(
+                      child: const LocalizedText(
                         'Turn off celebrations',
                         style: TextStyle(fontSize: 11),
                       ),

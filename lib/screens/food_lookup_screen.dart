@@ -103,7 +103,9 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
       ? _embeddedBarcode()
       : Scaffold(
           appBar: AppBar(
-            title: Text(widget.barcode ? 'Scan a barcode' : 'Find your food'),
+            title: LocalizedText(
+              widget.barcode ? 'Scan a barcode' : 'Find your food',
+            ),
           ),
           body: SafeArea(
             child: Center(
@@ -116,7 +118,7 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                       FilledButton.icon(
                         onPressed: busy ? null : scan,
                         icon: const Icon(Icons.qr_code_scanner),
-                        label: const Text('Open barcode camera'),
+                        label: const LocalizedText('Open barcode camera'),
                       ),
                     const SizedBox(height: 20),
                     TextField(
@@ -126,12 +128,14 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                           ? TextInputType.number
                           : TextInputType.text,
                       decoration: InputDecoration(
-                        labelText: widget.barcode
-                            ? 'Barcode number'
-                            : 'Search food',
-                        hintText: widget.barcode
-                            ? 'Digits below the barcode'
-                            : 'Food, dish, or brand',
+                        labelText: context.l10n.translate(
+                          widget.barcode ? 'Barcode number' : 'Search food',
+                        ),
+                        hintText: context.l10n.translate(
+                          widget.barcode
+                              ? 'Digits below the barcode'
+                              : 'Food, dish, or brand',
+                        ),
                       ),
                       onSubmitted: (_) => search(),
                     ),
@@ -139,21 +143,21 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                     FilledButton.icon(
                       onPressed: busy ? null : search,
                       icon: const Icon(Icons.search),
-                      label: Text(
+                      label: LocalizedText(
                         widget.barcode ? 'Find product' : 'Search foods',
                       ),
                     ),
                     const SizedBox(height: 20),
                     if (busy) const LinearProgressIndicator(),
                     if (error != null)
-                      Text(
+                      LocalizedText(
                         error!,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.error,
                         ),
                       ),
                     if (unavailableSources.isNotEmpty && !widget.barcode)
-                      Text(
+                      LocalizedText(
                         'Some sources are temporarily unavailable: ${unavailableSources.join(', ')}',
                       ),
                     for (final food in results)
@@ -162,8 +166,8 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                         child: Panel(
                           padding: 0,
                           child: ListTile(
-                            title: Text(food.name),
-                            subtitle: Text(
+                            title: LocalizedText(food.name),
+                            subtitle: LocalizedText(
                               '${food.source}\n${food.values[0] == null ? 'Calories unavailable' : '${number(food.values[0]!)} kcal'} / 100 ${food.unit}',
                             ),
                             trailing: const Icon(Icons.chevron_right),
@@ -185,7 +189,7 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                         ),
                       ),
                     const SizedBox(height: 24),
-                    Text(
+                    LocalizedText(
                       'Open Food Facts · ODbL / DbCL community labels.\nUSDA FoodData Central · public domain.\nReview missing values and the product before logging.',
                       style: TextStyle(
                         color: context.kayleoMuted,
@@ -223,7 +227,7 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: context.l10n.translate('Close'),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close_rounded),
                   ),
@@ -236,19 +240,19 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const Text(
+                  const LocalizedText(
                     'Your product',
                     style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 12),
-                  Text(
+                  LocalizedText(
                     query.text,
                     style: const TextStyle(color: Colors.white54),
                   ),
                   const SizedBox(height: 24),
                   if (busy) const Center(child: CircularProgressIndicator()),
                   if (error != null)
-                    Text(
+                    LocalizedText(
                       error!,
                       style: const TextStyle(color: Color(0xFFF3C6B9)),
                     ),
@@ -256,8 +260,8 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                     Panel(
                       padding: 0,
                       child: ListTile(
-                        title: Text(food.name),
-                        subtitle: Text(
+                        title: LocalizedText(food.name),
+                        subtitle: LocalizedText(
                           '${food.source} · Review nutrition and portion',
                         ),
                         trailing: const Icon(Icons.chevron_right),
@@ -283,7 +287,7 @@ class _FoodLookupScreenState extends State<FoodLookupScreen> {
                         ? null
                         : () => setState(() => embeddedScanning = true),
                     icon: const Icon(Icons.qr_code_scanner_rounded),
-                    label: const Text('Scan another barcode'),
+                    label: const LocalizedText('Scan another barcode'),
                   ),
                 ],
               ),
@@ -535,9 +539,9 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
           },
           child: Scaffold(
             appBar: AppBar(
-              title: const Text('Scan a barcode'),
+              title: const LocalizedText('Scan a barcode'),
               leading: IconButton(
-                tooltip: 'Close barcode camera',
+                tooltip: context.l10n.translate('Close barcode camera'),
                 onPressed: () => finish(null),
                 icon: const Icon(Icons.close),
               ),
@@ -554,7 +558,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
+                                  LocalizedText(
                                     error!,
                                     style: TextStyle(
                                       color: Theme.of(context)
@@ -566,7 +570,9 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                                   if (supported)
                                     FilledButton(
                                       onPressed: retry,
-                                      child: const Text('Retry camera'),
+                                      child: const LocalizedText(
+                                        'Retry camera',
+                                      ),
                                     ),
                                 ],
                               ),
@@ -616,7 +622,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
+                          const LocalizedText(
                             'Place the barcode inside the frame, or enter the number printed below it.',
                           ),
                           const SizedBox(height: 20),
@@ -624,9 +630,11 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                             controller: barcodeInput,
                             keyboardType: TextInputType.number,
                             maxLength: 14,
-                            decoration: const InputDecoration(
-                              labelText: 'Barcode number',
-                              hintText: '8–14 digits',
+                            decoration: InputDecoration(
+                              labelText: context.l10n.translate(
+                                'Barcode number',
+                              ),
+                              hintText: context.l10n.translate('8–14 digits'),
                               prefixIcon: Icon(Icons.numbers_rounded),
                             ),
                             onChanged: (_) => setState(() {}),
@@ -644,7 +652,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                                     .hasMatch(barcodeInput.text.trim())
                                 ? () => finish(barcodeInput.text.trim())
                                 : null,
-                            child: const Text('Find product'),
+                            child: const LocalizedText('Find product'),
                           ),
                         ],
                       ),
@@ -666,7 +674,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
           errorBuilder: (_, scannerError) => const Center(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Text(
+              child: LocalizedText(
                 'Allow camera access to scan, or enter the barcode below.',
                 textAlign: TextAlign.center,
               ),
@@ -700,7 +708,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                     ),
                   ),
                   SizedBox(height: 12),
-                  Text(
+                  LocalizedText(
                     'Starting camera…',
                     style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
@@ -731,7 +739,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                 child: Row(
                   children: [
                     IconButton(
-                      tooltip: 'Close',
+                      tooltip: context.l10n.translate('Close'),
                       onPressed: () => finish(null),
                       icon: const Icon(
                         Icons.close_rounded,
@@ -744,7 +752,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                       TextButton(
                         onPressed: () =>
                             FocusManager.instance.primaryFocus?.unfocus(),
-                        child: const Text('Done'),
+                        child: const LocalizedText('Done'),
                       )
                     else
                       const Brand(light: true, size: 20),
@@ -778,7 +786,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                                 .hasMatch(barcodeInput.text.trim())
                             ? () => finish(barcodeInput.text.trim())
                             : null,
-                        child: const Text('Find product'),
+                        child: const LocalizedText('Find product'),
                       ),
                     ),
                   ),
@@ -798,7 +806,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
+                            const LocalizedText(
                               'Scan a barcode',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -810,7 +818,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                               ),
                             ),
                             const SizedBox(height: 10),
-                            const Text(
+                            const LocalizedText(
                               'Line up the barcode on your food label.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -832,7 +840,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                             ),
                             const SizedBox(height: 24),
                             if (error != null) ...[
-                              Text(
+                              LocalizedText(
                                 supported ? error! : 'Camera unavailable. Enter the barcode below.',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
@@ -844,7 +852,7 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                               if (supported)
                                 TextButton(
                                   onPressed: retry,
-                                  child: const Text('Retry camera'),
+                                  child: const LocalizedText('Retry camera'),
                                 ),
                               const SizedBox(height: 16),
                             ],
@@ -855,8 +863,12 @@ class _ProductBarcodeScreenState extends State<ProductBarcodeScreen>
                               textInputAction: TextInputAction.done,
                               maxLength: 14,
                               decoration: InputDecoration(
-                                labelText: 'Barcode number',
-                                hintText: 'Or enter 8–14 digits',
+                                labelText: context.l10n.translate(
+                                  'Barcode number',
+                                ),
+                                hintText: context.l10n.translate(
+                                  'Or enter 8–14 digits',
+                                ),
                                 counterText: '',
                                 labelStyle: const TextStyle(
                                   color: Colors.white54,

@@ -37,18 +37,18 @@ class SettingsScreen extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choose from photos'),
+              title: const LocalizedText('Choose from photos'),
               onTap: () => Navigator.pop(sheetContext, 'gallery'),
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Take a photo'),
+              title: const LocalizedText('Take a photo'),
               onTap: () => Navigator.pop(sheetContext, 'camera'),
             ),
             if (state.profile.photoBase64 != null)
               ListTile(
                 leading: const Icon(Icons.delete_outline),
-                title: const Text('Remove photo'),
+                title: const LocalizedText('Remove photo'),
                 onTap: () => Navigator.pop(sheetContext, 'remove'),
               ),
           ],
@@ -85,7 +85,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: state,
+    builder: (context, _) => _buildContent(context),
+  );
+
+  Widget _buildContent(BuildContext context) {
     final p = state.profile;
     final loggedDays = state.meals.map((m) => dateKey(m.time)).toSet().length;
     return Column(
@@ -96,8 +101,8 @@ class SettingsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: Text(
-                'Profile',
+              child: LocalizedText(
+                context.l10n.t('profile'),
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             ),
@@ -117,9 +122,12 @@ class SettingsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              child: const Text(
-                'Edit profile',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              child: LocalizedText(
+                context.l10n.t('editProfile'),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -170,7 +178,7 @@ class SettingsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        LocalizedText(
                           p.name.isEmpty ? 'Your profile' : p.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -181,7 +189,7 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 3),
-                        Text(
+                        LocalizedText(
                           '${p.goal} · ${p.age} yrs',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -193,7 +201,7 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         if (state.accountEmail != null) ...[
                           const SizedBox(height: 2),
-                          Text(
+                          LocalizedText(
                             state.accountEmail!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -290,35 +298,45 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: 22),
 
         // ─── Settings groups ───
-        _sectionLabel(context, 'PERSONALIZE'),
+        _sectionLabel(context, context.l10n.t('personalize')),
         _group(context, [
           _setting(
             context,
             Icons.badge_outlined,
-            'Measurements',
+            context.l10n.t('measurements'),
             () => openSheet(context, EditProfileSheet(state: state)),
-            subtitle:
-                '${p.weight.toStringAsFixed(0)} kg · ${p.height.toStringAsFixed(0)} cm',
+            subtitle: p.units == 'Imperial'
+                ? '${(p.weight * 2.20462).toStringAsFixed(0)} lb · ${_feetAndInches(p.height)}'
+                : '${p.weight.toStringAsFixed(0)} kg · ${p.height.toStringAsFixed(0)} cm',
           ),
           _setting(
             context,
             Icons.restaurant_menu_rounded,
-            'Diet preferences',
+            context.l10n.t('dietPreferences'),
             () => openSheet(context, DietPreferencesSheet(state: state)),
             subtitle: p.diet,
           ),
           _setting(
             context,
             Icons.palette_outlined,
-            'Appearance',
+            context.l10n.t('appearance'),
             () => openSheet(context, AppearanceSheet(state: state)),
             subtitle:
                 '${state.appearance[0].toUpperCase()}${state.appearance.substring(1)} mode',
           ),
           _setting(
             context,
+            Icons.language_rounded,
+            context.l10n.t('language'),
+            () => openSheet(context, LanguageSheet(state: state)),
+            subtitle: state.languageCode == 'system'
+                ? context.l10n.t('systemDefault')
+                : AppLocalizations.displayNameFor(state.languageCode),
+          ),
+          _setting(
+            context,
             Icons.straighten_rounded,
-            'Units',
+            context.l10n.t('units'),
             () => unitDialog(context),
             subtitle: p.units,
           ),
@@ -416,7 +434,7 @@ class SettingsScreen extends StatelessWidget {
         Center(
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
+            child: LocalizedText(
               'Kayleo · Your day, in balance.',
               style: TextStyle(fontSize: 11, color: _settingsMuted(context)),
             ),
@@ -431,13 +449,13 @@ class SettingsScreen extends StatelessWidget {
     children: [
       FittedBox(
         fit: BoxFit.scaleDown,
-        child: Text(
+        child: LocalizedText(
           value,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
       ),
       const SizedBox(height: 2),
-      Text(
+      LocalizedText(
         label,
         maxLines: 1,
         textAlign: TextAlign.center,
@@ -455,7 +473,7 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _sectionLabel(BuildContext context, String text) => Padding(
     padding: const EdgeInsets.only(left: 4, bottom: 8),
-    child: Text(
+    child: LocalizedText(
       text,
       style: TextStyle(
         fontSize: 10.5,
@@ -485,7 +503,7 @@ class SettingsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      LocalizedText(
                         'Your daily plan',
                         style: TextStyle(
                           fontSize: 11.5,
@@ -494,7 +512,7 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(
+                      LocalizedText(
                         '${number(p.calorieTarget)} kcal',
                         style: const TextStyle(
                           fontSize: 22,
@@ -625,7 +643,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Flexible(
-            child: Text(
+            child: LocalizedText(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -637,7 +655,7 @@ class SettingsScreen extends StatelessWidget {
       const SizedBox(height: 3),
       Padding(
         padding: const EdgeInsets.only(left: 11),
-        child: Text(
+        child: LocalizedText(
           value,
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
         ),
@@ -659,12 +677,12 @@ class SettingsScreen extends StatelessWidget {
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
       const SizedBox(width: 6),
-      Text(
+      LocalizedText(
         label,
         style: TextStyle(fontSize: 11.5, color: context.kayleoMuted),
       ),
       const SizedBox(width: 4),
-      Text(
+      LocalizedText(
         value,
         style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
       ),
@@ -698,7 +716,12 @@ class SettingsScreen extends StatelessWidget {
         for (var i = 0; i < rows.length; i++) ...[
           rows[i],
           if (i != rows.length - 1)
-            Divider(height: 1, indent: 48, endIndent: 16, color: context.kayleoSurfaces.border.withValues(alpha: .6)),
+            Divider(
+              height: 1,
+              indent: 48,
+              endIndent: 16,
+              color: context.kayleoSurfaces.border.withValues(alpha: .6),
+            ),
         ],
       ],
     ),
@@ -711,7 +734,10 @@ class SettingsScreen extends StatelessWidget {
     VoidCallback action, {
     String? subtitle,
   }) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: KayleoSpacing.lg, vertical: 2),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: KayleoSpacing.lg,
+      vertical: 2,
+    ),
     leading: Container(
       width: 34,
       height: 34,
@@ -721,11 +747,23 @@ class SettingsScreen extends StatelessWidget {
       ),
       child: Icon(icon, size: 17, color: context.kayleoPrimary),
     ),
-    title: Text(title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+    title: LocalizedText(
+      title,
+      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+    ),
     subtitle: subtitle == null
         ? null
-        : Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.kayleoMuted)),
-    trailing: Icon(Icons.chevron_right_rounded, size: 18, color: _settingsMuted(context)),
+        : LocalizedText(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+          ),
+    trailing: Icon(
+      Icons.chevron_right_rounded,
+      size: 18,
+      color: _settingsMuted(context),
+    ),
     onTap: action,
   );
 
@@ -733,7 +771,7 @@ class SettingsScreen extends StatelessWidget {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: Text('Choose your units'),
+        title: LocalizedText('Choose your units'),
         children: ['Metric', 'Imperial']
             .map(
               (u) => SimpleDialogOption(
@@ -751,7 +789,7 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: KayleoSpacing.md),
                       Expanded(
-                        child: Text(
+                        child: LocalizedText(
                           u == 'Metric'
                               ? 'Metric · kg & cm'
                               : 'Imperial · lb & inches',
@@ -791,7 +829,7 @@ class DietPreferencesSheet extends StatelessWidget {
           ])
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(diet),
+              title: LocalizedText(diet),
               leading: Icon(
                 state.profile.diet == diet
                     ? Icons.check_circle_rounded
@@ -829,9 +867,9 @@ class AppearanceSheet extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-              title: Text(title),
+              title: LocalizedText(title),
               subtitle: value == 'system'
-                  ? Text('Follow your device settings')
+                  ? LocalizedText('Follow your device settings')
                   : null,
               trailing: state.appearance == value
                   ? Icon(
@@ -848,6 +886,94 @@ class AppearanceSheet extends StatelessWidget {
   );
 }
 
+class LanguageSheet extends StatelessWidget {
+  const LanguageSheet({super.key, required this.state});
+  final AppState state;
+
+  static const _languageOptions = <(String, String)>[
+    ('system', 'systemDefault'),
+    ('en', 'english'),
+    ('ne', 'nepali'),
+    ('hi', 'hindi'),
+    ('es', 'spanish'),
+    ('zh', 'chinese'),
+    ('ja', 'japanese'),
+    ('ko', 'korean'),
+  ];
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: state,
+    builder: (context, _) {
+      final l10n = context.l10n;
+      return SheetFrame(
+        title: l10n.t('appLanguage'),
+        subtitle: l10n.t('languageSubtitle'),
+        child: Column(
+          children: [
+            for (final (code, labelKey) in _languageOptions)
+              _buildLanguageTile(context, l10n, code, labelKey),
+          ],
+        ),
+      );
+    },
+  );
+
+  Widget _buildLanguageTile(
+    BuildContext context,
+    AppLocalizations l10n,
+    String code,
+    String labelKey,
+  ) {
+    final flag = AppLocalizations.flagFor(code);
+    final nativeName = AppLocalizations.languageNames[code]!;
+    final localizedLabel = l10n.t(labelKey);
+    return ListTile(
+      key: Key('language-option-$code'),
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        width: 38,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: context.kayleoSurfaces.soft,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: flag != null
+            ? LocalizedText(
+                flag,
+                key: Key('language-flag-$code'),
+                translate: false,
+                style: const TextStyle(fontSize: 20),
+              )
+            : Icon(
+                code == 'system'
+                    ? Icons.settings_suggest_outlined
+                    : Icons.translate_rounded,
+                size: 19,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+      ),
+      title: code == 'system'
+          ? LocalizedText(localizedLabel)
+          : LocalizedText(nativeName, translate: false),
+      subtitle: code == 'system'
+          ? LocalizedText(l10n.t('followsDevice'))
+          : localizedLabel == nativeName
+          ? null
+          : LocalizedText(localizedLabel, translate: false),
+      trailing: state.languageCode == code
+          ? Icon(
+              Icons.check_rounded,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : null,
+      selected: state.languageCode == code,
+      onTap: () async => state.setLanguage(code),
+    );
+  }
+}
+
 class DataToolsSheet extends StatelessWidget {
   const DataToolsSheet({super.key, required this.state});
   final AppState state;
@@ -861,7 +987,7 @@ class DataToolsSheet extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: () => exportData(context, state),
           icon: Icon(Icons.download_outlined),
-          label: Text('Export my data'),
+          label: LocalizedText('Export my data'),
         ),
         const SizedBox(height: KayleoSpacing.lg),
         OutlinedButton(
@@ -876,7 +1002,7 @@ class DataToolsSheet extends StatelessWidget {
               if (context.mounted) Navigator.pop(context);
             }
           },
-          child: Text('Replay onboarding'),
+          child: LocalizedText('Replay onboarding'),
         ),
         const SizedBox(height: KayleoSpacing.md),
         OutlinedButton(
@@ -891,7 +1017,7 @@ class DataToolsSheet extends StatelessWidget {
               if (context.mounted) toast(context, 'Sample week loaded');
             }
           },
-          child: Text('Load sample week'),
+          child: LocalizedText('Load sample week'),
         ),
         const SizedBox(height: KayleoSpacing.lg),
         TextButton(
@@ -909,7 +1035,7 @@ class DataToolsSheet extends StatelessWidget {
               await state.reset();
             }
           },
-          child: Text(
+          child: LocalizedText(
             'Delete all data & start over',
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
@@ -923,17 +1049,20 @@ Future<bool> confirm(BuildContext context, String title, String body) async =>
     await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
+        title: LocalizedText(title),
         scrollable: true,
-        content: Text(body, style: TextStyle(fontSize: 13, height: 1.7)),
+        content: LocalizedText(
+          body,
+          style: TextStyle(fontSize: 13, height: 1.7),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+            child: LocalizedText('Cancel'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Continue'),
+            child: LocalizedText('Continue'),
           ),
         ],
       ),
@@ -988,16 +1117,33 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   late final height = TextEditingController(
     text: profile.height.toStringAsFixed(0),
   );
-  late final weight = TextEditingController(
-    text: profile.weight.toStringAsFixed(1),
+  late final heightFeet = TextEditingController(
+    text: ((profile.height / 2.54).round() ~/ 12).toString(),
   );
+  late final heightInches = TextEditingController(
+    text: ((profile.height / 2.54).round() % 12).toString(),
+  );
+  late final weight = TextEditingController(
+    text: (profile.weight * (profile.units == 'Imperial' ? 2.20462 : 1))
+        .toStringAsFixed(1),
+  );
+  late final targetWeight = TextEditingController(
+    text: profile.targetWeight == null
+        ? ''
+        : (profile.targetWeight! * (profile.units == 'Imperial' ? 2.20462 : 1))
+              .toStringAsFixed(1),
+  );
+  late bool heightInMetric = profile.units != 'Imperial';
   final form = GlobalKey<FormState>();
   @override
   void dispose() {
     name.dispose();
     age.dispose();
     height.dispose();
+    heightFeet.dispose();
+    heightInches.dispose();
     weight.dispose();
+    targetWeight.dispose();
     super.dispose();
   }
 
@@ -1014,8 +1160,11 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           }
           profile.name = name.text.trim();
           profile.age = int.parse(age.text);
-          profile.height = double.parse(height.text);
-          profile.weight = double.parse(weight.text);
+          profile.height = _heightInCentimeters();
+          profile.weight = _weightInKilograms(weight.text);
+          profile.targetWeight = profile.goal == 'Lose weight'
+              ? _weightInKilograms(targetWeight.text)
+              : null;
           if (recalculateTargets) profile.calculateTargets();
           widget.state.profile = profile;
           await widget.state.persist();
@@ -1029,7 +1178,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
             );
           }
         },
-        child: Text('Save profile'),
+        child: LocalizedText('Save profile'),
       ),
     ),
     child: Form(
@@ -1039,17 +1188,21 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           TextFormField(
             controller: name,
             maxLength: 24,
-            decoration: const InputDecoration(labelText: 'First name'),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('First name'),
+            ),
             validator: (v) =>
                 v == null || v.trim().isEmpty ? 'Enter a name' : null,
           ),
           const SizedBox(height: 14),
           _numeric(age, 'Age', 18, 100, integer: true),
           const SizedBox(height: 14),
+          _heightUnitSelector(),
+          const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
-              final heightField = _numeric(height, 'Height (cm)', 100, 250);
-              final weightField = _numeric(weight, 'Weight (kg)', 30, 300);
+              final heightField = _heightField();
+              final weightField = _weightField(weight, 'Current weight');
               if (constraints.maxWidth < 350 ||
                   MediaQuery.textScalerOf(context).scale(14) > 20) {
                 return Column(
@@ -1071,8 +1224,8 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
             },
           ),
           const SizedBox(height: KayleoSpacing.lg),
-          Text(
-            'Profile measurements are entered in metric. Your chosen units are used for display and weight logging.',
+          LocalizedText(
+            'Measurements are saved consistently and shown using your preferred units.',
             style: TextStyle(fontSize: 12, color: context.kayleoMuted),
           ),
           const SizedBox(height: KayleoSpacing.lg),
@@ -1094,6 +1247,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
             profile.goal,
             (v) => profile.goal = v,
           ),
+          if (profile.goal == 'Lose weight') ...[
+            const SizedBox(height: KayleoSpacing.lg),
+            _weightGoalFields(),
+          ],
           const SizedBox(height: KayleoSpacing.lg),
           _dropdown(
             'Activity',
@@ -1116,8 +1273,8 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           const SizedBox(height: KayleoSpacing.md),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Recalculate my daily plan'),
-            subtitle: const Text(
+            title: const LocalizedText('Recalculate my daily plan'),
+            subtitle: const LocalizedText(
               'Use these measurements, activity, and goal to refresh calories and macros.',
             ),
             value: recalculateTargets,
@@ -1136,7 +1293,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   }) => TextFormField(
     controller: c,
     keyboardType: TextInputType.numberWithOptions(decimal: !integer),
-    decoration: InputDecoration(labelText: label),
+    decoration: InputDecoration(labelText: context.l10n.translate(label)),
     validator: (v) {
       final n = double.tryParse(v ?? '');
       return n == null ||
@@ -1148,6 +1305,118 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           : null;
     },
   );
+
+  bool get _imperialWeight => profile.units == 'Imperial';
+
+  double _weightInKilograms(String value) =>
+      double.parse(value.trim()) / (_imperialWeight ? 2.20462 : 1);
+
+  double _heightInCentimeters() => heightInMetric
+      ? double.parse(height.text.trim())
+      : (int.parse(heightFeet.text.trim()) * 12 +
+                int.parse(heightInches.text.trim())) *
+            2.54;
+
+  Widget _heightUnitSelector() => SegmentedButton<bool>(
+    key: const Key('profile-height-unit-selector'),
+    segments: const [
+      ButtonSegment(value: true, label: LocalizedText('Centimeters')),
+      ButtonSegment(value: false, label: LocalizedText('Feet & inches')),
+    ],
+    selected: {heightInMetric},
+    showSelectedIcon: false,
+    onSelectionChanged: (selection) => _changeHeightUnit(selection.first),
+  );
+
+  void _changeHeightUnit(bool metric) {
+    if (metric == heightInMetric) return;
+    if (metric) {
+      final feet = int.tryParse(heightFeet.text.trim());
+      final inches = int.tryParse(heightInches.text.trim());
+      if (feet != null && inches != null && inches >= 0 && inches <= 11) {
+        height.text = ((feet * 12 + inches) * 2.54).round().toString();
+      }
+    } else {
+      final centimeters = double.tryParse(height.text.trim());
+      if (centimeters != null && centimeters.isFinite) {
+        final totalInches = (centimeters / 2.54).round();
+        heightFeet.text = (totalInches ~/ 12).toString();
+        heightInches.text = (totalInches % 12).toString();
+      }
+    }
+    setState(() => heightInMetric = metric);
+  }
+
+  Widget _heightField() {
+    if (heightInMetric) return _numeric(height, 'Height (cm)', 100, 250);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _numeric(heightFeet, 'Height (ft)', 3, 8, integer: true),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: _numeric(heightInches, 'Inches', 0, 11, integer: true)),
+      ],
+    );
+  }
+
+  Widget _weightField(
+    TextEditingController controller,
+    String label, {
+    bool target = false,
+  }) => TextFormField(
+    controller: controller,
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    decoration: InputDecoration(
+      labelText: context.l10n.translate(label),
+      suffixText: _imperialWeight ? 'lb' : 'kg',
+    ),
+    validator: (value) {
+      final entered = double.tryParse(value?.trim() ?? '');
+      if (entered == null || !entered.isFinite) return 'Enter a valid weight';
+      final kg = entered / (_imperialWeight ? 2.20462 : 1);
+      if (kg < 30 || kg > 300) return 'Enter 30–300 kg equivalent';
+      if (target && kg >= _weightInKilograms(weight.text)) {
+        return 'Must be below current weight';
+      }
+      return null;
+    },
+  );
+
+  Widget _weightGoalFields() => Container(
+    key: const Key('profile-weight-goal-section'),
+    width: double.infinity,
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: context.kayleoSurfaces.soft.withValues(alpha: .55),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const LocalizedText(
+          'Weight goal',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 14),
+        _weightField(targetWeight, 'Target weight', target: true),
+        const SizedBox(height: 14),
+        SegmentedButton<int>(
+          key: const Key('profile-goal-duration'),
+          segments: const [
+            ButtonSegment(value: 3, label: LocalizedText('3 mo')),
+            ButtonSegment(value: 6, label: LocalizedText('6 mo')),
+            ButtonSegment(value: 12, label: LocalizedText('12 mo')),
+          ],
+          selected: {profile.goalDurationMonths},
+          showSelectedIcon: false,
+          onSelectionChanged: (selection) =>
+              setState(() => profile.goalDurationMonths = selection.first),
+        ),
+      ],
+    ),
+  );
   Widget _dropdown(
     String label,
     List<String> values,
@@ -1156,12 +1425,12 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   ) => DropdownButtonFormField<String>(
     initialValue: selected,
     isExpanded: true,
-    decoration: InputDecoration(labelText: label),
+    decoration: InputDecoration(labelText: context.l10n.translate(label)),
     items: values
         .map(
           (v) => DropdownMenuItem(
             value: v,
-            child: Text(
+            child: LocalizedText(
               v,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1170,8 +1439,13 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           ),
         )
         .toList(),
-    onChanged: (v) => change(v!),
+    onChanged: (v) => setState(() => change(v!)),
   );
+}
+
+String _feetAndInches(double centimeters) {
+  final inches = (centimeters / 2.54).round();
+  return '${inches ~/ 12} ft ${inches % 12} in';
 }
 
 class TargetsSheet extends StatefulWidget {
@@ -1224,7 +1498,7 @@ class _TargetsSheetState extends State<TargetsSheet> {
             toast(context, 'Daily targets updated');
           }
         },
-        child: Text('Save my targets'),
+        child: LocalizedText('Save my targets'),
       ),
     ),
     child: Form(
@@ -1235,7 +1509,9 @@ class _TargetsSheetState extends State<TargetsSheet> {
           DropdownButtonFormField<String>(
             initialValue: goal,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Your goal'),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('Your goal'),
+            ),
             items:
                 [
                       'Feel healthier',
@@ -1246,7 +1522,7 @@ class _TargetsSheetState extends State<TargetsSheet> {
                     .map(
                       (value) => DropdownMenuItem(
                         value: value,
-                        child: Text(
+                        child: LocalizedText(
                           value,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1264,13 +1540,15 @@ class _TargetsSheetState extends State<TargetsSheet> {
                 controller: fields[i],
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: [
-                    'Daily energy (kcal)',
-                    'Protein (g)',
-                    'Carbohydrates (g)',
-                    'Fat (g)',
-                    'Water (ml)',
-                  ][i],
+                  labelText: context.l10n.translate(
+                    [
+                      'Daily energy (kcal)',
+                      'Protein (g)',
+                      'Carbohydrates (g)',
+                      'Fat (g)',
+                      'Water (ml)',
+                    ][i],
+                  ),
                 ),
                 validator: (v) {
                   final n = int.tryParse(v ?? '');
@@ -1299,17 +1577,17 @@ class _TargetsSheetState extends State<TargetsSheet> {
               }
             },
             icon: Icon(Icons.refresh_rounded, size: 16),
-            label: Text('Recalculate from my profile'),
+            label: LocalizedText('Recalculate from my profile'),
           ),
           const SizedBox(height: 18),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: Text(
+            title: LocalizedText(
               'How are targets estimated?',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
             children: [
-              Text(
+              LocalizedText(
                 'The starting estimate uses the Mifflin–St Jeor resting-energy equation and an activity multiplier. Lose-weight and muscle goals adjust maintenance by 250 kcal. Unspecified sex uses a midpoint. Targets are illustrative adult estimates, with a 1,500–4,500 kcal range in this prototype. Individual needs, pregnancy, and medical conditions require appropriate professional guidance.',
                 style: TextStyle(
                   fontSize: 12,
@@ -1377,21 +1655,22 @@ class _ReminderSheetState extends State<ReminderSheet> {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.notifications_active_outlined,
-                      color: context.kayleoPrimary,
-                    ),
+                    const KayleoIcon(size: 36, radius: 10),
                     const SizedBox(width: 12),
                     const Expanded(
-                      child: Text(
+                      child: LocalizedText(
                         'On your device',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
+                    Icon(
+                      Icons.notifications_active_outlined,
+                      color: context.kayleoPrimary,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(
+                LocalizedText(
                   !service.supported
                       ? 'Device reminders are available in the Android and iPhone app. Your inbox stays available here.'
                       : widget.state.preferences['Device notifications'] ==
@@ -1407,7 +1686,7 @@ class _ReminderSheetState extends State<ReminderSheet> {
                 ),
                 if (service.error != null) ...[
                   const SizedBox(height: 8),
-                  Text(
+                  LocalizedText(
                     service.error!,
                     style: TextStyle(
                       fontSize: 12,
@@ -1427,20 +1706,20 @@ class _ReminderSheetState extends State<ReminderSheet> {
                           Icons.notifications_outlined,
                           size: 18,
                         ),
-                        label: Text(
+                        label: LocalizedText(
                           busy ? 'Please wait…' : 'Enable device notifications',
                         ),
                       ),
                       OutlinedButton(
                         onPressed: busy ? null : () => enable(test: true),
-                        child: const Text('Send test notification'),
+                        child: const LocalizedText('Send test notification'),
                       ),
                     ],
                   ),
                   if (widget.state.preferences['Device notifications'] == true)
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text(
+                      title: const LocalizedText(
                         'Device notifications',
                         style: TextStyle(fontSize: 13),
                       ),
@@ -1479,20 +1758,20 @@ class _ReminderSheetState extends State<ReminderSheet> {
                 widget.state.preferences[key] = v;
                 widget.state.persist();
               },
-              title: Text(
+              title: LocalizedText(
                 key,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              subtitle: Text(
+              subtitle: LocalizedText(
                 sub,
                 style: TextStyle(fontSize: 12, color: context.kayleoMuted),
               ),
             ),
           const SizedBox(height: 16),
-          Text(
+          LocalizedText(
             'Times follow your device’s timezone. Reminders work offline after scheduling. Your phone’s notification permission and battery settings can affect delivery. Milestone compliments also stay in your inbox.',
             style: TextStyle(
               fontSize: 12,
@@ -1526,7 +1805,7 @@ class PrivacySheet extends StatelessWidget {
                 Icon(Icons.lock_outline_rounded, color: context.kayleoPrimary),
                 SizedBox(width: 14),
                 Expanded(
-                  child: Text(
+                  child: LocalizedText(
                     'Firebase secures your account. Your profile, meals, hydration, weight, activity, saved meals, and milestones are backed up to your own Firestore diary. Saved meal photos and device notification settings stay on this device. When Kayleo photo recognition is used, the captured image is analyzed securely to estimate nutrition. Sample diaries stay local. Browser storage can be cleared by your browser.',
                     style: TextStyle(
                       fontSize: 12,
@@ -1546,11 +1825,11 @@ class PrivacySheet extends StatelessWidget {
               state.preferences['Keep meal photos'] = v;
               state.persist();
             },
-            title: Text(
+            title: LocalizedText(
               'Keep photos with future meals',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
-            subtitle: Text(
+            subtitle: LocalizedText(
               'Turn off to save nutrition without the photo.',
               style: TextStyle(fontSize: 12, color: context.kayleoMuted),
             ),
@@ -1562,11 +1841,11 @@ class PrivacySheet extends StatelessWidget {
               state.preferences['Improve recognition'] = v;
               state.persist();
             },
-            title: Text(
+            title: LocalizedText(
               'Allow corrections to improve recognition',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
-            subtitle: Text(
+            subtitle: LocalizedText(
               'Consent preference only. Nothing is uploaded in this prototype.',
               style: TextStyle(fontSize: 12, color: context.kayleoMuted),
             ),
@@ -1577,7 +1856,7 @@ class PrivacySheet extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: () => exportData(context, state),
               icon: Icon(Icons.download_outlined, size: 16),
-              label: Text('Export my data'),
+              label: LocalizedText('Export my data'),
             ),
           ),
           const SizedBox(height: KayleoSpacing.md),
@@ -1599,7 +1878,7 @@ class PrivacySheet extends StatelessWidget {
                   }
                 }
               },
-              child: Text('Remove all saved photos'),
+              child: LocalizedText('Remove all saved photos'),
             ),
           ),
           const SizedBox(height: KayleoSpacing.xl),
@@ -1620,7 +1899,7 @@ class PrivacySheet extends StatelessWidget {
                 await state.reset();
               }
             },
-            child: Text(
+            child: LocalizedText(
               'Delete all data & start over',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
@@ -1660,7 +1939,7 @@ class _PremiumSheetState extends State<PremiumSheet> {
             );
           }
         },
-        child: Text(
+        child: LocalizedText(
           widget.state.premium
               ? 'End Kayleo+ preview'
               : 'Explore Kayleo+ preview',
@@ -1685,7 +1964,7 @@ class _PremiumSheetState extends State<PremiumSheet> {
                   icon: Icons.add_circle_outline_rounded,
                 ),
                 SizedBox(height: KayleoSpacing.page),
-                Text(
+                LocalizedText(
                   'More room\nto understand.',
                   style: TextStyle(
                     color: Colors.white,
@@ -1737,7 +2016,7 @@ class _PremiumSheetState extends State<PremiumSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      LocalizedText(
                         title,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
@@ -1745,7 +2024,7 @@ class _PremiumSheetState extends State<PremiumSheet> {
                         ),
                       ),
                       const SizedBox(height: KayleoSpacing.xs),
-                      Text(
+                      LocalizedText(
                         sub,
                         style: TextStyle(
                           fontSize: 12,
@@ -1764,7 +2043,7 @@ class _PremiumSheetState extends State<PremiumSheet> {
           runSpacing: 10,
           children: [
             ChoiceChip(
-              label: Text(
+              label: LocalizedText(
                 'Yearly · \$39.99 / year',
                 style: TextStyle(
                   fontSize: 12,
@@ -1777,7 +2056,7 @@ class _PremiumSheetState extends State<PremiumSheet> {
               checkmarkColor: forest,
             ),
             ChoiceChip(
-              label: Text(
+              label: LocalizedText(
                 'Monthly · \$5.99 / month',
                 style: TextStyle(
                   fontSize: 12,
@@ -1792,7 +2071,7 @@ class _PremiumSheetState extends State<PremiumSheet> {
           ],
         ),
         const SizedBox(height: KayleoSpacing.lg),
-        Text(
+        LocalizedText(
           'Illustrative pricing only. This preview does not start a trial, process payment, or enable cloud AI. All local prototype features remain available.',
           style: TextStyle(
             fontSize: 12,
@@ -1832,17 +2111,17 @@ class AboutSheet extends StatelessWidget {
           ],
         ),
         SizedBox(height: KayleoSpacing.xl),
-        Text(
+        LocalizedText(
           'Your day, in balance.',
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22),
         ),
         SizedBox(height: 18),
-        Text(
+        LocalizedText(
           'Kayleo is a local nutrition prototype. Set up your profile, review meal estimates, keep a diary, and track water, weight, and movement. Your diary stays available on this device and is backed up to your Firebase account; you can also export a backup.',
           style: TextStyle(fontSize: 12, height: 1.9),
         ),
         SizedBox(height: 18),
-        Text(
+        LocalizedText(
           'Meal descriptions use the local catalog and searches of Open Food Facts and USDA FoodData Central. Barcode lookup and device reminders are available on supported phones. Review estimates before saving. Subscriptions and wearable integrations remain previews. Communities and invite-only friends use live Firebase conversations with optional progress sharing. Sample records are clearly labeled.',
           style: TextStyle(
             fontSize: 12,
@@ -1851,7 +2130,7 @@ class AboutSheet extends StatelessWidget {
           ),
         ),
         SizedBox(height: 18),
-        Text(
+        LocalizedText(
           'Food nutrition is estimated, not laboratory-exact. This app provides general information for adults and does not diagnose conditions or replace medical advice.',
           style: TextStyle(
             fontSize: 12,
@@ -1874,7 +2153,7 @@ Future<void> logWeightDialog(BuildContext context, AppState state) async {
     controllers: [controller],
     context: context,
     builder: (context) => AlertDialog(
-      title: Text('Log weight'),
+      title: LocalizedText('Log weight'),
       content: Form(
         key: key,
         child: TextFormField(
@@ -1882,7 +2161,9 @@ Future<void> logWeightDialog(BuildContext context, AppState state) async {
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            labelText: imperial ? 'Weight (lb)' : 'Weight (kg)',
+            labelText: context.l10n.translate(
+              imperial ? 'Weight (lb)' : 'Weight (kg)',
+            ),
           ),
           validator: (v) {
             final value = double.tryParse(v ?? '');
@@ -1896,7 +2177,7 @@ Future<void> logWeightDialog(BuildContext context, AppState state) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancel'),
+          child: LocalizedText('Cancel'),
         ),
         FilledButton(
           onPressed: () {
@@ -1904,7 +2185,7 @@ Future<void> logWeightDialog(BuildContext context, AppState state) async {
               Navigator.pop(context, true);
             }
           },
-          child: Text('Save weight'),
+          child: LocalizedText('Save weight'),
         ),
       ],
     ),
@@ -1926,14 +2207,14 @@ Future<void> logActivityDialog(BuildContext context, AppState state) async {
     controllers: [c],
     context: context,
     builder: (context) => AlertDialog(
-      title: Text('Log movement'),
+      title: LocalizedText('Log movement'),
       content: Form(
         key: form,
         child: TextFormField(
           controller: c,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Minutes of walking or movement',
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('Minutes of walking or movement'),
           ),
           validator: (v) {
             final n = int.tryParse(v ?? '');
@@ -1944,7 +2225,7 @@ Future<void> logActivityDialog(BuildContext context, AppState state) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancel'),
+          child: LocalizedText('Cancel'),
         ),
         FilledButton(
           onPressed: () {
@@ -1952,7 +2233,7 @@ Future<void> logActivityDialog(BuildContext context, AppState state) async {
               Navigator.pop(context, true);
             }
           },
-          child: Text('Log movement'),
+          child: LocalizedText('Log movement'),
         ),
       ],
     ),

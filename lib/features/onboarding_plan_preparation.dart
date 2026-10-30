@@ -153,7 +153,7 @@ class _OnboardingPlanPreparationState extends State<OnboardingPlanPreparation>
             ),
           ),
           const SizedBox(height: 26),
-          Text(
+          LocalizedText(
             'Your plan,\nin balance.',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -172,7 +172,7 @@ class _OnboardingPlanPreparationState extends State<OnboardingPlanPreparation>
               duration: reduceMotion
                   ? Duration.zero
                   : const Duration(milliseconds: 180),
-              child: Text(
+              child: LocalizedText(
                 [
                   'Setting your daily energy',
                   'Finding your macro balance',
@@ -236,7 +236,7 @@ class _OnboardingPlanPreparationState extends State<OnboardingPlanPreparation>
             ),
           ),
           const SizedBox(height: 20),
-          Text(
+          LocalizedText(
             'A starting point. Always yours to adjust.',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -295,7 +295,7 @@ class _PreparationRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              LocalizedText(
                 title,
                 style: TextStyle(
                   fontSize: 12,
@@ -311,7 +311,7 @@ class _PreparationRow extends StatelessWidget {
                     ? Duration.zero
                     : const Duration(milliseconds: 180),
                 opacity: complete ? 1 : 0,
-                child: Text(
+                child: LocalizedText(
                   detail,
                   style: TextStyle(
                     fontSize: 11,

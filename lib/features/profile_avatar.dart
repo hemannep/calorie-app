@@ -27,7 +27,7 @@ class ProfileAvatar extends StatelessWidget {
       backgroundColor: context.kayleoSurfaces.soft,
       backgroundImage: image,
       child: image == null
-          ? Text(
+          ? LocalizedText(
               profile.name.isEmpty
                   ? 'K'
                   : profile.name.characters.first.toUpperCase(),

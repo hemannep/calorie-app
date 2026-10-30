@@ -197,10 +197,35 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
     });
     try {
       if (service.geminiConfigured) {
-        final food = await service.analyzeMealPhoto(bytes);
+        var food = await service.analyzeMealPhoto(bytes);
         if (!mounted || !current(token)) return;
         pulse.stop();
         setState(() => processing = false);
+        if (food.clarifications.isNotEmpty) {
+          final answers = await showModalBottomSheet<List<String>>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) =>
+                _MealClarificationSheet(clarifications: food.clarifications),
+          );
+          if (!mounted || !current(token)) return;
+          if (answers != null && answers.isNotEmpty) {
+            setState(() => processing = true);
+            if (!MediaQuery.disableAnimationsOf(context)) {
+              pulse.repeat(reverse: true);
+            }
+            food = await service.refineMealPhoto(
+              bytes,
+              correction: answers.join(' '),
+              previous: food,
+            );
+            if (!mounted || !current(token)) return;
+            pulse.stop();
+            setState(() => processing = false);
+          }
+        }
         final logged = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
             builder: (_) => FoodConfirmationScreen(
@@ -208,6 +233,7 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
               food: food,
               photo: bytes,
               confidence: null,
+              service: service,
             ),
           ),
         );
@@ -265,18 +291,18 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  const LocalizedText(
                     'Choose the matching food',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  const LocalizedText(
                     'Check the name and product. Search results may include a different recipe or brand.',
                   ),
                   for (final food in products)
                     ListTile(
-                      title: Text(food.name),
-                      subtitle: Text(food.source),
+                      title: LocalizedText(food.name),
+                      subtitle: LocalizedText(food.source),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.pop(context, food),
                     ),
@@ -316,8 +342,7 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
           lower.contains('connection abort') ||
           lower.contains('failed host lookup') ||
           lower.contains('googleapis.com')) {
-        message =
-            'Kayleo couldn’t reach the network right now. Check your internet connection and try again.';
+        message = 'Kayleo couldn’t reach the network right now. Check your internet connection and try again.';
       } else {
         message = rawMessage
             .replaceAll(RegExp(r'https?://\S+'), '')
@@ -389,15 +414,17 @@ class _FoodCameraScreenState extends State<FoodCameraScreen>
       onPhotoCaptured: (bytes) {
         if (service.geminiConfigured) {
           unawaited(
-            service.analyzeMealPhoto(bytes).catchError(
-              (_) => const FoodNutrition(
-                id: '',
-                name: '',
-                source: '',
-                sourceUrl: '',
-                values: [],
-              ),
-            ),
+            service
+                .analyzeMealPhoto(bytes)
+                .catchError(
+                  (_) => const FoodNutrition(
+                    id: '',
+                    name: '',
+                    source: '',
+                    sourceUrl: '',
+                    values: [],
+                  ),
+                ),
           );
         }
       },
@@ -535,6 +562,31 @@ class _KayleoParallaxScanView extends StatefulWidget {
 
 class _KayleoParallaxScanViewState extends State<_KayleoParallaxScanView> {
   Offset _dragTilt = Offset.zero;
+  Timer? _stageTimer;
+  int _stage = 0;
+
+  static const _scanStages = [
+    'Finding visible foods',
+    'Checking ingredients & toppings',
+    'Estimating portions',
+    'Calculating nutrition',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _stageTimer = Timer.periodic(const Duration(milliseconds: 900), (_) {
+      if (mounted && widget.processing) {
+        setState(() => _stage = math.min(_stage + 1, _scanStages.length - 1));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _stageTimer?.cancel();
+    super.dispose();
+  }
 
   void _updateTilt(Offset delta, Size size) {
     final nx = (_dragTilt.dx + delta.dx / (size.width * 0.4)).clamp(-1.0, 1.0);
@@ -606,7 +658,7 @@ class _KayleoParallaxScanViewState extends State<_KayleoParallaxScanView> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: IconButton(
-                          tooltip: 'Close scanner',
+                          tooltip: context.l10n.translate('Close scanner'),
                           onPressed: widget.onClose,
                           icon: const Icon(
                             Icons.close_rounded,
@@ -750,28 +802,25 @@ class _KayleoParallaxScanViewState extends State<_KayleoParallaxScanView> {
                                                               BorderRadius.circular(
                                                                 99,
                                                               ),
-                                                          gradient:
-                                                              LinearGradient(
-                                                                colors: [
-                                                                  Colors.white
-                                                                      .withValues(
-                                                                        alpha:
-                                                                            0,
-                                                                      ),
-                                                                  lime.withValues(
-                                                                    alpha: 0.95,
+                                                          gradient: LinearGradient(
+                                                            colors: [
+                                                              Colors.white
+                                                                  .withValues(
+                                                                    alpha: 0,
                                                                   ),
-                                                                  Colors.white,
-                                                                  lime.withValues(
-                                                                    alpha: 0.95,
-                                                                  ),
-                                                                  Colors.white
-                                                                      .withValues(
-                                                                        alpha:
-                                                                            0,
-                                                                      ),
-                                                                ],
+                                                              lime.withValues(
+                                                                alpha: 0.95,
                                                               ),
+                                                              Colors.white,
+                                                              lime.withValues(
+                                                                alpha: 0.95,
+                                                              ),
+                                                              Colors.white
+                                                                  .withValues(
+                                                                    alpha: 0,
+                                                                  ),
+                                                            ],
+                                                          ),
                                                           boxShadow: [
                                                             BoxShadow(
                                                               color: lime
@@ -853,9 +902,9 @@ class _KayleoParallaxScanViewState extends State<_KayleoParallaxScanView> {
                                         const SizedBox(width: 10),
                                       ],
                                       Flexible(
-                                        child: Text(
+                                        child: LocalizedText(
                                           widget.processing
-                                              ? 'Looking at your meal…'
+                                              ? _scanStages[_stage]
                                               : 'Review your meal',
                                           textAlign: TextAlign.center,
                                           style: const TextStyle(
@@ -870,7 +919,7 @@ class _KayleoParallaxScanViewState extends State<_KayleoParallaxScanView> {
                                   ),
                                 ),
                                 const SizedBox(height: 10),
-                                Text(
+                                LocalizedText(
                                   widget.aiConfigured
                                       ? 'Estimating portions & nutrition'
                                       : 'Recognition stays on your device.',
@@ -941,13 +990,13 @@ class _PhotoRecoverySheet extends StatelessWidget {
               child: Icon(icon, color: lime, size: 27),
             ),
             const SizedBox(height: 18),
-            Text(
+            LocalizedText(
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            Text(
+            LocalizedText(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.onSurfaceVariant, height: 1.45),
@@ -958,7 +1007,7 @@ class _PhotoRecoverySheet extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: () => Navigator.pop(context, 'retake'),
                 icon: const Icon(Icons.camera_alt_outlined, size: 19),
-                label: const Text('Retake photo'),
+                label: const LocalizedText('Retake photo'),
               ),
             ),
             const SizedBox(height: 8),
@@ -968,17 +1017,183 @@ class _PhotoRecoverySheet extends StatelessWidget {
                   child: TextButton.icon(
                     onPressed: () => Navigator.pop(context, 'gallery'),
                     icon: const Icon(Icons.photo_library_outlined, size: 18),
-                    label: const Text('Choose photo'),
+                    label: const LocalizedText('Choose photo'),
                   ),
                 ),
                 Expanded(
                   child: TextButton.icon(
                     onPressed: () => Navigator.pop(context, 'manual'),
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Type instead'),
+                    label: const LocalizedText('Type instead'),
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MealClarificationSheet extends StatefulWidget {
+  const _MealClarificationSheet({required this.clarifications});
+
+  final List<MealClarification> clarifications;
+
+  @override
+  State<_MealClarificationSheet> createState() =>
+      _MealClarificationSheetState();
+}
+
+class _MealClarificationSheetState extends State<_MealClarificationSheet> {
+  late final List<String?> selections = List.filled(
+    widget.clarifications.length,
+    null,
+  );
+  late final List<TextEditingController> customAnswers = List.generate(
+    widget.clarifications.length,
+    (_) => TextEditingController(),
+  );
+
+  bool get complete {
+    for (var i = 0; i < selections.length; i++) {
+      if (selections[i] == null && customAnswers[i].text.trim().isEmpty) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  void dispose() {
+    for (final controller in customAnswers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void submit() {
+    final answers = <String>[];
+    for (var i = 0; i < widget.clarifications.length; i++) {
+      final clarification = widget.clarifications[i];
+      final custom = customAnswers[i].text.trim();
+      final answer = custom.isNotEmpty ? custom : selections[i]!;
+      answers.add(
+        answer == 'Not sure'
+            ? 'For "${clarification.question}", the user is not sure. Keep a cautious generic estimate without assuming a specific ingredient.'
+            : 'For "${clarification.question}", the user answered "$answer".',
+      );
+    }
+    Navigator.pop(context, answers);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          14,
+          24,
+          24 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: scheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 22),
+            const LocalizedText(
+              'One quick detail',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            LocalizedText(
+              'Some ingredients are hidden in the photo and can change the nutrition estimate.',
+              style: TextStyle(color: context.kayleoMuted),
+            ),
+            const SizedBox(height: 18),
+            for (var i = 0; i < widget.clarifications.length; i++) ...[
+              LocalizedText(
+                widget.clarifications[i].question,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (widget.clarifications[i].reason.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                LocalizedText(
+                  widget.clarifications[i].reason,
+                  style: TextStyle(fontSize: 12.5, color: context.kayleoMuted),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final option in {
+                    ...widget.clarifications[i].options,
+                    'Not sure',
+                  })
+                    ChoiceChip(
+                      label: LocalizedText(option),
+                      selected:
+                          selections[i] == option &&
+                          customAnswers[i].text.trim().isEmpty,
+                      onSelected: (_) => setState(() {
+                        selections[i] = option;
+                        customAnswers[i].clear();
+                      }),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: customAnswers[i],
+                maxLength: 80,
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: context.l10n.translate('Your answer'),
+                  hintText: context.l10n.translate('Type your answer'),
+                ),
+                onChanged: (value) => setState(() {
+                  if (value.trim().isNotEmpty) selections[i] = null;
+                }),
+              ),
+              if (i != widget.clarifications.length - 1)
+                const SizedBox(height: 14),
+            ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: complete ? submit : null,
+                icon: const Icon(Icons.auto_awesome_rounded),
+                label: const LocalizedText('Update my estimate'),
+              ),
+            ),
+            Center(
+              child: TextButton(
+                onPressed: () => Navigator.pop(context, <String>[]),
+                child: const LocalizedText('Use current estimate'),
+              ),
             ),
           ],
         ),
@@ -1015,12 +1230,12 @@ class _ClarifySheetState extends State<_ClarifySheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        const LocalizedText(
           'Clarify Your Meal',
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 14),
-        Text(
+        LocalizedText(
           'Did you mean ${widget.result.first.name} (${(widget.result.first.confidence * 100).round()}%) or ${widget.result.second.name} (${(widget.result.second.confidence * 100).round()}%)?',
         ),
         const SizedBox(height: 16),
@@ -1030,7 +1245,9 @@ class _ClarifySheetState extends State<_ClarifySheet> {
           children: [
             for (final p in [widget.result.first, widget.result.second])
               ChoiceChip(
-                label: Text('${p.name} · ${(p.confidence * 100).round()}%'),
+                label: LocalizedText(
+                  '${p.name} · ${(p.confidence * 100).round()}%',
+                ),
                 selected: identical(selected, p),
                 onSelected: (_) => setState(() => selected = p),
               ),
@@ -1040,7 +1257,9 @@ class _ClarifySheetState extends State<_ClarifySheet> {
         TextField(
           controller: custom,
           maxLength: 100,
-          decoration: const InputDecoration(labelText: 'A different food name'),
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('A different food name'),
+          ),
           onChanged: (_) => setState(() => selected = null),
         ),
         const SizedBox(height: 16),
@@ -1055,7 +1274,7 @@ class _ClarifySheetState extends State<_ClarifySheet> {
                         : selected,
                   )
                 : null,
-            child: const Text('Confirm food'),
+            child: const LocalizedText('Confirm food'),
           ),
         ),
       ],
@@ -1125,11 +1344,13 @@ class FoodConfirmationScreen extends StatefulWidget {
     required this.food,
     this.photo,
     this.confidence,
+    this.service,
   });
   final AppState state;
   final FoodNutrition food;
   final Uint8List? photo;
   final double? confidence;
+  final FoodAIService? service;
   @override
   State<FoodConfirmationScreen> createState() => _FoodConfirmationScreenState();
 }
@@ -1145,7 +1366,8 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
       .toList();
   final _missingFoodController = TextEditingController();
   late List<_PlateItemEntry> _plateItems;
-  bool saving = false;
+  late FoodNutrition _reviewFood;
+  bool saving = false, refining = false;
   String? error;
   static const labels = [
     'Calories (kcal)',
@@ -1158,6 +1380,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
   @override
   void initState() {
     super.initState();
+    _reviewFood = widget.food;
     _plateItems = _buildInitialPlateItems();
   }
 
@@ -1170,7 +1393,8 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
     super.dispose();
   }
 
-  static ({double quantity, String unit, double baseGrams}) _parsePortionText(
+  static ({double quantity, String unit, double baseGrams})
+  _parsePortionLocalizedText(
     String rawPortion,
     double totalGrams,
     String basisUnit,
@@ -1208,11 +1432,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
         return (quantity: totalGrams, unit: u, baseGrams: 100);
       }
       if (u == 'oz') {
-        return (
-          quantity: totalGrams / 28.3495,
-          unit: 'oz',
-          baseGrams: 100,
-        );
+        return (quantity: totalGrams / 28.3495, unit: 'oz', baseGrams: 100);
       }
       final safeQ = q > 0 ? q : 1.0;
       return (
@@ -1228,17 +1448,18 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
     );
   }
 
-  List<_PlateItemEntry> _buildInitialPlateItems() {
-    if (widget.food.plateItems.isNotEmpty) {
+  List<_PlateItemEntry> _buildInitialPlateItems([FoodNutrition? updated]) {
+    final food = updated ?? _reviewFood;
+    if (food.plateItems.isNotEmpty) {
       return [
-        for (var i = 0; i < widget.food.plateItems.length; i++)
+        for (var i = 0; i < food.plateItems.length; i++)
           () {
-            final item = widget.food.plateItems[i];
+            final item = food.plateItems[i];
             final g = item.grams > 0 ? item.grams : 100.0;
             final factor = 100.0 / g;
-            final parsed = _parsePortionText(item.portion, g, unit);
+            final parsed = _parsePortionLocalizedText(item.portion, g, unit);
             return _PlateItemEntry(
-              id: '${widget.food.id}:item:$i',
+              id: '${food.id}:item:$i',
               name: _capitalizeFoodName(item.name),
               quantity: parsed.quantity,
               unit: parsed.unit,
@@ -1253,22 +1474,18 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
           }(),
       ];
     }
-    final cals = widget.food.values[0] ?? 130.0;
-    final pro = widget.food.values[1] ?? 4.0;
-    final carb = widget.food.values[2] ?? 22.0;
-    final fat = widget.food.values[3] ?? 3.0;
-    final fib = widget.food.values.length > 4
-        ? (widget.food.values[4] ?? 2.0)
-        : 2.0;
+    final cals = food.values[0] ?? 130.0;
+    final pro = food.values[1] ?? 4.0;
+    final carb = food.values[2] ?? 22.0;
+    final fat = food.values[3] ?? 3.0;
+    final fib = food.values.length > 4 ? (food.values[4] ?? 2.0) : 2.0;
     return [
       _PlateItemEntry(
-        id: widget.food.id,
-        name: _capitalizeFoodName(widget.food.name),
-        quantity: widget.food.servingGrams,
+        id: food.id,
+        name: _capitalizeFoodName(food.name),
+        quantity: food.servingGrams,
         unit: unit,
-        baseServingGrams: widget.food.servingGrams > 0
-            ? widget.food.servingGrams
-            : 100.0,
+        baseServingGrams: food.servingGrams > 0 ? food.servingGrams : 100.0,
         caloriesPer100g: cals,
         proteinPer100g: pro,
         carbsPer100g: carb,
@@ -1286,8 +1503,8 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
   }
 
   String get _cleanDetails {
-    if (widget.food.details.isEmpty) return '';
-    final parts = widget.food.details
+    if (_reviewFood.details.isEmpty) return '';
+    final parts = _reviewFood.details
         .split(' · ')
         .where((p) => !p.trim().toLowerCase().startsWith('on your plate:'))
         .toList();
@@ -1311,7 +1528,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
       totalFib += item.eatenFiber;
     }
     amount = totalGrams.clamp(1.0, 3000.0);
-    if (widget.food.complete && amount > 0) {
+    if (_reviewFood.complete && amount > 0) {
       final factor = 100.0 / amount;
       final updated = [
         totalCals * factor,
@@ -1408,9 +1625,49 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
     });
   }
 
-  void _addMissingFoodByText([String? presetText]) {
+  Future<void> _addMissingFoodByLocalizedText([String? presetText]) async {
     final rawInput = (presetText ?? _missingFoodController.text).trim();
     if (rawInput.isEmpty) return;
+    if (presetText == null &&
+        widget.photo != null &&
+        widget.service?.geminiConfigured == true) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      setState(() {
+        refining = true;
+        error = null;
+      });
+      try {
+        final refined = await widget.service!.refineMealPhoto(
+          widget.photo!,
+          correction: rawInput,
+          previous: _reviewFood,
+        );
+        if (!mounted) return;
+        setState(() {
+          _reviewFood = refined;
+          _plateItems = _buildInitialPlateItems(refined);
+          amount = refined.servingGrams;
+          for (var i = 0; i < values.length && i < refined.values.length; i++) {
+            values[i].text = refined.values[i]?.toStringAsFixed(2) ?? '';
+          }
+          _missingFoodController.clear();
+          portion = null;
+          _syncTotalsFromPlate();
+        });
+        return;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          error = e.toString().replaceFirst(
+            RegExp(r'^[A-Za-z]+(?:Error|Exception)?:\s*'),
+            '',
+          );
+        });
+        return;
+      } finally {
+        if (mounted) setState(() => refining = false);
+      }
+    }
     final segments = rawInput
         .split(RegExp(r'\s*(?:,|\+|(?:\band\b))\s*', caseSensitive: false))
         .map((s) => s.trim())
@@ -1424,8 +1681,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
       if (!analysis.unmatched && analysis.meal.items.isNotEmpty) {
         for (final matched in analysis.meal.items) {
           final f = mealItemFood(matched);
-          final q =
-              (matched.portion?['quantity'] as num?)?.toDouble() ?? 1.0;
+          final q = (matched.portion?['quantity'] as num?)?.toDouble() ?? 1.0;
           final u = (matched.portion?['unit'] as String?) ?? f.unit;
           addedEntries.add(
             _PlateItemEntry(
@@ -1548,7 +1804,11 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
 
     final lower = foodName.toLowerCase();
     double baseServingGrams = 60.0;
-    double cal100 = 165.0, pro100 = 7.0, carb100 = 22.0, fat100 = 5.5, fib100 = 2.0;
+    double cal100 = 165.0,
+        pro100 = 7.0,
+        carb100 = 22.0,
+        fat100 = 5.5,
+        fib100 = 2.0;
 
     if (lower.contains('egg')) {
       baseServingGrams = 50;
@@ -1649,7 +1909,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
     });
     try {
       final n = values.map((c) => double.tryParse(c.text)).toList();
-      final source = widget.food.toFood(n);
+      final source = _reviewFood.toFood(n);
       final food = Food(
         id: source.id,
         name: source.name,
@@ -1660,7 +1920,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
         nutritionBasisUnit: unit,
         source:
             source.source +
-            (widget.food.complete ? '' : ' · label values completed by you'),
+            (_reviewFood.complete ? '' : ' · label values completed by you'),
         sourceUrl: source.sourceUrl,
         barcode: source.barcode,
       );
@@ -1698,7 +1958,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
               : 'Dinner',
           items: mealItems,
           photo: widget.photo,
-          input: widget.food.id.startsWith('kayleo:')
+          input: _reviewFood.id.startsWith('kayleo:')
               ? 'Kayleo Vision'
               : widget.confidence == null
               ? 'Food lookup'
@@ -1724,10 +1984,11 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentShare = (portion?['share'] as num?)?.toDouble() ??
+    final currentShare =
+        (portion?['share'] as num?)?.toDouble() ??
         (_plateItems.isNotEmpty ? _plateItems.first.share : 1.0);
     return Scaffold(
-      appBar: AppBar(title: const Text('Review your meal')),
+      appBar: AppBar(title: const LocalizedText('Review your meal')),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
@@ -1737,7 +1998,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
+                  child: LocalizedText(
                     error!,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
@@ -1747,8 +2008,10 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: saving ? null : save,
-                  child: Text(saving ? 'Saving…' : 'Confirm & Log Meal'),
+                  onPressed: saving || refining ? null : save,
+                  child: LocalizedText(
+                    saving ? 'Saving…' : 'Confirm & Log Meal',
+                  ),
                 ),
               ),
             ],
@@ -1775,8 +2038,8 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                       ),
                     ),
                   const SizedBox(height: 14),
-                  Text(
-                    widget.food.name,
+                  LocalizedText(
+                    _reviewFood.name,
                     style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
@@ -1789,11 +2052,11 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                     runSpacing: 8,
                     children: [
                       Tag(
-                        widget.food.id.startsWith('kayleo:')
+                        _reviewFood.id.startsWith('kayleo:')
                             ? 'KAYLEO AI'
-                            : widget.food.estimated
+                            : _reviewFood.estimated
                             ? 'LOCAL ESTIMATE'
-                            : widget.food.source.startsWith('USDA')
+                            : _reviewFood.source.startsWith('USDA')
                             ? 'USDA DATA'
                             : 'PRODUCT LABEL',
                       ),
@@ -1808,8 +2071,8 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    widget.food.source,
+                  LocalizedText(
+                    _reviewFood.source,
                     style: TextStyle(color: context.kayleoMuted, fontSize: 13),
                   ),
                   if (_cleanDetails.isNotEmpty) ...[
@@ -1833,7 +2096,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
+                            child: LocalizedText(
                               _cleanDetails,
                               style: TextStyle(
                                 color: context.kayleoText,
@@ -1847,9 +2110,12 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                     ),
                   ],
                   const SizedBox(height: 6),
-                  Text(
+                  LocalizedText(
                     'Check that the food, brand and preparation match your meal.',
-                    style: TextStyle(color: context.kayleoMuted, fontSize: 12.5),
+                    style: TextStyle(
+                      color: context.kayleoMuted,
+                      fontSize: 12.5,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   // OVERALL PORTION & SHARING SECTION
@@ -1859,14 +2125,14 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                     spacing: 8,
                     runSpacing: 4,
                     children: [
-                      Text(
+                      LocalizedText(
                         'Portion: ${amount.round()} $unit',
                         style: const TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      Text(
+                      LocalizedText(
                         '${(amount / 28.3495).toStringAsFixed(1)} oz',
                         style: TextStyle(
                           fontSize: 13,
@@ -1894,7 +2160,9 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                   ),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.straighten),
-                    label: const Text('Custom amount or shared portion'),
+                    label: const LocalizedText(
+                      'Custom amount or shared portion',
+                    ),
                     onPressed: saving
                         ? null
                         : () async {
@@ -1934,7 +2202,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                     runSpacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(
+                      LocalizedText(
                         'Shared:',
                         style: TextStyle(
                           fontSize: 12,
@@ -1950,7 +2218,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                       ])
                         ChoiceChip(
                           visualDensity: VisualDensity.compact,
-                          label: Text(preset.$2),
+                          label: LocalizedText(preset.$2),
                           selected: (currentShare - preset.$1).abs() < 0.02,
                           onSelected: saving
                               ? null
@@ -1963,7 +2231,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                   Row(
                     children: [
                       const Expanded(
-                        child: Text(
+                        child: LocalizedText(
                           'On your plate',
                           style: TextStyle(
                             fontSize: 19,
@@ -1978,9 +2246,12 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
+                  LocalizedText(
                     'Tap + or − to adjust each item, switch units (piece, g, oz, bowl), or add missing foods below.',
-                    style: TextStyle(fontSize: 12.5, color: context.kayleoMuted),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: context.kayleoMuted,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   for (var index = 0; index < _plateItems.length; index++)
@@ -1989,10 +2260,8 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                       index: index,
                       item: _plateItems[index],
                       canRemove: _plateItems.length > 1,
-                      onDecrement: () =>
-                          _stepPlateItem(_plateItems[index], -1),
-                      onIncrement: () =>
-                          _stepPlateItem(_plateItems[index], 1),
+                      onDecrement: () => _stepPlateItem(_plateItems[index], -1),
+                      onIncrement: () => _stepPlateItem(_plateItems[index], 1),
                       onSelectUnit: (u) =>
                           _changePlateItemUnit(_plateItems[index], u),
                       onEditPortion: () =>
@@ -2020,8 +2289,8 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                             ),
                             const SizedBox(width: 6),
                             const Expanded(
-                              child: Text(
-                                'Something missing from the photo?',
+                              child: LocalizedText(
+                                'Something missing or incorrect?',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
@@ -2038,11 +2307,14 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                                 key: const Key('add-missing-food-input'),
                                 controller: _missingFoodController,
                                 textInputAction: TextInputAction.done,
-                                onSubmitted: (_) => _addMissingFoodByText(),
-                                decoration: const InputDecoration(
+                                enabled: !refining,
+                                onSubmitted: (_) =>
+                                    _addMissingFoodByLocalizedText(),
+                                decoration: InputDecoration(
                                   isDense: true,
-                                  hintText:
-                                      'Type e.g. "2 roti, 1 boiled egg, 100g curd"…',
+                                  hintText: context.l10n.translate(
+                                    'Type e.g. "2 roti, 1 boiled egg, 100g curd"…',
+                                  ),
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: 14,
                                     vertical: 12,
@@ -2053,11 +2325,25 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                             const SizedBox(width: 8),
                             FilledButton.tonalIcon(
                               key: const Key('add-missing-food-button'),
-                              onPressed: saving
+                              onPressed: saving || refining
                                   ? null
-                                  : () => _addMissingFoodByText(),
-                              icon: const Icon(Icons.add_rounded, size: 18),
-                              label: const Text('Add'),
+                                  : () => _addMissingFoodByLocalizedText(),
+                              icon: refining
+                                  ? const SizedBox.square(
+                                      dimension: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.auto_awesome_rounded,
+                                      size: 18,
+                                    ),
+                              label: LocalizedText(
+                                refining
+                                    ? 'Applying details…'
+                                    : 'Refine with AI',
+                              ),
                             ),
                           ],
                         ),
@@ -2076,7 +2362,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                             ])
                               ActionChip(
                                 visualDensity: VisualDensity.compact,
-                                label: Text(
+                                label: LocalizedText(
                                   quick.$2,
                                   style: const TextStyle(
                                     fontSize: 11.5,
@@ -2085,7 +2371,9 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                                 ),
                                 onPressed: saving
                                     ? null
-                                    : () => _addMissingFoodByText(quick.$1),
+                                    : () => _addMissingFoodByLocalizedText(
+                                        quick.$1,
+                                      ),
                               ),
                           ],
                         ),
@@ -2094,7 +2382,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                   ),
                   if (widget.food.source.startsWith('Open Food Facts')) ...[
                     const SizedBox(height: 12),
-                    const Text(
+                    const LocalizedText(
                       'Check the label’s nutrition basis. Volume is not converted to mass.',
                     ),
                     Wrap(
@@ -2102,7 +2390,9 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                       children: [
                         for (final u in ['g', 'ml'])
                           ChoiceChip(
-                            label: Text(u == 'g' ? 'Per 100 g' : 'Per 100 ml'),
+                            label: LocalizedText(
+                              u == 'g' ? 'Per 100 g' : 'Per 100 ml',
+                            ),
                             selected: unit == u,
                             onSelected: saving
                                 ? null
@@ -2115,7 +2405,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                     ),
                   ],
                   const SizedBox(height: 20),
-                  Text(
+                  LocalizedText(
                     'Nutrition per 100 $unit',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
@@ -2131,11 +2421,15 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                             decimal: true,
                           ),
                           decoration: InputDecoration(
-                            labelText: labels[i],
+                            labelText: context.l10n.translate(labels[i]),
                             helperText: i == 4
-                                ? 'Optional when the label has no fiber value.'
+                                ? context.l10n.translate(
+                                    'Optional when the label has no fiber value.',
+                                  )
                                 : widget.food.values[i] == null
-                                ? 'Missing: enter the label value.'
+                                ? context.l10n.translate(
+                                    'Missing: enter the label value.',
+                                  )
                                 : null,
                           ),
                           validator: (text) {
@@ -2164,11 +2458,11 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                LocalizedText(
                                   labels[i].split(' (').first,
                                   style: TextStyle(color: context.kayleoMuted),
                                 ),
-                                Text(
+                                LocalizedText(
                                   double.tryParse(values[i].text) == null
                                       ? '—'
                                       : '${number(double.parse(values[i].text) * amount / 100)} ${i == 0 ? 'kcal' : 'g'}',
@@ -2185,7 +2479,7 @@ class _FoodConfirmationScreenState extends State<FoodConfirmationScreen> {
                   ),
                   const SizedBox(height: 20),
                   const SizedBox(height: 16),
-                  Text(
+                  LocalizedText(
                     'Open Food Facts · ODbL / DbCL. USDA · public domain.',
                     style: TextStyle(color: context.kayleoMuted, fontSize: 11),
                   ),
@@ -2235,8 +2529,8 @@ class _PlateItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final qtyText = formatPortionQuantity(item.quantity);
-    final unitLabel = item.quantity > 1 &&
-            !['g', 'ml', 'oz', 'tbsp'].contains(item.unit)
+    final unitLabel =
+        item.quantity > 1 && !['g', 'ml', 'oz', 'tbsp'].contains(item.unit)
         ? '${item.unit}s'
         : item.unit;
 
@@ -2250,16 +2544,13 @@ class _PlateItemCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const IconBox(
-                  Icons.restaurant_menu_rounded,
-                  size: 38,
-                ),
+                const IconBox(Icons.restaurant_menu_rounded, size: 38),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      LocalizedText(
                         item.name,
                         style: const TextStyle(
                           fontSize: 15.5,
@@ -2267,7 +2558,7 @@ class _PlateItemCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(
+                      LocalizedText(
                         '${item.eatenGrams.round()} ${item.basisUnit} · '
                         '${item.eatenCalories.round()} kcal'
                         '${item.share < 0.99 ? ' · ${(item.share * 100).round()}% share' : ''}',
@@ -2290,14 +2581,14 @@ class _PlateItemCard extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.group_outlined, size: 15),
-                  label: const Text(
+                  label: const LocalizedText(
                     'Share / Edit',
                     style: TextStyle(fontSize: 11.5),
                   ),
                 ),
                 if (canRemove)
                   IconButton(
-                    tooltip: 'Remove ${item.name}',
+                    tooltip: context.l10n.translate('Remove ${item.name}'),
                     visualDensity: VisualDensity.compact,
                     onPressed: onRemove,
                     icon: Icon(
@@ -2354,14 +2645,16 @@ class _PlateItemCard extends StatelessWidget {
                     children: [
                       IconButton(
                         key: Key('plate-item-dec-$index'),
-                        tooltip: 'Decrease ${item.name}',
+                        tooltip: context.l10n.translate(
+                          'Decrease ${item.name}',
+                        ),
                         visualDensity: VisualDensity.compact,
                         onPressed: onDecrement,
                         icon: const Icon(Icons.remove_rounded, size: 18),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
+                        child: LocalizedText(
                           '$qtyText $unitLabel',
                           style: const TextStyle(
                             fontSize: 13.5,
@@ -2371,7 +2664,9 @@ class _PlateItemCard extends StatelessWidget {
                       ),
                       IconButton(
                         key: Key('plate-item-inc-$index'),
-                        tooltip: 'Increase ${item.name}',
+                        tooltip: context.l10n.translate(
+                          'Increase ${item.name}',
+                        ),
                         visualDensity: VisualDensity.compact,
                         onPressed: onIncrement,
                         icon: const Icon(Icons.add_rounded, size: 18),
@@ -2382,7 +2677,7 @@ class _PlateItemCard extends StatelessWidget {
                 for (final u in _quickUnits)
                   ChoiceChip(
                     visualDensity: VisualDensity.compact,
-                    label: Text(
+                    label: LocalizedText(
                       u,
                       style: const TextStyle(fontSize: 11.5),
                     ),
@@ -2416,7 +2711,7 @@ class _MacroChip extends StatelessWidget {
       color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(8),
     ),
-    child: Text(
+    child: LocalizedText(
       '$label $value',
       style: TextStyle(
         fontSize: 11,

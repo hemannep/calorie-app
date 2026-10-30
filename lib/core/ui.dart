@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:intl/intl.dart';
 
 import '../data/models.dart';
+import 'localization.dart';
 import '../theme/kayleo_colors.dart';
 import '../theme/kayleo_radius.dart';
 import '../theme/kayleo_spacing.dart';
@@ -13,6 +15,7 @@ export '../theme/kayleo_colors.dart';
 export '../theme/kayleo_radius.dart';
 export '../theme/kayleo_spacing.dart';
 export '../theme/kayleo_theme.dart';
+export 'localization.dart';
 
 // Short semantic aliases keep existing screens compatible with the new system.
 const forest = KayleoColors.forest;
@@ -24,6 +27,66 @@ const lime = KayleoColors.lime;
 const mint = KayleoColors.sage;
 const orange = KayleoColors.carbs;
 const blue = KayleoColors.hydration;
+
+/// Drop-in replacement for Flutter's Text that localizes all legacy screen
+/// copy at render time. This lets every feature participate immediately while
+/// preserving Flutter's standard Text API and semantics.
+class LocalizedText extends StatelessWidget {
+  const LocalizedText(
+    this.data, {
+    super.key,
+    this.style,
+    this.strutStyle,
+    this.textAlign,
+    this.textDirection,
+    this.locale,
+    this.softWrap,
+    this.overflow,
+    this.textScaler,
+    this.maxLines,
+    this.semanticsLabel,
+    this.textWidthBasis,
+    this.textHeightBehavior,
+    this.selectionColor,
+    this.translate = true,
+  });
+
+  final String data;
+  final TextStyle? style;
+  final StrutStyle? strutStyle;
+  final TextAlign? textAlign;
+  final material.TextDirection? textDirection;
+  final Locale? locale;
+  final bool? softWrap;
+  final TextOverflow? overflow;
+  final TextScaler? textScaler;
+  final int? maxLines;
+  final String? semanticsLabel;
+  final TextWidthBasis? textWidthBasis;
+  final TextHeightBehavior? textHeightBehavior;
+  final Color? selectionColor;
+  final bool translate;
+
+  @override
+  Widget build(BuildContext context) => material.Text(
+    translate ? context.l10n.translate(data) : data,
+    style: style,
+    strutStyle: strutStyle,
+    textAlign: textAlign,
+    textDirection: textDirection,
+    locale: locale,
+    softWrap: softWrap,
+    overflow: overflow,
+    textScaler: textScaler,
+    maxLines: maxLines,
+    semanticsLabel: semanticsLabel == null
+        ? null
+        : context.l10n.translate(semanticsLabel!),
+    textWidthBasis: textWidthBasis,
+    textHeightBehavior: textHeightBehavior,
+    selectionColor: selectionColor,
+  );
+}
 
 /// Kayleo's wordmark complements the K-and-leaf launcher mark.
 class Brand extends StatelessWidget {
@@ -82,6 +145,29 @@ class KayleoDot extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    ),
+  );
+}
+
+class KayleoIcon extends StatelessWidget {
+  const KayleoIcon({
+    super.key,
+    this.size = 38,
+    this.radius = 10,
+    this.semanticLabel = 'Kayleo app icon',
+  });
+  final double size;
+  final double radius;
+  final String semanticLabel;
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(radius),
+    child: Image.asset(
+      'assets/images/kayleo-icon.png',
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      semanticLabel: semanticLabel,
     ),
   );
 }
@@ -163,7 +249,7 @@ class Tag extends StatelessWidget {
           const SizedBox(width: 5),
         ],
         Flexible(
-          child: Text(
+          child: LocalizedText(
             text,
             style: const TextStyle(
               fontSize: 11,
@@ -192,7 +278,7 @@ class SectionTitle extends StatelessWidget {
         spacing: KayleoSpacing.lg,
         runSpacing: KayleoSpacing.sm,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          LocalizedText(title, style: Theme.of(context).textTheme.titleMedium),
           if (action != null)
             TextButton(
               onPressed: onAction,
@@ -200,7 +286,10 @@ class SectionTitle extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Flexible(
-                    child: Text(action!, style: const TextStyle(fontSize: 12)),
+                    child: LocalizedText(
+                      action!,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                   const SizedBox(width: KayleoSpacing.sm),
                   const Icon(Icons.arrow_forward_rounded, size: 16),
@@ -235,13 +324,16 @@ class PageTitle extends StatelessWidget {
           spacing: KayleoSpacing.lg,
           runSpacing: KayleoSpacing.sm,
           children: [
-            Text(title, style: Theme.of(context).textTheme.headlineMedium),
+            LocalizedText(
+              title,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
             ?trailing,
           ],
         ),
         if (subtitle.isNotEmpty) ...[
           const SizedBox(height: KayleoSpacing.sm),
-          Text(
+          LocalizedText(
             subtitle,
             style: TextStyle(
               color: context.kayleoMuted,
@@ -341,11 +433,11 @@ class EmptyState extends StatelessWidget {
         children: [
           IconBox(icon, size: 60),
           const SizedBox(height: KayleoSpacing.lg),
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          LocalizedText(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: KayleoSpacing.sm),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 340),
-            child: Text(
+            child: LocalizedText(
               subtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -563,7 +655,7 @@ class MacroBar extends StatelessWidget {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
-          Text(
+          LocalizedText(
             label,
             style: TextStyle(fontSize: 10, color: context.kayleoMuted),
           ),
@@ -647,13 +739,13 @@ class SheetFrame extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      LocalizedText(
                         title,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(height: KayleoSpacing.xs),
-                        Text(
+                        LocalizedText(
                           subtitle!,
                           style: TextStyle(
                             color: context.kayleoMuted,
@@ -666,7 +758,7 @@ class SheetFrame extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  tooltip: 'Close',
+                  tooltip: context.l10n.translate('Close'),
                   icon: const Icon(Icons.close_rounded),
                 ),
               ],
@@ -713,13 +805,26 @@ Future<T?> openSheet<T>(BuildContext context, Widget child) =>
       builder: (_) => child,
     );
 
+const kayleoSnackBarDuration = Duration(seconds: 3);
+
+void showTimedSnackBar(
+  BuildContext context,
+  SnackBar snackBar, {
+  Duration duration = kayleoSnackBarDuration,
+}) {
+  final messenger = ScaffoldMessenger.of(context);
+  final controller = messenger.showSnackBar(snackBar);
+  var closed = false;
+  unawaited(controller.closed.then((_) => closed = true));
+  Timer(duration, () {
+    if (!closed) controller.close();
+  });
+}
+
 void toast(BuildContext context, String text, {SnackBarAction? action}) =>
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(text),
-        action: action,
-        duration: const Duration(seconds: 3),
-      ),
+    showTimedSnackBar(
+      context,
+      SnackBar(content: LocalizedText(text), action: action),
     );
 String number(num n) => NumberFormat.decimalPattern().format(n.round());
 String friendlyDate(DateTime date) => DateFormat('EEE, d MMM').format(date);

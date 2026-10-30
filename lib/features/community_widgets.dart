@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../core/ui.dart';
@@ -12,13 +14,13 @@ Future<bool> socialAction(
     await action();
     if (context.mounted && success != null) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(success)));
+          .showSnackBar(SnackBar(content: LocalizedText(success)));
     }
     return true;
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(socialError(e))));
+          .showSnackBar(SnackBar(content: LocalizedText(socialError(e))));
     }
     return false;
   }
@@ -33,16 +35,16 @@ Future<bool> socialConfirm(
     await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        title: LocalizedText(title),
+        content: LocalizedText(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const LocalizedText('Cancel'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(action),
+            child: LocalizedText(action),
           ),
         ],
       ),
@@ -60,13 +62,13 @@ class SocialEmpty extends StatelessWidget {
       children: [
         IconBox(icon, size: 56),
         const SizedBox(height: 16),
-        Text(
+        LocalizedText(
           title,
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
-        Text(
+        LocalizedText(
           message,
           textAlign: TextAlign.center,
           style: TextStyle(color: context.kayleoMuted, height: 1.6),
@@ -77,21 +79,43 @@ class SocialEmpty extends StatelessWidget {
 }
 
 class SocialAvatar extends StatelessWidget {
-  const SocialAvatar(this.name, {super.key, this.radius = 23});
+  const SocialAvatar(
+    this.name, {
+    super.key,
+    this.radius = 23,
+    this.photoBase64,
+  });
   final String name;
   final double radius;
+  final String? photoBase64;
+
   @override
-  Widget build(BuildContext context) => CircleAvatar(
-    radius: radius,
-    backgroundColor: context.kayleoSurfaces.soft,
-    child: Text(
-      name.trim().isEmpty ? 'K' : name.trim().characters.first.toUpperCase(),
-      style: TextStyle(
-        color: context.kayleoPrimary,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) {
+    ImageProvider? image;
+    if (photoBase64 case final photo? when photo.isNotEmpty) {
+      try {
+        image = MemoryImage(base64Decode(photo));
+      } catch (_) {
+        image = null;
+      }
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: context.kayleoSurfaces.soft,
+      backgroundImage: image,
+      child: image == null
+          ? LocalizedText(
+              name.trim().isEmpty
+                  ? 'K'
+                  : name.trim().characters.first.toUpperCase(),
+              style: TextStyle(
+                color: context.kayleoPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            )
+          : null,
+    );
+  }
 }
 
 class SocialSyncError extends StatelessWidget {
@@ -105,12 +129,12 @@ class SocialSyncError extends StatelessWidget {
       children: [
         const Icon(Icons.cloud_off_outlined),
         const SizedBox(height: 8),
-        Text(
+        LocalizedText(
           message ?? 'Could not load this conversation. Check your connection or membership.',
           textAlign: TextAlign.center,
         ),
         if (retry != null)
-          TextButton(onPressed: retry, child: const Text('Retry')),
+          TextButton(onPressed: retry, child: const LocalizedText('Retry')),
       ],
     ),
   );

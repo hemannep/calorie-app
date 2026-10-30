@@ -61,14 +61,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
             spacing: 12,
             runSpacing: 10,
             children: [
-              Text(
+              LocalizedText(
                 'Progress',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               OutlinedButton.icon(
                 onPressed: widget.onOpenDiary,
                 icon: const Icon(Icons.calendar_month_rounded, size: 17),
-                label: const Text('Full diary'),
+                label: const LocalizedText('Full diary'),
               ),
             ],
           ),
@@ -91,7 +91,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   spacing: 12,
                   runSpacing: 8,
                   children: [
-                    Text(
+                    LocalizedText(
                       'Today’s diary',
                       style: TextStyle(
                         fontSize: 18,
@@ -101,14 +101,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     TextButton.icon(
                       onPressed: () => showLogger(context, state),
                       icon: const Icon(Icons.add_rounded, size: 17),
-                      label: const Text('Log meal'),
+                      label: const LocalizedText('Log meal'),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 8),
               if (todayMeals.isEmpty)
-                Text(
+                LocalizedText(
                   'No meals logged today yet.',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -125,21 +125,21 @@ class _ProgressScreenState extends State<ProgressScreen> {
                           Icons.restaurant_rounded,
                           color: Theme.of(context).colorScheme.primary,
                         ),
-                        title: Text(
+                        title: LocalizedText(
                           meal.name,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
-                        subtitle: Text(
+                        subtitle: LocalizedText(
                           '${meal.category} · ${DateFormat('h:mm a').format(meal.time)}',
                         ),
-                        trailing: Text(
+                        trailing: LocalizedText(
                           '${number(mealNutrition(meal).calories)} kcal',
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
               if (todayMeals.length > 4)
-                Text(
+                LocalizedText(
                   '+ ${todayMeals.length - 4} more meals',
                   style: TextStyle(
                     fontSize: 11,
@@ -158,7 +158,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: ChoiceChip(
-                  label: Text('$days days', style: TextStyle(fontSize: 11)),
+                  label: LocalizedText(
+                    '$days days',
+                    style: TextStyle(fontSize: 11),
+                  ),
                   selected: range == days,
                   selectedColor: Theme.of(context)
                       .extension<KayleoSurfaces>()!
@@ -182,12 +185,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              LocalizedText(
                 range == 7 ? 'Weekly overview' : 'Monthly overview',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
               ),
               const SizedBox(height: 6),
-              Text(
+              LocalizedText(
                 'Logged meals, day by day.',
                 style: TextStyle(
                   fontSize: 11,
@@ -202,7 +205,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   for (final nutrient in NutritionMetric.values)
                     ChoiceChip(
                       key: Key('chart-${nutrient.name}'),
-                      label: Text(
+                      label: LocalizedText(
                         nutrient.label,
                         style: TextStyle(fontSize: 11),
                       ),
@@ -228,11 +231,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 spacing: 16,
                 runSpacing: 8,
                 children: [
-                  Text(
+                  LocalizedText(
                     '${metric.label} intake · ${metric.unit}',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                   ),
-                  Text(
+                  LocalizedText(
                     'Daily target: ${number(metric.target(state.profile))} ${metric.unit}',
                     style: TextStyle(
                       fontSize: 11,
@@ -276,11 +279,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
           spacing: 20,
           runSpacing: 8,
           children: [
-            Text(
+            LocalizedText(
               '${active.length} of $range days logged',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
-            Text(
+            LocalizedText(
               '${state.streak}-day streak',
               style: TextStyle(
                 fontSize: 12,
@@ -290,7 +293,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ],
         ),
         const SizedBox(height: KayleoSpacing.sm),
-        Text(
+        LocalizedText(
           'Averages use days with food logged. Bars compare intake with your daily targets.',
           style: TextStyle(
             fontSize: 10,
@@ -312,6 +315,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     action: 'Log weight',
                     onAction: () => logWeightDialog(context, state),
                   ),
+                  if (_hasWeightGoal(state.profile)) ...[
+                    _WeightGoalSummary(
+                      profile: state.profile,
+                      entries: weightData,
+                    ),
+                    const SizedBox(height: KayleoSpacing.lg),
+                  ],
                   if (weightData.isEmpty)
                     const EmptyState(
                       icon: Icons.monitor_weight_outlined,
@@ -324,7 +334,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       spacing: 10,
                       runSpacing: 4,
                       children: [
-                        Text(
+                        LocalizedText(
                           _weight(weightData.last.kg, state),
                           style: TextStyle(
                             fontSize: 30,
@@ -335,7 +345,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         const SizedBox(width: 10),
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
-                          child: Text(
+                          child: LocalizedText(
                             state.profile.units == 'Metric' ? 'kg' : 'lb',
                             style: TextStyle(
                               color: Theme.of(context)
@@ -348,10 +358,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       ],
                     ),
                     const SizedBox(height: 5),
-                    Text(
+                    LocalizedText(
                       weightData.length < 2
                           ? 'Add another entry to see a trend.'
-                          : '${(weightData.last.kg - weightData.first.kg).abs().toStringAsFixed(1)} kg ${weightData.last.kg >= weightData.first.kg ? 'increase' : 'decrease'} across ${weightData.length} entries',
+                          : '${_weight((weightData.last.kg - weightData.first.kg).abs(), state)} ${state.profile.units == 'Metric' ? 'kg' : 'lb'} ${weightData.last.kg >= weightData.first.kg ? 'increase' : 'decrease'} across ${weightData.length} entries',
                       style: TextStyle(
                         fontSize: 11,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -375,7 +385,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     const SizedBox(height: KayleoSpacing.md),
                     Row(
                       children: [
-                        Text(
+                        LocalizedText(
                           DateFormat('d MMM').format(weightData.first.date),
                           style: TextStyle(
                             fontSize: 10,
@@ -385,7 +395,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                           ),
                         ),
                         const Spacer(),
-                        Text(
+                        LocalizedText(
                           DateFormat('d MMM').format(weightData.last.date),
                           style: TextStyle(
                             fontSize: 10,
@@ -397,7 +407,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       ],
                     ),
                     const SizedBox(height: 15),
-                    Text(
+                    LocalizedText(
                       'Day-to-day changes are normal. Look for a longer-term pattern.',
                       style: TextStyle(
                         fontSize: 10,
@@ -455,7 +465,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          LocalizedText(
             label,
             style: TextStyle(
               fontSize: 10,
@@ -464,7 +474,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ),
           ),
           const SizedBox(height: 7),
-          Text(
+          LocalizedText(
             value,
             style: TextStyle(
               fontWeight: FontWeight.w800,
@@ -474,7 +484,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ),
           ),
           const SizedBox(height: 5),
-          Text(
+          LocalizedText(
             subtitle,
             style: TextStyle(
               fontSize: 10,
@@ -500,6 +510,77 @@ class _ProgressScreenState extends State<ProgressScreen> {
   );
 }
 
+bool _hasWeightGoal(BodyProfile profile) =>
+    profile.goal == 'Lose weight' && profile.targetWeight != null;
+
+class _WeightGoalSummary extends StatelessWidget {
+  const _WeightGoalSummary({required this.profile, required this.entries});
+
+  final BodyProfile profile;
+  final List<WeightEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = profile.targetWeight!;
+    final current = entries.isEmpty ? profile.weight : entries.last.kg;
+    final starting = entries.length > 1 ? entries.first.kg : null;
+    final progress = starting == null || starting <= target
+        ? null
+        : ((starting - current) / (starting - target)).clamp(0.0, 1.0);
+    final imperial = profile.units == 'Imperial';
+    final factor = imperial ? 2.20462 : 1.0;
+    final unit = imperial ? 'lb' : 'kg';
+    final remaining = math.max(0.0, current - target) * factor;
+
+    return Container(
+      key: const Key('weight-goal-summary'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.kayleoSurfaces.soft.withValues(alpha: .55),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: LocalizedText(
+                  'Goal ${(target * factor).toStringAsFixed(1)} $unit',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              LocalizedText(
+                remaining == 0
+                    ? 'Goal reached'
+                    : '${remaining.toStringAsFixed(1)} $unit to go',
+                style: TextStyle(fontSize: 11, color: context.kayleoMuted),
+              ),
+            ],
+          ),
+          if (progress != null) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                key: const Key('weight-goal-progress'),
+                value: progress,
+                minHeight: 5,
+              ),
+            ),
+          ],
+          const SizedBox(height: 6),
+          LocalizedText(
+            '${profile.goalDurationMonths}-month target from your personalization plan',
+            style: TextStyle(fontSize: 10, color: context.kayleoMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BmiCard extends StatelessWidget {
   const _BmiCard({required this.profile});
   final BodyProfile profile;
@@ -521,12 +602,12 @@ class _BmiCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          LocalizedText(
             'BMI snapshot',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
-          Text(
+          LocalizedText(
             'A simple context for your current weight and height.',
             style: TextStyle(
               fontSize: 11,
@@ -539,7 +620,7 @@ class _BmiCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             children: [
-              Text(
+              LocalizedText(
                 bmi.toStringAsFixed(1),
                 style: const TextStyle(
                   fontSize: 32,
@@ -555,7 +636,7 @@ class _BmiCard extends StatelessWidget {
                   color: color.withValues(alpha: .16),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
+                child: LocalizedText(
                   label,
                   style: TextStyle(color: color, fontWeight: FontWeight.w800),
                 ),
@@ -609,10 +690,10 @@ class _BmiCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
-              Text('18.5', style: TextStyle(fontSize: 10)),
-              Text('25', style: TextStyle(fontSize: 10)),
-              Text('30', style: TextStyle(fontSize: 10)),
-              Text('40+', style: TextStyle(fontSize: 10)),
+              LocalizedText('18.5', style: TextStyle(fontSize: 10)),
+              LocalizedText('25', style: TextStyle(fontSize: 10)),
+              LocalizedText('30', style: TextStyle(fontSize: 10)),
+              LocalizedText('40+', style: TextStyle(fontSize: 10)),
             ],
           ),
         ],
@@ -650,12 +731,12 @@ class _WeeklyReviewEntry extends StatelessWidget {
             size: 24,
           ),
           const SizedBox(height: KayleoSpacing.lg),
-          Text(
+          LocalizedText(
             'Your weekly review',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: KayleoSpacing.sm),
-          Text(
+          LocalizedText(
             loggedDays == 0
                 ? 'Your review will grow with your food log.'
                 : '$mealCount meals across $loggedDays logged days in the past week.',
@@ -668,7 +749,7 @@ class _WeeklyReviewEntry extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => openSheet(context, WeeklyReview(state: state)),
             icon: Icon(Icons.arrow_forward_rounded, size: 18),
-            label: Text('View review'),
+            label: LocalizedText('View review'),
           ),
         ],
       ),
@@ -705,7 +786,7 @@ class _NutritionChart extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                LocalizedText(
                   number(maxValue),
                   style: TextStyle(
                     fontSize: 9,
@@ -714,7 +795,7 @@ class _NutritionChart extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: KayleoSpacing.sm),
-                Text(
+                LocalizedText(
                   number(maxValue / 2),
                   style: TextStyle(
                     fontSize: 9,
@@ -723,7 +804,7 @@ class _NutritionChart extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: KayleoSpacing.sm),
-                Text(
+                LocalizedText(
                   '0',
                   style: TextStyle(
                     fontSize: 9,
@@ -826,7 +907,7 @@ class _NutritionChart extends StatelessWidget {
                                         minHeight: 0,
                                         maxHeight: 24,
                                         alignment: Alignment.topCenter,
-                                        child: Text(
+                                        child: LocalizedText(
                                           dates.length == 7
                                               ? DateFormat('E').format(dates[i])
                                               : (i % 5 == 0 ||
@@ -998,7 +1079,7 @@ class WeeklyReview extends StatelessWidget {
             }
           },
           icon: Icon(Icons.ios_share_rounded, size: 17),
-          label: Text('Share my consistency · no weight or calories'),
+          label: LocalizedText('Share my consistency · no weight or calories'),
         ),
       ),
       child: Column(
@@ -1016,7 +1097,7 @@ class WeeklyReview extends StatelessWidget {
                   textColor: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: KayleoSpacing.page),
-                Text(
+                LocalizedText(
                   '${active.length} days logged.',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface,
@@ -1026,7 +1107,7 @@ class WeeklyReview extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Text(
+                LocalizedText(
                   '$totalMeals meals logged over the past 7 days.',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1071,7 +1152,7 @@ class WeeklyReview extends StatelessWidget {
             Panel(
               color: Theme.of(context).extension<KayleoSurfaces>()!.soft,
               border: false,
-              child: Text(
+              child: LocalizedText(
                 protein < state.profile.proteinTarget
                     ? 'Add a protein source you enjoy to one regular meal. Lentils, yogurt, eggs, or tofu can make the habit easy to repeat.'
                     : 'Save your most frequent meal as a usual. A familiar meal can turn tomorrow’s logging into a single tap.',
@@ -1084,7 +1165,7 @@ class WeeklyReview extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 18),
-          Text(
+          LocalizedText(
             'This review uses your local meal records and simple rules. Estimates are general guidance, not medical advice.',
             style: TextStyle(
               fontSize: 10,
@@ -1112,12 +1193,12 @@ class WeeklyReview extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              LocalizedText(
                 title,
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
               ),
               const SizedBox(height: 5),
-              Text(
+              LocalizedText(
                 sub,
                 style: TextStyle(
                   fontSize: 11,

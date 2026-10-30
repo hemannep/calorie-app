@@ -68,11 +68,17 @@ class _DiaryScreenState extends State<DiaryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Your food log', style: Theme.of(context).textTheme.headlineMedium),
+                  LocalizedText(
+                    'Your food log',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
                   const SizedBox(height: 6),
-                  Text(
+                  LocalizedText(
                     DateFormat('EEEE, d MMMM').format(date),
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -89,7 +95,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 children: [
                   IconButton.filledTonal(
                     onPressed: () => _shiftWeek(-7),
-                    tooltip: 'Previous week',
+                    tooltip: context.l10n.translate('Previous week'),
                     icon: Icon(Icons.chevron_left_rounded),
                   ),
                   Expanded(
@@ -116,8 +122,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             setState(() => date = d);
                           }
                         },
-                        icon: const Icon(Icons.calendar_today_outlined, size: 15),
-                        label: Text(
+                        icon: const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 15,
+                        ),
+                        label: LocalizedText(
                           DateFormat('MMMM yyyy').format(date),
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
@@ -129,7 +138,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   ),
                   IconButton.filledTonal(
                     onPressed: canGoNextWeek ? () => _shiftWeek(7) : null,
-                    tooltip: 'Next week',
+                    tooltip: context.l10n.translate('Next week'),
                     icon: Icon(Icons.chevron_right_rounded),
                   ),
                 ],
@@ -137,9 +146,13 @@ class _DiaryScreenState extends State<DiaryScreen> {
               const SizedBox(height: KayleoSpacing.md),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
+                child: LocalizedText(
                   'Choose a day',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -153,81 +166,84 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   children: days
                       .map(
                         (d) => Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          child: InkWell(
-                            onTap: DateUtils.dateOnly(d).isAfter(today)
-                                ? null
-                                : () => setState(() => date = d),
-                            borderRadius: BorderRadius.circular(14),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              decoration: BoxDecoration(
-                                color: dateKey(d) == dateKey(date)
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).scaffoldBackgroundColor,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Column(
-                                children: [
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      DateFormat('E').format(d),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        height: 1.25,
-                                        color: dateKey(d) == dateKey(date)
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: InkWell(
+                              onTap: DateUtils.dateOnly(d).isAfter(today)
+                                  ? null
+                                  : () => setState(() => date = d),
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 13,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: dateKey(d) == dateKey(date)
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                            .scaffoldBackgroundColor,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Column(
+                                  children: [
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: LocalizedText(
+                                        DateFormat('E').format(d),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          height: 1.25,
+                                          color: dateKey(d) == dateKey(date)
+                                              ? Theme.of(context)
+                                                    .colorScheme
+                                                    .onPrimary
+                                              : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: KayleoSpacing.sm),
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: LocalizedText(
+                                        '${d.day}',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.w800,
+                                          color: dateKey(d) == dateKey(date)
+                                              ? Theme.of(context)
+                                                    .colorScheme
+                                                    .onPrimary
+                                              : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 7),
+                                    Container(
+                                      width: 4,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: state.mealsFor(d).isEmpty
+                                            ? Colors.transparent
+                                            : dateKey(d) == dateKey(date)
                                             ? Theme.of(context)
                                                   .colorScheme
                                                   .onPrimary
                                             : Theme.of(context)
                                                   .colorScheme
-                                                  .onSurfaceVariant,
+                                                  .primary,
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: KayleoSpacing.sm),
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      '${d.day}',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        height: 1.2,
-                                        fontWeight: FontWeight.w800,
-                                        color: dateKey(d) == dateKey(date)
-                                            ? Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimary
-                                            : Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 7),
-                                  Container(
-                                    width: 4,
-                                    height: 4,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: state.mealsFor(d).isEmpty
-                                          ? Colors.transparent
-                                          : dateKey(d) == dateKey(date)
-                                          ? Theme.of(context)
-                                                .colorScheme
-                                                .onPrimary
-                                          : Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
                         ),
                       )
                       .toList(),
@@ -248,8 +264,15 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   onChanged: (v) => setState(() => search = v),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                    hintText: 'Search meals for this day',
-                    suffixIcon: search.isEmpty ? null : IconButton(onPressed: () => setState(() => search = ''), icon: const Icon(Icons.close_rounded, size: 18)),
+                    hintText: context.l10n.translate(
+                      'Search meals for this day',
+                    ),
+                    suffixIcon: search.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () => setState(() => search = ''),
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -264,7 +287,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                                   right: KayleoSpacing.sm,
                                 ),
                                 child: ChoiceChip(
-                                  label: Text(
+                                  label: LocalizedText(
                                     c,
                                     style: TextStyle(fontSize: 11),
                                   ),
@@ -286,7 +309,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
+                LocalizedText(
                   'All meals',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
@@ -329,7 +352,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                                   color: Theme.of(context).colorScheme.primary,
                                 ),
                                 const SizedBox(width: 10),
-                                Text(
+                                LocalizedText(
                                   cat,
                                   style: TextStyle(
                                     fontSize: 13,
@@ -337,7 +360,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                                   ),
                                 ),
                                 const Spacer(),
-                                Text(
+                                LocalizedText(
                                   '${number(meals.where((m) => m.category == cat).fold<double>(0, (s, m) => s + mealNutrition(m).calories))} kcal',
                                   style: TextStyle(
                                     color: Theme.of(context)
@@ -366,9 +389,12 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: OutlinedButton.icon(
-                      onPressed: () => showLogger(context, state, initialDate: date),
+                      onPressed: () =>
+                          showLogger(context, state, initialDate: date),
                       icon: const Icon(Icons.add_rounded, size: 17),
-                      label: const Text('Forgot to log a meal that day? Do it now'),
+                      label: const LocalizedText(
+                        'Forgot to log a meal that day? Do it now',
+                      ),
                     ),
                   ),
               ],
@@ -408,7 +434,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
 }
 
 class _DiaryOverview extends StatefulWidget {
-  const _DiaryOverview({required this.state, required this.date, required this.nutrition});
+  const _DiaryOverview({
+    required this.state,
+    required this.date,
+    required this.nutrition,
+  });
   final AppState state;
   final DateTime date;
   final Nutrients nutrition;
@@ -433,7 +463,10 @@ class _DiaryOverviewState extends State<_DiaryOverview> {
   }
 
   Future<void> _load() async {
-    final result = await HealthService.instance.fetchActivityData(widget.date, state: widget.state);
+    final result = await HealthService.instance.fetchActivityData(
+      widget.date,
+      state: widget.state,
+    );
     if (mounted) setState(() => activity = result);
   }
 
@@ -463,60 +496,128 @@ class _ActivityDayCard extends StatelessWidget {
   Widget build(BuildContext context) => Panel(
     padding: 18,
     border: false,
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Icon(Icons.directions_walk_rounded, color: context.kayleoPrimary),
-        const SizedBox(width: 9),
-        const Text('Activity for this day', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-      ]),
-      const SizedBox(height: 18),
-      Center(
-        child: Column(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            KayleoRing(
-              size: 150,
-              stroke: 12,
-              progress: activity.steps / 10000,
-              color: Colors.green,
-              track: context.kayleoSurfaces.soft,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.directions_walk_rounded, size: 25, color: Colors.green),
-                const SizedBox(height: 5),
-                Text('${activity.steps}', style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
-                Text('steps', style: TextStyle(fontSize: 11, color: context.kayleoMuted)),
-              ]),
+            Icon(Icons.directions_walk_rounded, color: context.kayleoPrimary),
+            const SizedBox(width: 9),
+            const LocalizedText(
+              'Activity for this day',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
-            const SizedBox(height: 16),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _activityMetric(context, Icons.timer_outlined, '${activity.activeMinutes} min', 'Active time', activity.activeMinutes / 60, Colors.teal),
-              _activityMetric(context, Icons.local_fire_department_outlined, '${activity.activeCalories}', 'Calories burned', activity.activeCalories / 500, Colors.deepOrange),
-              _activityMetric(context, Icons.straighten_rounded, '${activity.motionKm.toStringAsFixed(1)} km', 'Distance', activity.motionKm / 5, Colors.cyan),
-            ]),
           ],
         ),
-      ),
-    ]),
+        const SizedBox(height: 18),
+        Center(
+          child: Column(
+            children: [
+              KayleoRing(
+                size: 150,
+                stroke: 12,
+                progress: activity.steps / 10000,
+                color: Colors.green,
+                track: context.kayleoSurfaces.soft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.directions_walk_rounded,
+                      size: 25,
+                      color: Colors.green,
+                    ),
+                    const SizedBox(height: 5),
+                    LocalizedText(
+                      '${activity.steps}',
+                      style: const TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    LocalizedText(
+                      'steps',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.kayleoMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _activityMetric(
+                    context,
+                    Icons.timer_outlined,
+                    '${activity.activeMinutes} min',
+                    'Active time',
+                    activity.activeMinutes / 60,
+                    Colors.teal,
+                  ),
+                  _activityMetric(
+                    context,
+                    Icons.local_fire_department_outlined,
+                    '${activity.activeCalories}',
+                    'Calories burned',
+                    activity.activeCalories / 500,
+                    Colors.deepOrange,
+                  ),
+                  _activityMetric(
+                    context,
+                    Icons.straighten_rounded,
+                    '${activity.motionKm.toStringAsFixed(1)} km',
+                    'Distance',
+                    activity.motionKm / 5,
+                    Colors.cyan,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 
-  Widget _activityMetric(BuildContext context, IconData icon, String value, String label, double progress, Color color) => SizedBox(
+  Widget _activityMetric(
+    BuildContext context,
+    IconData icon,
+    String value,
+    String label,
+    double progress,
+    Color color,
+  ) => SizedBox(
     width: 96,
     child: Panel(
       padding: 12,
-      child: Column(children: [
-        KayleoRing(
-          size: 52,
-          stroke: 6,
-          progress: progress,
-          color: color,
-          track: context.kayleoSurfaces.soft,
-          highlight: false,
-          child: Icon(icon, size: 18, color: color),
-        ),
-        const SizedBox(height: 8),
-        Text(value, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 3),
-        Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 9, color: context.kayleoMuted)),
-      ]),
+      child: Column(
+        children: [
+          KayleoRing(
+            size: 52,
+            stroke: 6,
+            progress: progress,
+            color: color,
+            track: context.kayleoSurfaces.soft,
+            highlight: false,
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(height: 8),
+          LocalizedText(
+            value,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 3),
+          LocalizedText(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 9, color: context.kayleoMuted),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -545,9 +646,9 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
         ),
         TextField(
           onChanged: (v) => setState(() => search = v),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             prefixIcon: Icon(Icons.search_rounded),
-            hintText: 'Find a saved meal…',
+            hintText: context.l10n.translate('Find a saved meal…'),
           ),
         ),
         const SizedBox(height: KayleoSpacing.xl),
@@ -559,7 +660,7 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
               subtitle: 'When you log a meal, turn on “Remember this as a usual meal.” It will be waiting here next time.',
               action: FilledButton(
                 onPressed: () => showLogger(context, widget.state),
-                child: Text('Log a meal'),
+                child: LocalizedText('Log a meal'),
               ),
             ),
           )
@@ -591,7 +692,7 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Text(
+                                  child: LocalizedText(
                                     m.name,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -606,20 +707,22 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
                                     final ok = await showDialog<bool>(
                                       context: context,
                                       builder: (context) => AlertDialog(
-                                        title: Text('Remove saved meal?'),
-                                        content: Text(
+                                        title: LocalizedText(
+                                          'Remove saved meal?',
+                                        ),
+                                        content: LocalizedText(
                                           'Existing diary entries will stay in your log.',
                                         ),
                                         actions: [
                                           TextButton(
                                             onPressed: () =>
                                                 Navigator.pop(context),
-                                            child: Text('Keep'),
+                                            child: LocalizedText('Keep'),
                                           ),
                                           FilledButton(
                                             onPressed: () =>
                                                 Navigator.pop(context, true),
-                                            child: Text('Remove'),
+                                            child: LocalizedText('Remove'),
                                           ),
                                         ],
                                       ),
@@ -631,7 +734,9 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
                                       await widget.state.persist();
                                     }
                                   },
-                                  tooltip: 'Remove saved meal',
+                                  tooltip: context.l10n.translate(
+                                    'Remove saved meal',
+                                  ),
                                   icon: Icon(
                                     Icons.bookmark_rounded,
                                     color: Theme.of(context)
@@ -643,7 +748,7 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
                               ],
                             ),
                             const SizedBox(height: 7),
-                            Text(
+                            LocalizedText(
                               '${number(mealNutrition(m).calories)} kcal  ·  ${mealNutrition(m).protein.round()}g protein',
                               style: TextStyle(
                                 fontSize: 11,
@@ -665,7 +770,7 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
                                   ),
                                 ),
                                 icon: Icon(Icons.add_rounded, size: 17),
-                                label: Text(
+                                label: LocalizedText(
                                   'Review & log',
                                   style: TextStyle(fontSize: 11),
                                 ),
@@ -691,7 +796,7 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
               ),
               SizedBox(width: 14),
               Expanded(
-                child: Text(
+                child: LocalizedText(
                   'Try saying “same breakfast as yesterday.” Kayleo can bring that meal back for you to review.',
                   style: TextStyle(
                     fontSize: 12,

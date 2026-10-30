@@ -82,27 +82,30 @@ class _MealFoodMatchState extends State<MealFoodMatch> {
     subtitle: widget.request.description,
     footer: selected == null
         ? null
-        : FilledButton(onPressed: confirm, child: const Text('Use this food')),
+        : FilledButton(
+            onPressed: confirm,
+            child: const LocalizedText('Use this food'),
+          ),
     child: Form(
       key: form,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          const LocalizedText(
             'Results from the food databases. Choose the recipe or product you ate; similar names can have different nutrition.',
           ),
           if (widget.results.unavailableSources.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
+              child: LocalizedText(
                 '${widget.results.unavailableSources.join(' and ')} could not be reached. Available results are shown.',
               ),
             ),
           if (selected == null)
             for (final food in widget.results.foods)
               ListTile(
-                title: Text(food.name),
-                subtitle: Text(
+                title: LocalizedText(food.name),
+                subtitle: LocalizedText(
                   '${food.source}\n${food.values[0] == null ? 'Calories missing' : '${number(food.values[0]!)} kcal per 100 ${food.unit}'}${food.complete ? '' : ' · complete missing label values'}',
                 ),
                 isThreeLine: true,
@@ -111,11 +114,14 @@ class _MealFoodMatchState extends State<MealFoodMatch> {
               )
           else ...[
             const SizedBox(height: 16),
-            Text(selected!.name, style: Theme.of(context).textTheme.titleLarge),
-            Text(selected!.source),
+            LocalizedText(
+              selected!.name,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            LocalizedText(selected!.source),
             TextButton(
               onPressed: () => setState(() => selected = null),
-              child: const Text('Choose another match'),
+              child: const LocalizedText('Choose another match'),
             ),
             TextFormField(
               key: const Key('matched-food-amount'),
@@ -124,8 +130,12 @@ class _MealFoodMatchState extends State<MealFoodMatch> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: 'Amount eaten (${selected!.unit})',
-                helperText: 'Enter the total you ate. Piece counts need a measured weight.',
+                labelText: context.l10n.translate(
+                  'Amount eaten (${selected!.unit})',
+                ),
+                helperText: context.l10n.translate(
+                  'Enter the total you ate. Piece counts need a measured weight.',
+                ),
               ),
               onChanged: (_) => setState(() {}),
               validator: (text) {
@@ -136,7 +146,7 @@ class _MealFoodMatchState extends State<MealFoodMatch> {
               },
             ),
             const SizedBox(height: 16),
-            Text('Nutrition per 100 ${selected!.unit}'),
+            LocalizedText('Nutrition per 100 ${selected!.unit}'),
             for (var i = 0; i < values.length; i++)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
@@ -147,13 +157,15 @@ class _MealFoodMatchState extends State<MealFoodMatch> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    labelText: const [
-                      'Calories (kcal)',
-                      'Protein (g)',
-                      'Carbohydrates (g)',
-                      'Fat (g)',
-                      'Fiber (g, optional)',
-                    ][i],
+                    labelText: context.l10n.translate(
+                      const [
+                        'Calories (kcal)',
+                        'Protein (g)',
+                        'Carbohydrates (g)',
+                        'Fat (g)',
+                        'Fiber (g, optional)',
+                      ][i],
+                    ),
                   ),
                   validator: (text) {
                     if (i == 4 && (text ?? '').trim().isEmpty) return null;
@@ -170,12 +182,12 @@ class _MealFoodMatchState extends State<MealFoodMatch> {
             if (!selected!.complete)
               const Padding(
                 padding: EdgeInsets.only(top: 12),
-                child: Text(
+                child: LocalizedText(
                   'This record has missing nutrients. Complete them from a label, or choose another match.',
                 ),
               ),
             if (error != null)
-              Text(
+              LocalizedText(
                 error!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),

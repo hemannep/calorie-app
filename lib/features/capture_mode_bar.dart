@@ -199,7 +199,7 @@ class _CaptureModeBarState extends State<CaptureModeBar> {
                                                 : Colors.white60,
                                           ),
                                           const SizedBox(height: 4),
-                                          Text(
+                                          LocalizedText(
                                             [
                                               'Type',
                                               'Camera',

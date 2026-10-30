@@ -105,7 +105,9 @@ class HomeWidgetService {
             : '0',
       ).join(),
     };
-    final signature = snapshot.entries.map((e) => '${e.key}:${e.value}').join('|');
+    final signature = snapshot.entries
+        .map((e) => '${e.key}:${e.value}')
+        .join('|');
     if (signature == _lastSignature) return;
     _lastSignature = signature;
     unawaited(

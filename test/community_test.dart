@@ -105,6 +105,13 @@ class TestCommunityService extends CommunityService {
   final sent = <String>[];
   int cheersSent = 0;
   @override
+  Future<void> sharing({bool? nutrition, bool? activity}) async {
+    if (nutrition != null) profile['shareNutrition'] = nutrition;
+    if (activity != null) profile['shareActivity'] = activity;
+    notifyListeners();
+  }
+
+  @override
   Future<void> send(
     String room,
     String text, {
@@ -149,6 +156,8 @@ class TestCommunityService extends CommunityService {
       _Doc('message-one', {
         'authorId': 'test-peer',
         'authorName': 'Maya',
+        'authorPhoto':
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
         'body': 'A little meal prep made today easier.',
         'createdAt': Timestamp.now(),
         'attachment': {
@@ -272,6 +281,16 @@ void main() {
           ),
         );
         await snapshot(t, 'community-live-${brightness.name}');
+        await t.tap(find.text('My circles'));
+        await t.pumpAndSettle();
+        await t.ensureVisible(find.text('Create community'));
+        expect(
+          t.getTopLeft(find.text('Create community')).dy,
+          greaterThan(t.getTopLeft(find.text('Your circles')).dy),
+        );
+        await snapshot(t, 'community-my-circles-${brightness.name}');
+        await t.tap(find.text('Discover'));
+        await t.pumpAndSettle();
         await t.enterText(find.byType(TextField).first, 'keto');
         await t.pumpAndSettle();
         expect(find.text('Keto kitchen'), findsOneWidget);
@@ -285,7 +304,7 @@ void main() {
           t.getTopLeft(find.text('Your friends')).dy,
           lessThan(t.getTopLeft(find.text('Grow together')).dy),
         );
-        expect(find.text('Shared with friends'), findsOneWidget);
+        expect(find.text('Shared with friends'), findsNothing);
         await snapshot(t, 'community-friends-${brightness.name}');
         await t.tap(find.text('Maya'));
         await t.pumpAndSettle();
@@ -328,6 +347,13 @@ void main() {
         ),
       );
       expect(find.text('My lunch bowl'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is CircleAvatar && widget.backgroundImage is MemoryImage,
+        ),
+        findsOneWidget,
+      );
       await t.enterText(find.byType(TextField).first, 'Hello circle');
       await t.tap(find.byTooltip('Send message'));
       await t.pumpAndSettle();
@@ -387,6 +413,16 @@ void main() {
       expect(find.text('1800 kcal'), findsWidgets);
       expect(find.text('35 min movement'), findsWidgets);
       await snapshot(t, 'community-friends-together');
+      await t.tap(find.byTooltip('Friend options'));
+      await t.pumpAndSettle();
+      expect(find.text('Sharing settings'), findsOneWidget);
+      await t.tap(find.text('Sharing settings'));
+      await t.pumpAndSettle();
+      expect(find.text('Nutrition summaries'), findsOneWidget);
+      await t.tap(find.widgetWithText(SwitchListTile, 'Nutrition summaries'));
+      await t.tap(find.widgetWithText(FilledButton, 'Save'));
+      await t.pumpAndSettle();
+      expect(service.sharesNutrition, isTrue);
       await t.tap(find.byTooltip('Friend options'));
       await t.pumpAndSettle();
       await t.tap(find.text('Remove friend'));

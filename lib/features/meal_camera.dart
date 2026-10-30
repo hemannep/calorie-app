@@ -339,10 +339,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                           border: Border.all(color: lime, width: 2),
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x66000000),
-                              blurRadius: 8,
-                            ),
+                            BoxShadow(color: Color(0x66000000), blurRadius: 8),
                           ],
                         ),
                         child: Center(
@@ -377,10 +374,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          for (final preset in [
-                            1.0,
-                            if (_maxZoom >= 2.0) 2.0,
-                          ])
+                          for (final preset in [1.0, if (_maxZoom >= 2.0) 2.0])
                             GestureDetector(
                               onTap: () {
                                 final target = preset.clamp(_minZoom, _maxZoom);
@@ -400,7 +394,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: Text(
+                                child: LocalizedText(
                                   '${preset.toStringAsFixed(0)}×',
                                   style: TextStyle(
                                     color: (_zoom - preset).abs() < 0.25
@@ -418,7 +412,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                               ),
-                              child: Text(
+                              child: LocalizedText(
                                 '${_zoom.toStringAsFixed(1)}×',
                                 style: const TextStyle(
                                   color: lime,
@@ -470,7 +464,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
 
   Widget _shutter({double size = 64}) => Semantics(
     button: true,
-    label: 'Capture meal photo',
+    label: context.l10n.translate('Capture meal photo'),
     enabled: !_capturing,
     child: InkResponse(
       key: const Key('capture-photo'),
@@ -545,7 +539,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                       children: [
                         IconButton(
                           key: const Key('close-camera'),
-                          tooltip: 'Close camera',
+                          tooltip: context.l10n.translate('Close camera'),
                           onPressed: widget.onClose,
                           color: Colors.white,
                           icon: const Icon(Icons.close_rounded),
@@ -559,11 +553,13 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                               foregroundColor: Colors.white,
                             ),
                             icon: const Icon(Icons.qr_code_scanner_rounded),
-                            label: const Text('Barcode'),
+                            label: const LocalizedText('Barcode'),
                           ),
                         if (ready && _flashAvailable && _captured == null)
                           IconButton(
-                            tooltip: 'Flash: ${_flashMode.name}',
+                            tooltip: context.l10n.translate(
+                              'Flash: ${_flashMode.name}',
+                            ),
                             onPressed: _changingFlash || _capturing
                                 ? null
                                 : _toggleFlash,
@@ -596,7 +592,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                                       color: lime,
                                     ),
                                   const SizedBox(height: KayleoSpacing.lg),
-                                  Text(
+                                  LocalizedText(
                                     _paused
                                         ? 'Camera paused'
                                         : 'Opening your camera…',
@@ -615,7 +611,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                                       color: lime,
                                     ),
                                     const SizedBox(height: KayleoSpacing.lg),
-                                    Text(
+                                    LocalizedText(
                                       _error!,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
@@ -631,7 +627,9 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                                         foregroundColor: forest,
                                       ),
                                       onPressed: _open,
-                                      child: const Text('Try camera again'),
+                                      child: const LocalizedText(
+                                        'Try camera again',
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -640,56 +638,55 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                             ? const Tag('PHOTO PREVIEW', color: Colors.white)
                             : IgnorePointer(
                                 child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final textScale = MediaQuery.textScalerOf(
-                                    context,
-                                  );
-                                  final copyHeight =
-                                      textScale.scale(13) * 2 + 56;
-                                  final frameSize =
-                                      (constraints.maxHeight - copyHeight)
-                                          .clamp(32.0, 270.0);
-                                  return SingleChildScrollView(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        SizedBox(
-                                          width: frameSize,
-                                          height: frameSize,
-                                          child: const CustomPaint(
-                                            painter: _MealGuidePainter(),
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          height: KayleoSpacing.xl,
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 18,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: forest.withValues(
-                                              alpha: .88,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              40,
+                                  builder: (context, constraints) {
+                                    final textScale = MediaQuery.textScalerOf(
+                                      context,
+                                    );
+                                    final copyHeight =
+                                        textScale.scale(13) * 2 + 56;
+                                    final frameSize =
+                                        (constraints.maxHeight - copyHeight)
+                                            .clamp(32.0, 270.0);
+                                    return SingleChildScrollView(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            width: frameSize,
+                                            height: frameSize,
+                                            child: const CustomPaint(
+                                              painter: _MealGuidePainter(),
                                             ),
                                           ),
-                                          child: const Text(
-                                            'Point at your meal',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
+                                          const SizedBox(
+                                            height: KayleoSpacing.xl,
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 18,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: forest.withValues(
+                                                alpha: .88,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(40),
+                                            ),
+                                            child: const LocalizedText(
+                                              'Point at your meal',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                       ),
@@ -715,7 +712,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                                 ),
                                 onPressed: _capturing ? null : _open,
                                 icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('Retake'),
+                                label: const LocalizedText('Retake'),
                               );
                               final usePhoto = FilledButton.icon(
                                 key: const Key('use-camera-photo'),
@@ -727,7 +724,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                                     ? null
                                     : () => widget.onPhoto(_captured!),
                                 icon: const Icon(Icons.check_rounded),
-                                label: const Text('Use photo'),
+                                label: const LocalizedText('Use photo'),
                               );
                               if (MediaQuery.textScalerOf(context).scale(14) >
                                   20) {
@@ -891,7 +888,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
               right: 6,
               child: IconButton(
                 key: const Key('close-camera'),
-                tooltip: 'Close camera',
+                tooltip: context.l10n.translate('Close camera'),
                 color: Colors.white,
                 onPressed: widget.onClose,
                 icon: const Icon(Icons.close_rounded),
@@ -904,7 +901,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                   children: [
                     if (_loading) const CircularProgressIndicator(color: lime),
                     const SizedBox(height: 14),
-                    Text(
+                    LocalizedText(
                       _paused ? 'Camera paused' : 'Opening your camera…',
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
@@ -928,7 +925,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                       size: 30,
                     ),
                     const SizedBox(height: KayleoSpacing.md),
-                    Text(
+                    LocalizedText(
                       _error!,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
@@ -940,11 +937,11 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                     const SizedBox(height: KayleoSpacing.lg),
                     FilledButton(
                       onPressed: _open,
-                      child: const Text('Try camera again'),
+                      child: const LocalizedText('Try camera again'),
                     ),
                     TextButton(
                       onPressed: widget.onChoosePhoto,
-                      child: const Text(
+                      child: const LocalizedText(
                         'Choose a photo instead',
                         style: TextStyle(color: Colors.white),
                       ),
@@ -968,7 +965,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                         ),
                         onPressed: _capturing ? null : _open,
                         icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: const Text('Retake'),
+                        label: const LocalizedText('Retake'),
                       ),
                     ),
                     const SizedBox(width: KayleoSpacing.md),
@@ -979,7 +976,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                             ? null
                             : () => widget.onPhoto(_captured!),
                         icon: const Icon(Icons.check_rounded, size: 18),
-                        label: const Text('Use photo'),
+                        label: const LocalizedText('Use photo'),
                       ),
                     ),
                   ],
@@ -990,7 +987,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                 bottom: 92,
                 left: 20,
                 right: 20,
-                child: Text(
+                child: LocalizedText(
                   'Keep your whole plate in the frame.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white, fontSize: 11),
@@ -1004,7 +1001,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      tooltip: 'Choose a photo instead',
+                      tooltip: context.l10n.translate('Choose a photo instead'),
                       color: Colors.white,
                       onPressed: _capturing ? null : widget.onChoosePhoto,
                       icon: const Icon(Icons.photo_library_outlined),
@@ -1012,7 +1009,7 @@ class _MealCameraState extends State<MealCamera> with WidgetsBindingObserver {
                     _shutter(),
                     IconButton(
                       key: const Key('switch-camera'),
-                      tooltip: 'Switch camera',
+                      tooltip: context.l10n.translate('Switch camera'),
                       color: Colors.white,
                       onPressed: _cameras.length < 2 || _capturing
                           ? null
@@ -1061,7 +1058,7 @@ class _CameraControl extends StatelessWidget {
           children: [
             Icon(icon),
             const SizedBox(height: 6),
-            Text(
+            LocalizedText(
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12),
@@ -1192,7 +1189,7 @@ class _CameraModePillState extends State<_CameraModePill> {
                   children: [
                     Icon(widget.icon, size: 15, color: textColor),
                     const SizedBox(width: 4),
-                    Text(
+                    LocalizedText(
                       widget.label,
                       style: TextStyle(
                         color: textColor,
@@ -1225,8 +1222,16 @@ Uint8List _compressPhoto(Uint8List raw) {
   const maxSide = 2048;
   if (image.width > maxSide || image.height > maxSide) {
     image = image.width >= image.height
-        ? img.copyResize(image, width: maxSide, interpolation: img.Interpolation.average)
-        : img.copyResize(image, height: maxSide, interpolation: img.Interpolation.average);
+        ? img.copyResize(
+            image,
+            width: maxSide,
+            interpolation: img.Interpolation.average,
+          )
+        : img.copyResize(
+            image,
+            height: maxSide,
+            interpolation: img.Interpolation.average,
+          );
   }
   for (final quality in [92, 85, 78, 70, 60]) {
     final out = Uint8List.fromList(img.encodeJpg(image, quality: quality));

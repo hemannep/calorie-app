@@ -78,7 +78,7 @@ class NutrientProgressRow extends StatelessWidget {
               const SizedBox(width: KayleoSpacing.sm),
             ],
             Expanded(
-              child: Text(
+              child: LocalizedText(
                 metric.label,
                 style: const TextStyle(
                   fontSize: 12,
@@ -87,7 +87,7 @@ class NutrientProgressRow extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
+            LocalizedText(
               '${number(amount)} / ${number(target)} ${metric.unit}',
               style: TextStyle(
                 fontSize: 11,

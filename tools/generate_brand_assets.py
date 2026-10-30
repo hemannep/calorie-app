@@ -33,6 +33,20 @@ svg += [f'<path d="{svg_path(commands)}" fill="{color}"/>' for color, commands i
 svg += [f'<circle cx="405" cy="391" r="32" fill="{LIME}"/>', '</svg>']
 (ROOT / 'assets/images/kayleo-mark.svg').write_text('\n'.join(svg) + '\n')
 
+notification_xml = '\n'.join([
+    '<vector xmlns:android="http://schemas.android.com/apk/res/android"',
+    '    android:width="24dp"',
+    '    android:height="24dp"',
+    '    android:viewportWidth="512"',
+    '    android:viewportHeight="512">',
+    f'    <path\n        android:fillColor="#FFFFFFFF"\n        android:pathData="{svg_path(SHAPES[0][1])}" />',
+    f'    <path\n        android:fillColor="#FFFFFFFF"\n        android:fillType="evenOdd"\n        android:pathData="{svg_path(SHAPES[1][1])} {svg_path(SHAPES[2][1])}" />',
+    f'    <path\n        android:fillColor="#FFFFFFFF"\n        android:pathData="{svg_path(SHAPES[3][1])}" />',
+    '    <path\n        android:fillColor="#FFFFFFFF"\n        android:pathData="M373,391 A32,32 0 1,0 437,391 A32,32 0 1,0 373,391 Z" />',
+    '</vector>',
+])
+(ROOT / 'android/app/src/main/res/drawable/ic_notification.xml').write_text(notification_xml + '\n')
+
 image = Image.new('RGB', (512 * SCALE, 512 * SCALE), CREAM)
 draw = ImageDraw.Draw(image)
 for color, commands in SHAPES:
